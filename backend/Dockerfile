@@ -8,14 +8,14 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
-# Install air for hot-reload
-RUN go install github.com/air-verse/air@v1.52.3
+# Install air for hot-reload (v1.49.0 is last version compatible with Go 1.21)
+RUN go install github.com/cosmtrek/air@v1.49.0
 
-COPY go.mod ./
+# Copy dependency files first for layer caching
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go mod tidy
 
 EXPOSE 8080
 
@@ -31,12 +31,13 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
-COPY go.mod ./
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
-RUN go mod tidy
 
 # Build a fully static binary with optimizations
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -a -installsuffix cgo \
     -o main .

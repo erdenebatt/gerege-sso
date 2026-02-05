@@ -4,23 +4,48 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Citizens table (master data) - Extended schema
+-- Citizens table (master data) - Production schema
 CREATE TABLE IF NOT EXISTS citizens (
     id SERIAL PRIMARY KEY,
-    civil_id VARCHAR(20) UNIQUE,
+    civil_id BIGINT UNIQUE,
     reg_no VARCHAR(12) UNIQUE NOT NULL,
     family_name VARCHAR(100),
     last_name VARCHAR(100),
     first_name VARCHAR(100) NOT NULL,
+    gender INTEGER DEFAULT 1,
     birth_date DATE,
-    sex CHAR(1) CHECK (sex IN ('M', 'F')),
-    nationality VARCHAR(50) DEFAULT 'Mongolian',
-    current_province VARCHAR(100),
-    current_district VARCHAR(100),
-    phone_primary VARCHAR(20),
+    phone_no VARCHAR(20),
     email VARCHAR(255),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    is_foreign INTEGER DEFAULT 0,
+    country_code VARCHAR(10),
+    hash VARCHAR(255),
+    parent_address_id INTEGER DEFAULT 0,
+    parent_address_name VARCHAR(100),
+    aimag_id INTEGER DEFAULT 0,
+    aimag_code VARCHAR(10),
+    aimag_name VARCHAR(100),
+    sum_id INTEGER DEFAULT 0,
+    sum_code VARCHAR(10),
+    sum_name VARCHAR(100),
+    bag_id INTEGER DEFAULT 0,
+    bag_code VARCHAR(10),
+    bag_name VARCHAR(100),
+    address_detail TEXT,
+    address_type VARCHAR(10),
+    address_type_name VARCHAR(100),
+    nationality VARCHAR(100),
+    country_name VARCHAR(100),
+    country_name_en VARCHAR(100),
+    profile_img_url TEXT,
+    created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_user_id INTEGER DEFAULT 0,
+    created_org_id INTEGER DEFAULT 0,
+    updated_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_user_id INTEGER DEFAULT 0,
+    updated_org_id INTEGER DEFAULT 0,
+    deleted_user_id INTEGER DEFAULT 0,
+    deleted_org_id INTEGER DEFAULT 0,
+    deleted_date TIMESTAMP WITH TIME ZONE
 );
 
 -- Create indexes on citizens for fast lookup
@@ -35,6 +60,7 @@ CREATE TABLE IF NOT EXISTS users (
     google_sub VARCHAR(255) UNIQUE,
     apple_sub VARCHAR(255) UNIQUE,
     facebook_id VARCHAR(255) UNIQUE,
+    twitter_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     email_verified BOOLEAN DEFAULT FALSE,
     picture VARCHAR(500),
@@ -50,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_users_gen_id ON users(gen_id);
 CREATE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub);
 CREATE INDEX IF NOT EXISTS idx_users_apple_sub ON users(apple_sub);
 CREATE INDEX IF NOT EXISTS idx_users_facebook_id ON users(facebook_id);
+CREATE INDEX IF NOT EXISTS idx_users_twitter_id ON users(twitter_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- Sessions table
@@ -92,11 +119,20 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers for updated_at
-CREATE TRIGGER update_citizens_updated_at
+-- Function to update updated_date timestamp (for citizens)
+CREATE OR REPLACE FUNCTION update_updated_date_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_date = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Triggers for updated_at / updated_date
+CREATE TRIGGER update_citizens_updated_date
     BEFORE UPDATE ON citizens
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_updated_date_column();
 
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users

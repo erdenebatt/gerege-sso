@@ -413,14 +413,14 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
 	citizen := &models.Citizen{}
 	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, birth_date, sex,
-		       nationality, current_province, current_district, phone_primary, email, created_at, updated_at
+		SELECT id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
+		       phone_no, email, aimag_name, sum_name, created_date, updated_date
 		FROM citizens WHERE id = $1
 	`, id).Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
-		&citizen.FirstName, &citizen.BirthDate, &citizen.Sex, &citizen.Nationality,
-		&citizen.CurrentProvince, &citizen.CurrentDistrict, &citizen.PhonePrimary,
-		&citizen.Email, &citizen.CreatedAt, &citizen.UpdatedAt,
+		&citizen.FirstName, &citizen.Gender, &citizen.BirthDate,
+		&citizen.PhoneNo, &citizen.Email, &citizen.AimagName, &citizen.SumName,
+		&citizen.CreatedDate, &citizen.UpdatedDate,
 	)
 
 	if err == sql.ErrNoRows {
@@ -437,14 +437,14 @@ func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
 func (s *UserService) FindCitizenByRegNo(regNo string) (*models.Citizen, error) {
 	citizen := &models.Citizen{}
 	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, birth_date, sex,
-		       nationality, current_province, current_district, phone_primary, email, created_at, updated_at
+		SELECT id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
+		       phone_no, email, aimag_name, sum_name, created_date, updated_date
 		FROM citizens WHERE reg_no = $1
 	`, regNo).Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
-		&citizen.FirstName, &citizen.BirthDate, &citizen.Sex, &citizen.Nationality,
-		&citizen.CurrentProvince, &citizen.CurrentDistrict, &citizen.PhonePrimary,
-		&citizen.Email, &citizen.CreatedAt, &citizen.UpdatedAt,
+		&citizen.FirstName, &citizen.Gender, &citizen.BirthDate,
+		&citizen.PhoneNo, &citizen.Email, &citizen.AimagName, &citizen.SumName,
+		&citizen.CreatedDate, &citizen.UpdatedDate,
 	)
 
 	if err == sql.ErrNoRows {

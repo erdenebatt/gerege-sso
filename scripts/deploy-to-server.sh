@@ -74,7 +74,26 @@ else
 fi
 
 # =============================================================================
-# Step 2: Deploy to server
+# Step 2: Push to GitHub
+# =============================================================================
+echo ""
+log "Pushing to GitHub..."
+if git -C "$PROJECT_DIR" diff --quiet && git -C "$PROJECT_DIR" diff --cached --quiet; then
+    log "No uncommitted changes, pushing existing commits..."
+else
+    warn "Uncommitted changes detected — commit before deploying."
+    exit 1
+fi
+
+if git -C "$PROJECT_DIR" push origin main 2>&1; then
+    ok "Code pushed to GitHub"
+else
+    fail "Failed to push to GitHub — aborting deployment"
+    exit 1
+fi
+
+# =============================================================================
+# Step 3: Deploy to server
 # =============================================================================
 echo ""
 log "Deploying to $SERVER_USER@$SERVER_IP..."
@@ -111,7 +130,7 @@ REMOTE_SCRIPT
 DEPLOY_EXIT=$?
 
 # =============================================================================
-# Step 3: Verify production endpoint
+# Step 4: Verify production endpoint
 # =============================================================================
 echo ""
 if [ $DEPLOY_EXIT -eq 0 ]; then
@@ -125,7 +144,7 @@ if [ $DEPLOY_EXIT -eq 0 ]; then
 fi
 
 # =============================================================================
-# Step 4: Notification
+# Step 5: Notification
 # =============================================================================
 echo ""
 echo -e "${CYAN}================================================${NC}"

@@ -114,7 +114,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	token, err := h.oauthService.Exchange(ctx, code)
 	if err != nil {
 		log.Printf("Token exchange failed: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "google")
 		h.redirectWithError(c, "Failed to exchange authorization code")
 		return
 	}
@@ -123,7 +123,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	googleUser, err := h.oauthService.GetUserInfo(ctx, token)
 	if err != nil {
 		log.Printf("Failed to get user info: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "google")
 		h.redirectWithError(c, "Failed to get user information")
 		return
 	}
@@ -132,7 +132,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	user, err := h.userService.FindByGoogleSub(googleUser.ID)
 	if err != nil {
 		log.Printf("Failed to find user: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "google")
 		h.redirectWithError(c, "Database error")
 		return
 	}
@@ -165,7 +165,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		user, err = h.userService.Create(googleUser)
 		if err != nil {
 			log.Printf("Failed to create user: %v", err)
-			middleware.RecordLoginAttempt(false)
+			middleware.RecordLoginAttempt(false, "google")
 			h.redirectWithError(c, "Failed to create user")
 			return
 		}
@@ -186,7 +186,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	// Record login metric
-	middleware.RecordLoginAttempt(true)
+	middleware.RecordLoginAttempt(true, "google")
 
 	// Log audit
 	h.auditService.AddLog(user.ID, "login", map[string]interface{}{
@@ -277,7 +277,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 		appleUser, err = h.appleOAuthService.ValidateIDToken(idToken)
 		if err != nil {
 			log.Printf("Failed to validate ID token: %v", err)
-			middleware.RecordLoginAttempt(false)
+			middleware.RecordLoginAttempt(false, "apple")
 			h.redirectWithError(c, "Failed to validate Apple token")
 			return
 		}
@@ -286,7 +286,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 		tokenResp, err := h.appleOAuthService.Exchange(ctx, code)
 		if err != nil {
 			log.Printf("Token exchange failed: %v", err)
-			middleware.RecordLoginAttempt(false)
+			middleware.RecordLoginAttempt(false, "apple")
 			h.redirectWithError(c, "Failed to exchange authorization code")
 			return
 		}
@@ -295,12 +295,12 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 		appleUser, err = h.appleOAuthService.ValidateIDToken(tokenResp.IDToken)
 		if err != nil {
 			log.Printf("Failed to validate ID token: %v", err)
-			middleware.RecordLoginAttempt(false)
+			middleware.RecordLoginAttempt(false, "apple")
 			h.redirectWithError(c, "Failed to validate Apple token")
 			return
 		}
 	} else {
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "apple")
 		h.redirectWithError(c, "Missing authorization code or token")
 		return
 	}
@@ -325,7 +325,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	user, err := h.userService.FindByAppleSub(appleUser.Sub)
 	if err != nil {
 		log.Printf("Failed to find user: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "apple")
 		h.redirectWithError(c, "Database error")
 		return
 	}
@@ -348,7 +348,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 			user, err = h.userService.CreateFromApple(appleUser)
 			if err != nil {
 				log.Printf("Failed to create user: %v", err)
-				middleware.RecordLoginAttempt(false)
+				middleware.RecordLoginAttempt(false, "apple")
 				h.redirectWithError(c, "Failed to create user")
 				return
 			}
@@ -370,7 +370,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	}
 
 	// Record login metric
-	middleware.RecordLoginAttempt(true)
+	middleware.RecordLoginAttempt(true, "apple")
 
 	// Log audit
 	h.auditService.AddLog(user.ID, "login", map[string]interface{}{
@@ -555,7 +555,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	tokenResp, err := h.facebookOAuthService.Exchange(ctx, code)
 	if err != nil {
 		log.Printf("Token exchange failed: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "facebook")
 		h.redirectWithError(c, "Failed to exchange authorization code")
 		return
 	}
@@ -564,7 +564,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	fbUser, err := h.facebookOAuthService.GetUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
 		log.Printf("Failed to get user info: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "facebook")
 		h.redirectWithError(c, "Failed to get user information")
 		return
 	}
@@ -573,7 +573,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	user, err := h.userService.FindByFacebookID(fbUser.ID)
 	if err != nil {
 		log.Printf("Failed to find user: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "facebook")
 		h.redirectWithError(c, "Database error")
 		return
 	}
@@ -596,7 +596,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 			user, err = h.userService.CreateFromFacebook(fbUser)
 			if err != nil {
 				log.Printf("Failed to create user: %v", err)
-				middleware.RecordLoginAttempt(false)
+				middleware.RecordLoginAttempt(false, "facebook")
 				h.redirectWithError(c, "Failed to create user")
 				return
 			}
@@ -618,7 +618,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}
 
 	// Record login metric
-	middleware.RecordLoginAttempt(true)
+	middleware.RecordLoginAttempt(true, "facebook")
 
 	// Log audit
 	h.auditService.AddLog(user.ID, "login", map[string]interface{}{
@@ -711,7 +711,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	tokenResp, err := h.twitterOAuthService.Exchange(ctx, code, codeVerifier)
 	if err != nil {
 		log.Printf("Token exchange failed: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "twitter")
 		h.redirectWithError(c, "Failed to exchange authorization code")
 		return
 	}
@@ -720,7 +720,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	twitterUser, err := h.twitterOAuthService.GetUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
 		log.Printf("Failed to get user info: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "twitter")
 		h.redirectWithError(c, "Failed to get user information")
 		return
 	}
@@ -729,7 +729,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	user, err := h.userService.FindByTwitterID(twitterUser.ID)
 	if err != nil {
 		log.Printf("Failed to find user: %v", err)
-		middleware.RecordLoginAttempt(false)
+		middleware.RecordLoginAttempt(false, "twitter")
 		h.redirectWithError(c, "Database error")
 		return
 	}
@@ -739,7 +739,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 		user, err = h.userService.CreateFromTwitter(twitterUser)
 		if err != nil {
 			log.Printf("Failed to create user: %v", err)
-			middleware.RecordLoginAttempt(false)
+			middleware.RecordLoginAttempt(false, "twitter")
 			h.redirectWithError(c, "Failed to create user")
 			return
 		}
@@ -760,7 +760,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	}
 
 	// Record login metric
-	middleware.RecordLoginAttempt(true)
+	middleware.RecordLoginAttempt(true, "twitter")
 
 	// Log audit
 	h.auditService.AddLog(user.ID, "login", map[string]interface{}{

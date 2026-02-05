@@ -32,7 +32,7 @@ var (
 			Name: "login_attempts_total",
 			Help: "Total number of login attempts",
 		},
-		[]string{"status"}, // success, failure
+		[]string{"status", "provider"}, // status: success/failure, provider: google/apple/facebook/twitter
 	)
 
 	activeUsers = promauto.NewGauge(
@@ -55,8 +55,10 @@ func init() {
 	// Pre-initialize counters so they appear in /metrics from startup
 	identityVerificationTotal.WithLabelValues("success")
 	identityVerificationTotal.WithLabelValues("failure")
-	loginAttemptsTotal.WithLabelValues("success")
-	loginAttemptsTotal.WithLabelValues("failure")
+	for _, provider := range []string{"google", "apple", "facebook", "twitter"} {
+		loginAttemptsTotal.WithLabelValues("success", provider)
+		loginAttemptsTotal.WithLabelValues("failure", provider)
+	}
 }
 
 // Metrics middleware records Prometheus metrics
@@ -80,13 +82,13 @@ func Metrics() gin.HandlerFunc {
 	}
 }
 
-// RecordLoginAttempt records a login attempt metric
-func RecordLoginAttempt(success bool) {
+// RecordLoginAttempt records a login attempt metric with provider label
+func RecordLoginAttempt(success bool, provider string) {
 	status := "failure"
 	if success {
 		status = "success"
 	}
-	loginAttemptsTotal.WithLabelValues(status).Inc()
+	loginAttemptsTotal.WithLabelValues(status, provider).Inc()
 }
 
 // SetActiveUsers sets the active users gauge

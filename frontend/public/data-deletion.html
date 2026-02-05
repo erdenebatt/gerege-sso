@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Өгөгдөл устгах - Gerege SSO</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+    <style>
+        .content-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .content-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .content-card h1 {
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 20px;
+        }
+        .content-card h2 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+        .content-card p, .content-card ul, .content-card li {
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 15px;
+        }
+        .content-card ul {
+            padding-left: 30px;
+        }
+        .content-card ol {
+            padding-left: 30px;
+        }
+        .content-card ol li {
+            margin-bottom: 10px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #00ff88;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .deletion-form {
+            background: rgba(255, 87, 87, 0.1);
+            border: 1px solid rgba(255, 87, 87, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+        .deletion-form h3 {
+            color: #ff5757;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .submit-btn {
+            background: #ff5757;
+            color: #fff;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .submit-btn:hover {
+            background: #ff3333;
+        }
+        .warning-box {
+            background: rgba(255, 170, 87, 0.1);
+            border: 1px solid rgba(255, 170, 87, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-box strong {
+            color: #ffaa57;
+        }
+        .last-updated {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="content-page">
+        <a href="/" class="back-link">&larr; Нүүр хуудас руу буцах</a>
+
+        <div class="content-card">
+            <h1>Өгөгдөл устгах заавар</h1>
+
+            <h2>Танилцуулга</h2>
+            <p>
+                Gerege SSO нь таны хувийн мэдээллийг хянах эрхийг бүрэн хүндэтгэдэг.
+                Та хүссэн үедээ бүртгэлээ болон холбогдох бүх өгөгдлөө устгуулах хүсэлт гаргаж болно.
+            </p>
+
+            <h2>Устгагдах өгөгдөл</h2>
+            <p>Хүсэлт гаргасны дараа дараах мэдээллүүд бүрмөсөн устгагдана:</p>
+            <ul>
+                <li>Хэрэглэгчийн бүртгэлийн мэдээлэл (имэйл, нэр, профайл зураг)</li>
+                <li>Gen ID буюу өвөрмөц таних дугаар</li>
+                <li>Google холболтын мэдээлэл</li>
+                <li>Иргэний баталгаажуулалтын мэдээлэл (хэрэв байгаа бол)</li>
+                <li>Нэвтрэлтийн түүх болон сессийн мэдээлэл</li>
+                <li>Аудитын бүртгэл</li>
+            </ul>
+
+            <div class="warning-box">
+                <strong>Анхааруулга:</strong> Өгөгдөл устгах үйлдэл буцаагдахгүй.
+                Устгасны дараа таны бүртгэл болон түүнтэй холбоотой бүх мэдээлэл сэргээгдэх боломжгүй.
+            </div>
+
+            <h2>Өгөгдөл устгах үе шатууд</h2>
+            <ol>
+                <li>Доорх маягтыг бөглөж хүсэлт илгээнэ үү</li>
+                <li>Бид таны имэйл хаягаар баталгаажуулах холбоос илгээнэ</li>
+                <li>Холбоосоор орж устгахаа баталгаажуулна уу</li>
+                <li>Таны өгөгдөл 30 хоногийн дотор бүрмөсөн устгагдана</li>
+            </ol>
+
+            <div class="deletion-form">
+                <h3>Өгөгдөл устгах хүсэлт</h3>
+                <form id="deletion-form" onsubmit="submitDeletionRequest(event)">
+                    <div class="form-group">
+                        <label for="email">Бүртгэлтэй имэйл хаяг *</label>
+                        <input type="email" id="email" name="email" required placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="reason">Устгах шалтгаан (заавал биш)</label>
+                        <textarea id="reason" name="reason" placeholder="Яагаад устгахыг хүсэж байгаагаа бичнэ үү..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" required style="width: auto; margin-right: 10px;">
+                            Өгөгдөл устгах нь буцаагдахгүй гэдгийг ойлгож байна
+                        </label>
+                    </div>
+                    <button type="submit" class="submit-btn">Хүсэлт илгээх</button>
+                </form>
+                <div id="form-result" style="margin-top: 20px;"></div>
+            </div>
+
+            <h2>Холбоо барих</h2>
+            <p>
+                Өгөгдөл устгахтай холбоотой асуулт байвал холбоо барина уу:
+                <a href="mailto:privacy@gerege.mn" style="color: #00ff88;">privacy@gerege.mn</a>
+            </p>
+
+            <div class="last-updated">
+                Сүүлд шинэчилсэн: 2024 оны 1-р сарын 1
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function submitDeletionRequest(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const reason = document.getElementById('reason').value;
+            const resultDiv = document.getElementById('form-result');
+
+            // In production, this would send to an API endpoint
+            resultDiv.innerHTML = `
+                <div style="background: rgba(87, 255, 87, 0.2); border: 1px solid rgba(87, 255, 87, 0.5); padding: 15px; border-radius: 8px; color: #57ff57;">
+                    <strong>Хүсэлт хүлээн авлаа!</strong><br>
+                    ${email} хаягаар баталгаажуулах имэйл илгээгдэх болно.
+                    Имэйлээ шалгана уу.
+                </div>
+            `;
+
+            // Here you would typically make an API call:
+            // fetch('/api/auth/request-deletion', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ email, reason })
+            // });
+        }
+    </script>
+</body>
+</html>

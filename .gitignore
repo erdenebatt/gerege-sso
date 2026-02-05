@@ -1,0 +1,24 @@
+# Environment & secrets
+.env
+.env.local
+
+# Go
+backend/tmp/
+backend/build-errors.log
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# SSL certificates
+certbot/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

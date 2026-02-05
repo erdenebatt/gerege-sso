@@ -51,6 +51,14 @@ var (
 	)
 )
 
+func init() {
+	// Pre-initialize counters so they appear in /metrics from startup
+	identityVerificationTotal.WithLabelValues("success")
+	identityVerificationTotal.WithLabelValues("failure")
+	loginAttemptsTotal.WithLabelValues("success")
+	loginAttemptsTotal.WithLabelValues("failure")
+}
+
 // Metrics middleware records Prometheus metrics
 func Metrics() gin.HandlerFunc {
 	return func(c *gin.Context) {

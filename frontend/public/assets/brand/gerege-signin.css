@@ -1,0 +1,121 @@
+/* ==========================================================
+   Sign in with Gerege — Partner CSS
+   https://sso.gerege.mn/assets/brand/gerege-signin.css
+   ========================================================== */
+
+.gerege-signin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 24px;
+    height: 48px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-font-smoothing: antialiased;
+}
+
+.gerege-signin-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gerege-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.gerege-signin-btn .gerege-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+/* ---- Branded (gradient background) ---- */
+.gerege-signin-btn--branded {
+    background: linear-gradient(135deg, #00ff88 0%, #00aaff 100%);
+    color: #1a1a2e;
+}
+
+.gerege-signin-btn--branded:hover {
+    box-shadow: 0 4px 16px rgba(0, 255, 136, 0.35);
+}
+
+/* ---- Dark ---- */
+.gerege-signin-btn--dark {
+    background: #1a1a2e;
+    color: #ffffff;
+}
+
+.gerege-signin-btn--dark:hover {
+    background: #252547;
+    box-shadow: 0 4px 16px rgba(26, 26, 46, 0.4);
+}
+
+/* ---- Light ---- */
+.gerege-signin-btn--light {
+    background: #ffffff;
+    color: #333333;
+    border: 1px solid #e0e0e0;
+}
+
+.gerege-signin-btn--light:hover {
+    background: #f8f8f8;
+    border-color: #ccc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- Sizes ---- */
+.gerege-signin-btn--sm {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    gap: 10px;
+    border-radius: 6px;
+}
+
+.gerege-signin-btn--sm .gerege-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.gerege-signin-btn--lg {
+    height: 56px;
+    padding: 0 32px;
+    font-size: 17px;
+    gap: 14px;
+    border-radius: 10px;
+}
+
+.gerege-signin-btn--lg .gerege-icon {
+    width: 26px;
+    height: 26px;
+}
+
+/* ---- Icon-only variant ---- */
+.gerege-signin-btn--icon-only {
+    width: 48px;
+    padding: 0;
+    gap: 0;
+}
+
+.gerege-signin-btn--icon-only.gerege-signin-btn--sm {
+    width: 40px;
+}
+
+.gerege-signin-btn--icon-only.gerege-signin-btn--lg {
+    width: 56px;
+}
+
+/* ---- Full-width ---- */
+.gerege-signin-btn--block {
+    display: flex;
+    width: 100%;
+}

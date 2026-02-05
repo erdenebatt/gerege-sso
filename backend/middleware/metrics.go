@@ -49,6 +49,14 @@ var (
 		},
 		[]string{"status"},
 	)
+
+	oauthAuthorizeTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "oauth_authorize_total",
+			Help: "Total OAuth2 authorization attempts",
+		},
+		[]string{"status"},
+	)
 )
 
 func init() {
@@ -59,6 +67,8 @@ func init() {
 		loginAttemptsTotal.WithLabelValues("success", provider)
 		loginAttemptsTotal.WithLabelValues("failure", provider)
 	}
+	oauthAuthorizeTotal.WithLabelValues("success")
+	oauthAuthorizeTotal.WithLabelValues("failure")
 }
 
 // Metrics middleware records Prometheus metrics
@@ -103,4 +113,13 @@ func RecordIdentityVerification(success bool) {
 		status = "success"
 	}
 	identityVerificationTotal.WithLabelValues(status).Inc()
+}
+
+// RecordOAuthAuthorize records an OAuth2 authorization attempt
+func RecordOAuthAuthorize(success bool) {
+	status := "failure"
+	if success {
+		status = "success"
+	}
+	oauthAuthorizeTotal.WithLabelValues(status).Inc()
 }

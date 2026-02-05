@@ -97,9 +97,13 @@ func main() {
 		log.Println("Twitter/X Login enabled")
 	}
 
+	// Initialize OAuth2 provider service
+	clientService := services.NewClientService(db, rdb)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
+	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, rdb, cfg)
 
 	// Setup Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -135,6 +139,21 @@ func main() {
 			auth.GET("/me", middleware.JWTAuth(jwtService), authHandler.Me)
 			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
 			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
+		}
+
+		// OAuth2 provider routes
+		oauth := api.Group("/oauth")
+		{
+			oauth.GET("/authorize", middleware.JWTAuth(jwtService), oauthProviderHandler.Authorize)
+			oauth.POST("/token", oauthProviderHandler.Token)
+		}
+
+		// Admin routes (API key auth)
+		admin := api.Group("/admin", middleware.AdminAuth(cfg.Admin.APIKey))
+		{
+			admin.POST("/clients", oauthProviderHandler.CreateClient)
+			admin.GET("/clients", oauthProviderHandler.ListClients)
+			admin.DELETE("/clients/:id", oauthProviderHandler.DeleteClient)
 		}
 	}
 

@@ -86,6 +86,70 @@ func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// ThirdPartyClaims represents the JWT claims for third-party tokens
+type ThirdPartyClaims struct {
+	jwt.RegisteredClaims
+	Email         string                      `json:"email"`
+	Picture       string                      `json:"picture,omitempty"`
+	EmailVerified bool                        `json:"email_verified"`
+	Gerege        models.ThirdPartyGeregeInfo `json:"gerege"`
+}
+
+// GenerateThirdPartyToken creates an enriched JWT for a third-party OAuth2 client.
+// It includes social profile data and citizen identity (without civil_id or reg_no).
+func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string, scope string) (string, error) {
+	now := time.Now()
+	expiresAt := now.Add(1 * time.Hour) // 1h for third-party (vs 24h first-party)
+
+	gerege := models.ThirdPartyGeregeInfo{
+		GenID: user.GenID,
+	}
+
+	// Enrich with citizen data only if user is verified
+	if user.Verified && user.Citizen != nil {
+		if user.Citizen.FamilyName.Valid {
+			gerege.FamilyName = user.Citizen.FamilyName.String
+		}
+		if user.Citizen.LastName.Valid {
+			gerege.LastName = user.Citizen.LastName.String
+		}
+		gerege.FirstName = user.Citizen.FirstName
+		if user.Citizen.BirthDate.Valid {
+			gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+		}
+		if user.Citizen.Sex.Valid {
+			switch user.Citizen.Sex.String {
+			case "M":
+				gerege.Gender = "male"
+			case "F":
+				gerege.Gender = "female"
+			}
+		}
+	}
+
+	var picture string
+	if user.Picture.Valid {
+		picture = user.Picture.String
+	}
+
+	claims := &ThirdPartyClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.GenID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			Issuer:    "https://sso.gerege.mn",
+			Audience:  jwt.ClaimStrings{audience},
+		},
+		Email:         user.Email,
+		Picture:       picture,
+		EmailVerified: user.EmailVerified,
+		Gerege:        gerege,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secret)
+}
+
 // GetExpiry returns the token expiry duration
 func (s *JWTService) GetExpiry() time.Duration {
 	return s.expiry

@@ -12,6 +12,11 @@ type Config struct {
 	JWT      JWTConfig
 	Auth     AuthConfig
 	Public   PublicConfig
+	Admin    AdminConfig
+}
+
+type AdminConfig struct {
+	APIKey string
 }
 
 type ServerConfig struct {
@@ -109,6 +114,9 @@ func Load() *Config {
 		},
 		Public: PublicConfig{
 			URL: getEnv("PUBLIC_URL", "https://sso.gerege.mn"),
+		},
+		Admin: AdminConfig{
+			APIKey: getEnv("ADMIN_API_KEY", ""),
 		},
 	}
 }

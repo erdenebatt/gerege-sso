@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Зөвшөөрөл — Gerege SSO</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/style.css">
+    <style>
+        .consent-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 460px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+        }
+        .app-name {
+            color: #00ff88;
+            font-weight: 600;
+        }
+        .consent-message {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 15px;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+        .scope-list {
+            text-align: left;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+        }
+        .scope-list h3 {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        .scope-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .scope-item:last-child {
+            border-bottom: none;
+        }
+        .scope-icon {
+            width: 18px;
+            text-align: center;
+            color: #00ff88;
+        }
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .allow-btn {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            background: #00ff88;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .allow-btn:hover {
+            background: #00cc6a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
+        }
+        .deny-btn {
+            flex: 1;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #ff5757;
+            background: rgba(255, 87, 87, 0.15);
+            border: 1px solid rgba(255, 87, 87, 0.4);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .deny-btn:hover {
+            background: rgba(255, 87, 87, 0.25);
+            transform: translateY(-2px);
+        }
+        .shield-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 255, 136, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 28px;
+        }
+        .privacy-note {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.35);
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="consent-card">
+            <div class="shield-icon">&#x1f6e1;</div>
+            <h2>Мэдээлэл хуваалцах</h2>
+
+            <p class="consent-message">
+                <span class="app-name" id="appName">—</span> байгууллага таны мэдээллийг ашиглахыг хүсэж байна. Та зөвшөөрөх үү?
+            </p>
+
+            <div class="scope-list">
+                <h3>Хуваалцах мэдээлэл:</h3>
+                <div class="scope-item"><span class="scope-icon">&#x2709;</span> Имэйл хаяг (Email)</div>
+                <div class="scope-item"><span class="scope-icon">&#x1f464;</span> Ургийн овог (Family name)</div>
+                <div class="scope-item"><span class="scope-icon">&#x1f464;</span> Овог (Last name)</div>
+                <div class="scope-item"><span class="scope-icon">&#x1f464;</span> Нэр (First name)</div>
+                <div class="scope-item"><span class="scope-icon">&#x1f4c5;</span> Төрсөн огноо (Birth date)</div>
+                <div class="scope-item"><span class="scope-icon">&#x26a5;</span> Хүйс (Gender)</div>
+            </div>
+
+            <div class="btn-row">
+                <button class="deny-btn" id="denyBtn">Татгалзах</button>
+                <button class="allow-btn" id="allowBtn">Зөвшөөрөх</button>
+            </div>
+
+            <p class="privacy-note">
+                Таны регистрийн дугаар болон иргэний дугаар хэзээ ч гуравдагч талд дамжуулагдахгүй.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2025 Gerege SSO</p>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var clientId   = params.get('client_id')    || '';
+            var redirectUri = params.get('redirect_uri') || '';
+            var scope      = params.get('scope')         || 'openid profile';
+            var state      = params.get('state')         || '';
+            var appName    = params.get('app_name')      || 'Unknown App';
+
+            document.getElementById('appName').textContent = appName;
+
+            // Read the JWT token from localStorage (set by callback.html after login)
+            var token = localStorage.getItem('gerege_token') || '';
+
+            document.getElementById('allowBtn').addEventListener('click', function() {
+                // Redirect back to authorize endpoint with approve=true
+                var authorizeUrl = '/api/oauth/authorize'
+                    + '?client_id='     + encodeURIComponent(clientId)
+                    + '&redirect_uri='  + encodeURIComponent(redirectUri)
+                    + '&response_type=code'
+                    + '&scope='         + encodeURIComponent(scope)
+                    + '&state='         + encodeURIComponent(state)
+                    + '&approve=true';
+
+                // We need to send the JWT as a bearer token. Use fetch + redirect.
+                fetch(authorizeUrl, {
+                    method: 'GET',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    redirect: 'manual'
+                }).then(function(resp) {
+                    // 303 redirect — browser won't follow automatically from fetch,
+                    // so we read the Location header.
+                    var location = resp.headers.get('Location');
+                    if (location) {
+                        window.location.href = location;
+                    } else if (resp.ok) {
+                        resp.json().then(function(data) {
+                            if (data.error) alert(data.error);
+                        });
+                    } else {
+                        alert('Алдаа гарлаа. Дахин оролдоно уу.');
+                    }
+                }).catch(function() {
+                    alert('Сүлжээний алдаа.');
+                });
+            });
+
+            document.getElementById('denyBtn').addEventListener('click', function() {
+                // Redirect back to client with error=access_denied
+                var sep = redirectUri.indexOf('?') !== -1 ? '&' : '?';
+                var denyUrl = redirectUri + sep + 'error=access_denied';
+                if (state) denyUrl += '&state=' + encodeURIComponent(state);
+                window.location.href = denyUrl;
+            });
+        })();
+    </script>
+</body>
+</html>

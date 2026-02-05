@@ -73,6 +73,7 @@ services:
       - FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET}
       - FACEBOOK_REDIRECT_URL=${FACEBOOK_REDIRECT_URL}
       - PUBLIC_URL=${PUBLIC_URL}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

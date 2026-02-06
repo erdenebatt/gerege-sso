@@ -1,11 +1,44 @@
-FROM nginx:alpine
+# Build stage
+FROM node:20-alpine AS builder
 
-# Copy static files
-COPY public/ /usr/share/nginx/html/
+WORKDIR /app
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy package files
+COPY package*.json ./
 
-EXPOSE 80
+# Install dependencies
+RUN npm ci
 
-CMD ["nginx", "-g", "daemon off;"]
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Change ownership
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

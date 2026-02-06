@@ -430,6 +430,20 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	if user.Citizen != nil {
 		response.Gerege.RegNo = user.Citizen.RegNo
+		response.Gerege.FirstName = user.Citizen.FirstName
+		if user.Citizen.FamilyName.Valid {
+			response.Gerege.FamilyName = user.Citizen.FamilyName.String
+		}
+		if user.Citizen.LastName.Valid {
+			response.Gerege.LastName = user.Citizen.LastName.String
+		}
+		if user.Citizen.BirthDate.Valid {
+			response.Gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+		}
+		if user.Citizen.Sex.Valid {
+			response.Gerege.Gender = user.Citizen.Sex.String
+		}
+		// Build display name
 		name := user.Citizen.FirstName
 		if user.Citizen.LastName.Valid {
 			name = user.Citizen.LastName.String + " " + user.Citizen.FirstName

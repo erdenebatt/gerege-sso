@@ -55,9 +55,14 @@ type Session struct {
 
 // GeregeInfo represents the 'gerege' claim in JWT
 type GeregeInfo struct {
-	RegNo    string `json:"reg_no,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Verified bool   `json:"verified"`
+	RegNo      string `json:"reg_no,omitempty"`
+	FamilyName string `json:"family_name,omitempty"`
+	LastName   string `json:"last_name,omitempty"`
+	FirstName  string `json:"first_name,omitempty"`
+	Name       string `json:"name,omitempty"`
+	BirthDate  string `json:"birth_date,omitempty"`
+	Gender     string `json:"gender,omitempty"`
+	Verified   bool   `json:"verified"`
 }
 
 // JWTClaims represents the JWT payload

@@ -23,6 +23,7 @@ export function Navbar({ showUser = true }: NavbarProps) {
               width={32}
               height={32}
               className="rounded-lg"
+              priority
             />
             <span className="font-semibold text-lg text-slate-900 dark:text-white">Gerege SSO</span>
           </Link>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
-import { Sidebar } from '@/components/layout'
+import { Sidebar, UserDropdown } from '@/components/layout'
 import { Card, Button, Skeleton, useToast } from '@/components/ui'
 import {
   Modal,
@@ -53,7 +53,7 @@ export default function DashboardPage() {
   }
 
   const handleVerifyDan = () => {
-    router.push('/?action=verify')
+    router.push('/dashboard/dan')
   }
 
   const handleOpenRevoke = (grantId: string, clientName: string) => {
@@ -171,10 +171,8 @@ export default function DashboardPage() {
             </button>
 
             {/* User menu */}
-            <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-700 ml-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium">
-                {user?.gerege?.name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
-              </div>
+            <div className="pl-2 border-l border-slate-200 dark:border-slate-700 ml-2">
+              <UserDropdown />
             </div>
           </div>
         </header>

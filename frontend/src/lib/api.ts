@@ -8,6 +8,7 @@ import type {
   AuditLog,
   CreateClientResponse,
 } from '@/types'
+import { getToken } from './auth'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -25,8 +26,7 @@ export async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token =
-    typeof window !== 'undefined' ? localStorage.getItem('gerege_token') : null
+  const token = getToken()
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -113,10 +113,7 @@ export const api = {
       codeChallenge?: string
       codeChallengeMethod?: string
     }) => {
-      const token =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('gerege_token')
-          : null
+      const token = getToken()
 
       let url =
         `/api/oauth/authorize` +

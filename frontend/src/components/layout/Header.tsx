@@ -20,6 +20,7 @@ export function Header() {
               width={32}
               height={32}
               className="rounded-lg"
+              priority
             />
             <span className="font-semibold text-slate-900 dark:text-white hidden sm:block">Gerege</span>
           </Link>
@@ -52,21 +53,19 @@ export function Header() {
             <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 rounded-lg p-1 border border-slate-200 dark:border-slate-700/50">
               <button
                 onClick={() => setLanguage('mn')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  language === 'mn'
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${language === 'mn'
                     ? 'bg-indigo-500 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 MN
               </button>
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  language === 'en'
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${language === 'en'
                     ? 'bg-indigo-500 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 EN
               </button>

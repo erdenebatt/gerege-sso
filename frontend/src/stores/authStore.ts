@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { User, Grant } from '@/types'
 import { api, ApiError } from '@/lib/api'
+import { setToken, removeToken } from '@/lib/auth'
 
 interface AuthState {
   token: string | null
@@ -32,9 +33,7 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       setToken: (token) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('gerege_token', token)
-        }
+        setToken(token)
         set({ token, error: null })
       },
 
@@ -45,9 +44,7 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       logout: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('gerege_token')
-        }
+        removeToken()
         set({ token: null, user: null, grants: [], error: null })
       },
 

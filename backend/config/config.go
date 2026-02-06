@@ -63,6 +63,11 @@ type AuthConfig struct {
 	TwitterClientID     string
 	TwitterClientSecret string
 	TwitterRedirectURL  string
+
+	// DAN
+	DanClientID    string
+	DanRedirectURL string
+	DanScope       string
 }
 
 type PublicConfig struct {
@@ -111,6 +116,11 @@ func Load() *Config {
 			TwitterClientID:     getEnv("TWITTER_CLIENT_ID", ""),
 			TwitterClientSecret: getEnv("TWITTER_CLIENT_SECRET", ""),
 			TwitterRedirectURL:  getEnv("TWITTER_REDIRECT_URL", "https://sso.gerege.mn/api/auth/twitter/callback"),
+
+			// DAN
+			DanClientID:    getEnv("DAN_CLIENT_ID", "f3f14ab1af2cf74fd7ade8a0-964f9d4992277df04d43aef0c80a1152"),
+			DanRedirectURL: getEnv("DAN_REDIRECT_URL", "http://dan.gerege.mn/authorized"),
+			DanScope:       getEnv("DAN_SCOPE", "W3sic2VydmljZXMiOlsiV1MxMDAxMDFfZ2V0Q2l0aXplbklEQ2FyZEluZm8iXSwid3NkbCI6Imh0dHBzOlwvXC94eXAuZ292Lm1uXC9jaXRpemVuLTEuMy4wXC93cz9XU0RMIn1d"),
 		},
 		Public: PublicConfig{
 			URL: getEnv("PUBLIC_URL", "https://sso.gerege.mn"),

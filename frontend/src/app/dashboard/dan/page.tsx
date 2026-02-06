@@ -88,46 +88,24 @@ export default function DanVerificationPage() {
           </CardHeader>
           <CardContent>
             <p className="text-slate-600 dark:text-slate-400 mb-6">
-              Иргэний үнэмлэхийн регистрийн дугаараа оруулж баталгаажуулна уу.
-              Энэ нь таны бүртгэлийг ДАН системтэй холбоно.
+              Төрийн цахим үйлчилгээний нэгдсэн систем (ДАН) ашиглан нэвтэрч баталгаажуулалт хийнэ үү.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                label="Регистрийн дугаар"
-                placeholder="ДА12345678"
-                value={regNo}
-                onChange={(e) => setRegNo(e.target.value.toUpperCase())}
-                error={error || undefined}
-                disabled={isLoading}
-              />
+            <Button
+              className="w-full h-12 text-base"
+              onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/dan`}
+            >
+              <span className="mr-2">🔐</span>
+              ДАН системээр баталгаажуулах
+            </Button>
 
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                Регистрийн дугаар нь 2 үсэг + 8 тоо форматтай байна. Жишээ: АА12345678
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                isLoading={isLoading}
-                disabled={regNo.length < 10}
-              >
-                Баталгаажуулах
-              </Button>
-            </form>
-
-            <div className="mt-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+            <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
               <div className="flex gap-3">
-                <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div className="text-sm text-amber-800 dark:text-amber-200">
-                  <strong>Анхааруулга:</strong> Регистрийн дугаар нь ДАН системд бүртгэлтэй байх ёстой.
-                  Хэрэв танд ДАН бүртгэл байхгүй бол эхлээд{' '}
-                  <a href="https://dan.gov.mn" target="_blank" rel="noopener noreferrer" className="underline">
-                    dan.gov.mn
-                  </a>
-                  {' '}хаягаар бүртгүүлнэ үү.
+                <div className="text-sm text-slate-600 dark:text-slate-400">
+                  Таныг <strong>sso.gov.mn</strong> руу шилжүүлэх бөгөөд амжилттай нэвтэрсний дараа автоматаар буцаж ирэх болно.
                 </div>
               </div>
             </div>

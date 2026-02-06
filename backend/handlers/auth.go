@@ -797,6 +797,67 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
+// DanLogin initiates DAN SSO flow
+func (h *AuthHandler) DanLogin(c *gin.Context) {
+	// Generate state token
+	stateBytes, err := json.Marshal(map[string]string{
+		"redirect_url": h.config.Public.URL + "/callback?dan_success=true",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
+		return
+	}
+	state := base64.RawURLEncoding.EncodeToString(stateBytes)
+
+	// Build auth URL
+	authURL := fmt.Sprintf(
+		"https://sso.gov.mn/login?state=%s&grant_type=authorization_code&response_type=code&client_id=%s&scope=%s&redirect_uri=%s",
+		state,
+		h.config.Auth.DanClientID,
+		h.config.Auth.DanScope,
+		h.config.Auth.DanRedirectURL,
+	)
+
+	c.Redirect(http.StatusSeeOther, authURL)
+}
+
+// DanCallback handles callback from DAN (via proxy/redirect)
+func (h *AuthHandler) DanCallback(c *gin.Context) {
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims := claimsVal.(*services.Claims)
+
+	// Get reg_no from query (this is how user says it returns)
+	regNo := c.Query("reg_no")
+	if regNo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing reg_no"})
+		return
+	}
+
+	// Find user
+	user, err := h.userService.FindByGenID(claims.Subject)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Link citizen
+	if err := h.userService.LinkCitizen(user.ID, regNo); err != nil {
+		log.Printf("Failed to link citizen: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Success response
+	c.JSON(http.StatusOK, gin.H{
+		"message": "DAN verification successful",
+		"reg_no":  regNo,
+	})
+}
+
 // ConfirmIdentityLink confirms identity and links a new provider to existing user
 func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	ctx := context.Background()

@@ -27,7 +27,7 @@ export function OAuthButtons({ className }: OAuthButtonsProps) {
     <div className={cn('space-y-3', className)}>
       <button
         onClick={loginWithGoogle}
-        className="flex items-center justify-center gap-3 w-full px-6 py-3.5 bg-white text-gray-800 font-medium rounded-xl hover:bg-gray-100 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+        className="flex items-center justify-center gap-3 w-full px-4 py-4 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 hover:border-slate-300 dark:hover:border-slate-500 transition-all"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path
@@ -52,7 +52,7 @@ export function OAuthButtons({ className }: OAuthButtonsProps) {
 
       <button
         onClick={loginWithApple}
-        className="flex items-center justify-center gap-3 w-full px-6 py-3.5 bg-black text-white font-medium rounded-xl hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+        className="flex items-center justify-center gap-3 w-full px-4 py-4 bg-slate-900 dark:bg-black text-white font-medium rounded-xl hover:bg-slate-800 dark:hover:bg-slate-900 transition-all"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
           <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
@@ -62,7 +62,7 @@ export function OAuthButtons({ className }: OAuthButtonsProps) {
 
       <button
         onClick={loginWithFacebook}
-        className="flex items-center justify-center gap-3 w-full px-6 py-3.5 bg-[#1877F2] text-white font-medium rounded-xl hover:bg-[#166FE5] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1877F2]/30 transition-all"
+        className="flex items-center justify-center gap-3 w-full px-4 py-4 bg-[#1877F2] text-white font-medium rounded-xl hover:bg-[#166FE5] transition-all"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -72,7 +72,7 @@ export function OAuthButtons({ className }: OAuthButtonsProps) {
 
       <button
         onClick={loginWithTwitter}
-        className="flex items-center justify-center gap-3 w-full px-6 py-3.5 bg-black text-white font-medium rounded-xl hover:bg-gray-900 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+        className="flex items-center justify-center gap-3 w-full px-4 py-4 bg-slate-900 dark:bg-black text-white font-medium rounded-xl hover:bg-slate-800 dark:hover:bg-slate-900 transition-all"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

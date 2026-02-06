@@ -39,15 +39,15 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Шалгаж байна...</p>
+          <div className="w-10 h-10 border-3 border-slate-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400">Шалгаж байна...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-5">
+    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <LoginCard error={error} />
     </div>
   )

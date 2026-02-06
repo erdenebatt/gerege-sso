@@ -3,10 +3,10 @@ import { ToastProvider } from '@/components/ui'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
-  title: 'Gerege SSO',
-  description: 'Нэгдсэн нэвтрэлтийн систем',
+  title: 'Gerege SSO - Нэгдсэн нэвтрэлтийн систем',
+  description: 'Gerege нэгдсэн нэвтрэлтийн систем',
   icons: {
-    icon: '/assets/logo.svg',
+    icon: '/favicon.svg',
   },
 }
 
@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="mn">
-      <body className="text-white min-h-screen">
+    <html lang="mn" suppressHydrationWarning>
+      <body className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

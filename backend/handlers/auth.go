@@ -155,7 +155,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
 
 				// Redirect to identity verification page
-				verifyURL := h.config.Public.URL + "/callback.html?pending_link=true&gen_id=" + existingUser.GenID
+				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
 				c.Redirect(http.StatusSeeOther, verifyURL)
 				return
 			}
@@ -195,7 +195,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}, c.ClientIP(), c.Request.UserAgent())
 
 	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback.html?token=" + jwtToken
+	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -379,7 +379,7 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	}, c.ClientIP(), c.Request.UserAgent())
 
 	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback.html?token=" + jwtToken
+	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -627,7 +627,7 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}, c.ClientIP(), c.Request.UserAgent())
 
 	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback.html?token=" + jwtToken
+	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -769,7 +769,7 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	}, c.ClientIP(), c.Request.UserAgent())
 
 	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback.html?token=" + jwtToken
+	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 

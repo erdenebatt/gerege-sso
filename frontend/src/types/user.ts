@@ -17,6 +17,16 @@ export interface User {
   created_at?: string
   updated_at?: string
   last_login_at?: string
+  dan_verified_at?: string
+  dan_history?: DanVerificationLog[]
+}
+
+export interface DanVerificationLog {
+  id: number
+  user_id: number
+  reg_no: string
+  method: string
+  created_at: string
 }
 
 export interface Grant {

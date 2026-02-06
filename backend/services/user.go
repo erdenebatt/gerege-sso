@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -457,9 +458,44 @@ func (s *UserService) FindCitizenByRegNo(regNo string) (*models.Citizen, error) 
 
 // LogAudit logs an audit event
 func (s *UserService) LogAudit(userID int64, action string, details map[string]interface{}, ipAddress string) error {
+	detailsJSON, _ := json.Marshal(details)
 	_, err := s.db.Exec(`
 		INSERT INTO audit_logs (user_id, action, details, ip_address)
 		VALUES ($1, $2, $3, $4)
-	`, userID, action, details, ipAddress)
+	`, userID, action, detailsJSON, ipAddress)
 	return err
+}
+
+// LogDanVerification logs a DAN verification event
+func (s *UserService) LogDanVerification(userID int64, regNo string, method string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO dan_verification_logs (user_id, reg_no, method)
+		VALUES ($1, $2, $3)
+	`, userID, regNo, method)
+	return err
+}
+
+// GetDanVerificationLogs retrieves the last 10 verification logs for a user
+func (s *UserService) GetDanVerificationLogs(userID int64) ([]models.DanVerificationLog, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, reg_no, method, created_at
+		FROM dan_verification_logs
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT 10
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []models.DanVerificationLog
+	for rows.Next() {
+		var l models.DanVerificationLog
+		if err := rows.Scan(&l.ID, &l.UserID, &l.RegNo, &l.Method, &l.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan log: %w", err)
+		}
+		logs = append(logs, l)
+	}
+	return logs, nil
 }

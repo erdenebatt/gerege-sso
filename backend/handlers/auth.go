@@ -414,16 +414,24 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 
+	// Fetch DAN verification history
+	danHistory, _ := h.userService.GetDanVerificationLogs(user.ID)
+
 	// Build response
 	response := models.UserResponse{
-		GenID:     user.GenID,
-		Email:     user.Email,
-		Verified:  user.Verified,
-		CreatedAt: user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
+		GenID:      user.GenID,
+		Email:      user.Email,
+		Verified:   user.Verified,
+		CreatedAt:  user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  user.UpdatedAt.Format(time.RFC3339),
+		DanHistory: danHistory,
 		Gerege: models.GeregeInfo{
 			Verified: user.Verified,
 		},
+	}
+
+	if len(danHistory) > 0 {
+		response.DanVerifiedAt = danHistory[0].CreatedAt.Format(time.RFC3339)
 	}
 
 	if user.LastLoginAt.Valid {
@@ -849,6 +857,11 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 		log.Printf("Failed to link citizen: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Log DAN verification
+	if err := h.userService.LogDanVerification(user.ID, regNo, "dan_sso"); err != nil {
+		log.Printf("Failed to log DAN verification: %v", err)
 	}
 
 	// Success response

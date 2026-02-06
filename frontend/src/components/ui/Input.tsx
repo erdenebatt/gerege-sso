@@ -13,22 +13,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm text-white/60 mb-2">{label}</label>
+          <label className="block text-sm text-slate-600 dark:text-slate-400 mb-2">{label}</label>
         )}
         <input
           type={type}
           className={cn(
-            'w-full px-4 py-3 bg-black/30 border border-white/15 rounded-xl',
-            'text-white placeholder:text-white/40',
-            'focus:border-gerege-primary focus:ring-1 focus:ring-gerege-primary/20',
+            'w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl',
+            'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+            'focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20',
             'transition-all duration-200',
-            error && 'border-red-500/50',
+            error && 'border-red-500',
             className
           )}
           ref={ref}
           {...props}
         />
-        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-sm text-red-500 dark:text-red-400">{error}</p>}
       </div>
     )
   }
@@ -49,21 +49,21 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm text-white/60 mb-2">{label}</label>
+          <label className="block text-sm text-slate-600 dark:text-slate-400 mb-2">{label}</label>
         )}
         <textarea
           className={cn(
-            'w-full px-4 py-3 bg-black/30 border border-white/15 rounded-xl',
-            'text-white placeholder:text-white/40',
-            'focus:border-gerege-primary focus:ring-1 focus:ring-gerege-primary/20',
+            'w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl',
+            'text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500',
+            'focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20',
             'transition-all duration-200 min-h-[100px] resize-y',
-            error && 'border-red-500/50',
+            error && 'border-red-500',
             className
           )}
           ref={ref}
           {...props}
         />
-        {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-sm text-red-500 dark:text-red-400">{error}</p>}
       </div>
     )
   }

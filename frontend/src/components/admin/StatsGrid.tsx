@@ -38,9 +38,9 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
           key={item.label}
           className="glass rounded-2xl p-6"
         >
-          <div className="text-sm text-white/50 mb-2">{item.label}</div>
+          <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">{item.label}</div>
           <div className="text-4xl font-bold gradient-text">{item.value}</div>
-          <div className="text-xs text-white/40 mt-1">{item.sub}</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">{item.sub}</div>
         </div>
       ))}
     </div>

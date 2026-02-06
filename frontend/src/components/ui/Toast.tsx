@@ -68,17 +68,17 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
 
   const icons = {
     success: (
-      <svg className="w-5 h-5 text-gerege-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
       </svg>
     ),
     error: (
-      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
       </svg>
     ),
     info: (
-      <svg className="w-5 h-5 text-gerege-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
@@ -92,7 +92,7 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
       )}
     >
       {icons[toast.type]}
-      <span>{toast.message}</span>
+      <span className="text-slate-900 dark:text-white">{toast.message}</span>
     </div>
   )
 }

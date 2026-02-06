@@ -53,23 +53,23 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5">
+    <div className="min-h-screen flex items-center justify-center p-5 bg-slate-50 dark:bg-slate-900">
       <div className="glass rounded-2xl p-12 w-full max-w-[400px] text-center">
         <div className="mb-5">
           <Image
-            src="/assets/logo.svg"
+            src="/assets/logo.png"
             alt="Gerege SSO"
             width={80}
             height={80}
-            className="mx-auto"
+            className="mx-auto rounded-xl"
           />
         </div>
 
-        <h1 className="text-2xl font-semibold mb-2">Admin</h1>
-        <p className="text-white/50 text-sm mb-8">API түлхүүрээр нэвтрэх</p>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">Admin</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">API түлхүүрээр нэвтрэх</p>
 
         {error && (
-          <div className="bg-red-500/15 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-5 text-sm">
+          <div className="bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg mb-5 text-sm">
             {error}
           </div>
         )}
@@ -98,7 +98,7 @@ export default function AdminLoginPage() {
 
         <Link
           href="/"
-          className="inline-block mt-6 text-white/40 text-sm hover:text-white/70 transition-colors"
+          className="inline-block mt-6 text-slate-400 dark:text-slate-500 text-sm hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
         >
           ← Нүүр хуудас
         </Link>

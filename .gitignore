@@ -1,6 +1,8 @@
-# Environment & secrets
-.env
-.env.local
+# Environment (temporarily tracked, remove later)
+# .env
+# .env.local
+# .env.development
+# .env.production
 
 # Go
 backend/tmp/

@@ -16,20 +16,20 @@ export function LoginCard({ error }: LoginCardProps) {
     <div className="w-full max-w-md relative z-10 animate-fade-in">
       {/* Logo and Title */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-5 shadow-lg shadow-indigo-500/30">
+        <div className="inline-flex items-center justify-center mb-5">
           <Image
-            src="/assets/logo.svg"
+            src="/assets/logo.png"
             alt="Gerege SSO"
-            width={36}
-            height={36}
-            className="brightness-0 invert"
+            width={72}
+            height={72}
+            className="rounded-2xl"
             priority
           />
         </div>
         <h1 className="text-2xl font-bold mb-2">
           Gerege <span className="gradient-text">SSO</span>
         </h1>
-        <p className="text-slate-400 text-sm">
+        <p className="text-slate-600 dark:text-slate-300 text-sm">
           {t.subtitle}
         </p>
       </div>
@@ -49,34 +49,34 @@ export function LoginCard({ error }: LoginCardProps) {
 
         <div className="divider my-6">{t.or}</div>
 
-        <p className="text-sm text-slate-400 text-center leading-relaxed">
+        <p className="text-sm text-slate-600 dark:text-slate-300 text-center leading-relaxed">
           {t.loginDescription}
         </p>
       </div>
 
       {/* Footer Links */}
       <div className="mt-8 text-center">
-        <p className="text-slate-500 text-xs mb-3">
+        <p className="text-slate-500 dark:text-slate-400 text-xs mb-3">
           {t.copyright}
         </p>
         <div className="flex items-center justify-center gap-3 text-xs">
           <Link
             href="/privacy"
-            className="text-slate-500 hover:text-indigo-400 transition-colors"
+            className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >
             {t.privacy}
           </Link>
-          <span className="text-slate-600">•</span>
+          <span className="text-slate-400 dark:text-slate-500">•</span>
           <Link
             href="/terms"
-            className="text-slate-500 hover:text-indigo-400 transition-colors"
+            className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >
             {t.terms}
           </Link>
-          <span className="text-slate-600">•</span>
+          <span className="text-slate-400 dark:text-slate-500">•</span>
           <Link
             href="/docs"
-            className="text-slate-500 hover:text-indigo-400 transition-colors"
+            className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >
             {t.api}
           </Link>

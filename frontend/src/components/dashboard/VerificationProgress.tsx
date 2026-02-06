@@ -63,15 +63,15 @@ export function VerificationProgress({
   return (
     <Card hover>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Баталгаажуулалтын түвшин</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Баталгаажуулалтын түвшин</h2>
         <Badge variant="success">Түвшин {level}</Badge>
       </div>
 
       {/* Progress Bar */}
       <div className="relative mb-6">
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
-            className="progress-fill h-full bg-gradient-to-r from-gerege-primary to-gerege-secondary rounded-full"
+            className="progress-fill h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -89,13 +89,13 @@ export function VerificationProgress({
                 className={cn(
                   'w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-full border-2 flex items-center justify-center mb-2 transition-all',
                   isCompleted
-                    ? 'bg-gerege-primary/20 border-gerege-primary'
-                    : 'bg-white/5 border-white/20'
+                    ? 'bg-indigo-100 dark:bg-indigo-500/20 border-indigo-500'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
                 )}
               >
                 <span
                   className={cn(
-                    isCompleted ? 'text-gerege-primary' : 'text-white/40'
+                    isCompleted ? 'text-indigo-500' : 'text-slate-400 dark:text-slate-500'
                   )}
                 >
                   {step.icon}
@@ -104,19 +104,19 @@ export function VerificationProgress({
               <span
                 className={cn(
                   'text-xs sm:text-sm',
-                  isCompleted ? 'text-white/70' : 'text-white/40'
+                  isCompleted ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'
                 )}
               >
                 {step.label}
               </span>
               {isCompleted ? (
-                <div className="text-xs text-gerege-primary mt-1">
+                <div className="text-xs text-indigo-500 mt-1">
                   ✓ Баталгаажсан
                 </div>
               ) : step.action ? (
                 <button
                   onClick={step.action}
-                  className="text-xs text-gerege-secondary hover:underline mt-1"
+                  className="text-xs text-indigo-500 hover:underline mt-1"
                 >
                   Баталгаажуулах
                 </button>

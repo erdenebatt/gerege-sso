@@ -18,18 +18,19 @@ export function Navbar({ showUser = true }: NavbarProps) {
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/assets/logo.svg"
+              src="/assets/logo.png"
               alt="Gerege"
               width={32}
               height={32}
+              className="rounded-lg"
             />
-            <span className="font-semibold text-lg">Gerege SSO</span>
+            <span className="font-semibold text-lg text-slate-900 dark:text-white">Gerege SSO</span>
           </Link>
 
           {showUser && user && (
             <div className="flex items-center gap-4">
-              <div className="hidden sm:flex items-center gap-2 text-sm text-white/60">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gerege-primary to-gerege-secondary flex items-center justify-center">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
                   {user.picture ? (
                     <Image
                       src={user.picture}
@@ -39,7 +40,7 @@ export function Navbar({ showUser = true }: NavbarProps) {
                       className="rounded-full"
                     />
                   ) : (
-                    <span className="text-xs font-bold text-gerege-dark">
+                    <span className="text-xs font-bold text-white">
                       {getInitials(user.gerege?.name || user.email)}
                     </span>
                   )}
@@ -48,7 +49,7 @@ export function Navbar({ showUser = true }: NavbarProps) {
               </div>
               <button
                 onClick={logout}
-                className="text-sm text-white/60 hover:text-red-400 transition-colors"
+                className="text-sm text-slate-600 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
               >
                 Гарах
               </button>

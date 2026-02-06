@@ -8,7 +8,7 @@ interface SkeletonProps extends HTMLAttributes<HTMLDivElement> {}
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
-      className={cn('skeleton rounded-xl bg-white/5', className)}
+      className={cn('skeleton rounded-xl bg-slate-200 dark:bg-slate-800', className)}
       {...props}
     />
   )

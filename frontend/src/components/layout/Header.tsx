@@ -9,40 +9,38 @@ export function Header() {
   const t = useTranslation()
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 dark:border-slate-800">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Image
-                src="/assets/logo.svg"
-                alt="Gerege"
-                width={20}
-                height={20}
-                className="brightness-0 invert"
-              />
-            </div>
-            <span className="font-semibold text-white hidden sm:block">Gerege</span>
+            <Image
+              src="/assets/logo.png"
+              alt="Gerege"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
+            <span className="font-semibold text-slate-900 dark:text-white hidden sm:block">Gerege</span>
           </Link>
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="/privacy"
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+              className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               {t.privacy}
             </Link>
             <Link
               href="/terms"
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+              className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               {t.terms}
             </Link>
             <Link
               href="/docs"
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+              className="text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               {t.api}
             </Link>
@@ -51,13 +49,13 @@ export function Header() {
           {/* Controls */}
           <div className="flex items-center gap-2">
             {/* Language Switcher */}
-            <div className="flex items-center bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800/50 rounded-lg p-1 border border-slate-200 dark:border-slate-700/50">
               <button
                 onClick={() => setLanguage('mn')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                   language === 'mn'
                     ? 'bg-indigo-500 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 MN
@@ -67,7 +65,7 @@ export function Header() {
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
                   language === 'en'
                     ? 'bg-indigo-500 text-white'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 EN
@@ -77,7 +75,7 @@ export function Header() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all"
+              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-all"
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
@@ -102,7 +100,7 @@ export function Header() {
             </button>
 
             {/* Mobile Menu Button */}
-            <button className="md:hidden p-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white">
+            <button className="md:hidden p-2 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>

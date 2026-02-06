@@ -110,11 +110,11 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto px-5 py-6">
+    <div className="max-w-[1200px] mx-auto px-5 py-6 min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <header className="flex items-center justify-between mb-8 pb-5 border-b border-white/10">
-        <h1 className="text-2xl font-semibold flex items-center gap-3">
-          <Image src="/assets/logo.svg" alt="Gerege" width={32} height={32} />
+      <header className="flex items-center justify-between mb-8 pb-5 border-b border-slate-200 dark:border-slate-800">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white flex items-center gap-3">
+          <Image src="/assets/logo.png" alt="Gerege" width={32} height={32} className="rounded-lg" />
           Admin Dashboard
         </h1>
         <Button variant="danger" size="sm" onClick={handleLogout}>
@@ -131,10 +131,10 @@ export default function AdminDashboardPage() {
       <div className="flex gap-1 mb-5">
         <button
           className={cn(
-            'px-5 py-2.5 rounded-t-xl text-sm font-medium border border-white/10 transition-all',
+            'px-5 py-2.5 rounded-t-xl text-sm font-medium border border-slate-200 dark:border-slate-700 transition-all',
             activeTab === 'clients'
-              ? 'bg-white/[0.08] text-gerege-primary border-b-transparent'
-              : 'bg-white/5 text-white/60 hover:bg-white/[0.08]'
+              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-b-transparent'
+              : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
           )}
           onClick={() => handleTabChange('clients')}
         >
@@ -142,10 +142,10 @@ export default function AdminDashboardPage() {
         </button>
         <button
           className={cn(
-            'px-5 py-2.5 rounded-t-xl text-sm font-medium border border-white/10 transition-all',
+            'px-5 py-2.5 rounded-t-xl text-sm font-medium border border-slate-200 dark:border-slate-700 transition-all',
             activeTab === 'logs'
-              ? 'bg-white/[0.08] text-gerege-primary border-b-transparent'
-              : 'bg-white/5 text-white/60 hover:bg-white/[0.08]'
+              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border-b-transparent'
+              : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
           )}
           onClick={() => handleTabChange('logs')}
         >
@@ -158,7 +158,7 @@ export default function AdminDashboardPage() {
         {activeTab === 'clients' && (
           <>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold">OAuth2 Клиентүүд</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">OAuth2 Клиентүүд</h2>
               <Button variant="primary" size="sm" onClick={handleOpenCreate}>
                 + Шинэ клиент
               </Button>
@@ -175,7 +175,7 @@ export default function AdminDashboardPage() {
         {activeTab === 'logs' && (
           <>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold">Сүүлийн үйлдлүүд</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Сүүлийн үйлдлүүд</h2>
               <Button variant="ghost" size="sm" onClick={fetchAuditLogs}>
                 Шинэчлэх
               </Button>

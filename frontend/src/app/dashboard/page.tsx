@@ -85,7 +85,7 @@ export default function DashboardPage() {
 
   if (!token || (isLoading && !user)) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
         <div className="glass sticky top-0 z-50 h-16" />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="space-y-8">
@@ -108,19 +108,19 @@ export default function DashboardPage() {
   const verificationLevel = getVerificationLevel(user)
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
             Сайн байна уу,{' '}
             <span className="gradient-text">
               {user.gerege?.name || user.email?.split('@')[0] || 'Хэрэглэгч'}
             </span>
           </h1>
-          <p className="text-white/50">Таны Gerege дижитал иргэний данс</p>
+          <p className="text-slate-500 dark:text-slate-400">Таны Gerege дижитал иргэний данс</p>
         </div>
 
         {/* Verification Progress */}
@@ -142,9 +142,9 @@ export default function DashboardPage() {
         {/* Connected Apps (Grants) */}
         <Card>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <svg
-                className="w-5 h-5 text-gerege-primary"
+                className="w-5 h-5 text-indigo-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -158,14 +158,14 @@ export default function DashboardPage() {
               </svg>
               Холбогдсон аппликейшнүүд
             </h2>
-            <span className="text-sm text-white/40">{grants.length} апп</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500">{grants.length} апп</span>
           </div>
 
           {grants.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                 <svg
-                  className="w-8 h-8 text-white/30"
+                  className="w-8 h-8 text-slate-400 dark:text-slate-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -178,10 +178,10 @@ export default function DashboardPage() {
                   />
                 </svg>
               </div>
-              <p className="text-white/50">
+              <p className="text-slate-500 dark:text-slate-400">
                 Одоогоор ямар ч апп холбогдоогүй байна
               </p>
-              <p className="text-sm text-white/30 mt-2">
+              <p className="text-sm text-slate-400 dark:text-slate-500 mt-2">
                 Гуравдагч аппликейшнүүд таны зөвшөөрлөөр холбогдох болно
               </p>
             </div>

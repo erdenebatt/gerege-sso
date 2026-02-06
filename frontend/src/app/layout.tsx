@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'Gerege SSO - Нэгдсэн нэвтрэлтийн систем',
   description: 'Gerege нэгдсэн нэвтрэлтийн систем',
   icons: {
-    icon: '/favicon.svg',
+    icon: '/favicon.png',
   },
 }
 

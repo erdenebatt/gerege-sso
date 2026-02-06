@@ -41,26 +41,26 @@ export default function GrantsPage() {
   }
 
   return (
-    <div className="max-w-[680px] mx-auto px-5 py-10">
+    <div className="max-w-[680px] mx-auto px-5 py-10 min-h-screen bg-slate-50 dark:bg-slate-900">
       <Link
         href="/"
-        className="inline-flex items-center gap-2 text-white/60 text-sm mb-6 hover:text-gerege-primary transition-colors"
+        className="inline-flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm mb-6 hover:text-indigo-500 transition-colors"
       >
         ← Нүүр хуудас
       </Link>
 
       <div className="text-center mb-8">
         <Image
-          src="/assets/logo.svg"
+          src="/assets/logo.png"
           alt="Gerege SSO"
           width={80}
           height={80}
-          className="mx-auto mb-4"
+          className="mx-auto mb-4 rounded-xl"
         />
-        <h1 className="text-2xl font-semibold mb-2">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-2">
           Холбогдсон аппликейшнүүд
         </h1>
-        <p className="text-white/60 text-sm">
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
           Эдгээр аппликейшнүүд таны Gerege дансанд хандах эрхтэй.
         </p>
       </div>
@@ -75,7 +75,7 @@ export default function GrantsPage() {
         ) : grants.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-5xl mb-4">🔒</div>
-            <p className="text-white/50 leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
               Одоогоор ямар ч аппликейшн таны дансанд холбогдоогүй байна.
             </p>
           </div>
@@ -83,13 +83,13 @@ export default function GrantsPage() {
           grants.map((grant) => (
             <div
               key={grant.id}
-              className="glass rounded-2xl p-5 flex items-center justify-between gap-4 hover:bg-white/[0.08] hover:border-white/[0.15] transition-all"
+              className="glass rounded-2xl p-5 flex items-center justify-between gap-4 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all"
             >
               <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-1">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                   {grant.client_name}
                 </h3>
-                <div className="text-sm text-white/50 mb-2">
+                <div className="text-sm text-slate-500 dark:text-slate-400 mb-2">
                   <span className="mr-4">
                     Холбогдсон: {formatDate(grant.granted_at)}
                   </span>
@@ -121,7 +121,7 @@ export default function GrantsPage() {
         )}
       </div>
 
-      <footer className="mt-12 text-center text-white/40 text-xs">
+      <footer className="mt-12 text-center text-slate-400 dark:text-slate-500 text-xs">
         &copy; 2025 Gerege SSO
       </footer>
     </div>

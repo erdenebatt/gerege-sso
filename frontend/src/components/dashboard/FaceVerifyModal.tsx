@@ -94,26 +94,26 @@ export function FaceVerifyModal({ isOpen, onClose, onSuccess }: FaceVerifyModalP
 
         {/* Face outline overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="relative w-48 h-64 border-4 border-gerege-primary/50 rounded-[50%]">
+          <div className="relative w-48 h-64 border-4 border-indigo-500/50 rounded-[50%]">
             {/* Scanning animation */}
             {status === 'ready' && (
-              <div className="scan-line absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-gerege-primary to-transparent" />
+              <div className="scan-line absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
             )}
 
             {/* Corner markers */}
-            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-gerege-primary rounded-tl-xl" />
-            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-gerege-primary rounded-tr-xl" />
-            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-gerege-primary rounded-bl-xl" />
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-gerege-primary rounded-br-xl" />
+            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl" />
+            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl" />
+            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl" />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-xl" />
           </div>
         </div>
 
         {/* Pulse rings */}
         {status === 'processing' && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="absolute w-48 h-64 border-2 border-gerege-primary rounded-[50%] pulse-ring" />
+            <div className="absolute w-48 h-64 border-2 border-indigo-500 rounded-[50%] pulse-ring" />
             <div
-              className="absolute w-48 h-64 border-2 border-gerege-primary rounded-[50%] pulse-ring"
+              className="absolute w-48 h-64 border-2 border-indigo-500 rounded-[50%] pulse-ring"
               style={{ animationDelay: '0.5s' }}
             />
           </div>
@@ -129,17 +129,17 @@ export function FaceVerifyModal({ isOpen, onClose, onSuccess }: FaceVerifyModalP
 
       {/* Instructions */}
       <div className="grid grid-cols-3 gap-4 mb-6 text-center text-sm">
-        <div className="p-3 rounded-xl bg-white/5">
+        <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="text-2xl mb-1">💡</div>
-          <div className="text-white/50">Сайн гэрэлтэй</div>
+          <div className="text-slate-500 dark:text-slate-400">Сайн гэрэлтэй</div>
         </div>
-        <div className="p-3 rounded-xl bg-white/5">
+        <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="text-2xl mb-1">🎭</div>
-          <div className="text-white/50">Маскгүй</div>
+          <div className="text-slate-500 dark:text-slate-400">Маскгүй</div>
         </div>
-        <div className="p-3 rounded-xl bg-white/5">
+        <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="text-2xl mb-1">👓</div>
-          <div className="text-white/50">Нүдний шилгүй</div>
+          <div className="text-slate-500 dark:text-slate-400">Нүдний шилгүй</div>
         </div>
       </div>
 

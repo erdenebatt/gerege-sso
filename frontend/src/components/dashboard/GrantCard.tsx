@@ -13,17 +13,17 @@ export function GrantCard({ grant, onRevoke }: GrantCardProps) {
   return (
     <Card hover className="p-5">
       <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gerege-primary/20 to-gerege-secondary/20 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 dark:from-indigo-500/20 to-purple-100 dark:to-purple-500/20 flex items-center justify-center">
           <span className="text-xl font-bold gradient-text">
             {getInitials(grant.client_name)}
           </span>
         </div>
-        <span className="text-xs text-white/30">
+        <span className="text-xs text-slate-400 dark:text-slate-500">
           {formatDate(grant.granted_at)}
         </span>
       </div>
 
-      <h3 className="font-semibold mb-1">{grant.client_name || 'Unknown App'}</h3>
+      <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{grant.client_name || 'Unknown App'}</h3>
 
       <div className="flex flex-wrap gap-1 mb-4">
         {grant.scopes?.map((scope) => (
@@ -34,7 +34,7 @@ export function GrantCard({ grant, onRevoke }: GrantCardProps) {
       </div>
 
       {grant.last_used_at && (
-        <p className="text-xs text-white/30 mb-4">
+        <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
           Сүүлд: {formatDate(grant.last_used_at)}
         </p>
       )}

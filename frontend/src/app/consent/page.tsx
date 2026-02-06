@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import { Button } from '@/components/ui'
 import { api } from '@/lib/api'
 
-export default function ConsentPage() {
+function ConsentPageContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -60,30 +59,30 @@ export default function ConsentPage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-5">
+    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-slate-50 dark:bg-slate-900">
       <div className="glass rounded-2xl p-10 w-full max-w-[460px] text-center">
-        <div className="w-16 h-16 rounded-full bg-gerege-primary/15 flex items-center justify-center mx-auto mb-5">
+        <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center mx-auto mb-5">
           <span className="text-3xl">🛡️</span>
         </div>
 
-        <h2 className="text-xl font-semibold mb-4">Мэдээлэл хуваалцах</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Мэдээлэл хуваалцах</h2>
 
-        <p className="text-white/85 text-sm leading-relaxed mb-6">
-          <span className="text-gerege-primary font-semibold">{appName}</span>{' '}
+        <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6">
+          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{appName}</span>{' '}
           байгууллага таны мэдээллийг ашиглахыг хүсэж байна. Та зөвшөөрөх үү?
         </p>
 
-        <div className="bg-white/5 rounded-xl p-5 text-left mb-7">
-          <h3 className="text-sm text-white/60 mb-3 font-medium">
+        <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-5 text-left mb-7">
+          <h3 className="text-sm text-slate-500 dark:text-slate-400 mb-3 font-medium">
             Хуваалцах мэдээлэл:
           </h3>
           <div className="space-y-2">
             {scopeItems.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-3 py-2 border-b border-white/10 last:border-0 text-sm text-white/80"
+                className="flex items-center gap-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-0 text-sm text-slate-700 dark:text-slate-300"
               >
-                <span className="text-gerege-primary">{item.icon}</span>
+                <span className="text-indigo-500">{item.icon}</span>
                 {item.label}
               </div>
             ))}
@@ -93,14 +92,14 @@ export default function ConsentPage() {
         <div className="flex gap-3">
           <Button
             variant="danger"
-            className="flex-1 bg-red-500/15 border-red-500/40"
+            className="flex-1"
             onClick={handleDeny}
           >
             Татгалзах
           </Button>
           <Button
             variant="primary"
-            className="flex-1 bg-gerege-primary from-gerege-primary to-gerege-primary"
+            className="flex-1"
             onClick={handleAllow}
             isLoading={isLoading}
           >
@@ -108,15 +107,36 @@ export default function ConsentPage() {
           </Button>
         </div>
 
-        <p className="text-[11px] text-white/35 mt-5 leading-relaxed">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-5 leading-relaxed">
           Таны регистрийн дугаар болон иргэний дугаар хэзээ ч гуравдагч талд
           дамжуулагдахгүй.
         </p>
       </div>
 
-      <footer className="mt-8 text-white/40 text-xs">
+      <footer className="mt-8 text-slate-400 dark:text-slate-500 text-xs">
         &copy; 2025 Gerege SSO
       </footer>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-slate-50 dark:bg-slate-900">
+      <div className="glass rounded-2xl p-10 w-full max-w-[460px] text-center">
+        <div className="py-10">
+          <div className="w-10 h-10 border-3 border-slate-200 dark:border-white/20 border-t-indigo-500 dark:border-t-white rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-white/60">Loading...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function ConsentPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ConsentPageContent />
+    </Suspense>
   )
 }

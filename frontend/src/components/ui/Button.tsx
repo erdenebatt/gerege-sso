@@ -27,14 +27,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary:
-        'bg-gradient-to-r from-gerege-primary to-gerege-secondary text-gerege-dark hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-gerege-primary/30',
+        'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30',
       secondary:
-        'bg-white/10 border border-white/20 text-white hover:bg-white/20',
+        'bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-200 dark:hover:bg-white/20',
       danger:
-        'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 glow-red',
-      ghost: 'bg-transparent text-white/60 hover:text-white hover:bg-white/10',
+        'bg-red-50 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/30',
+      ghost: 'bg-transparent text-slate-500 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10',
       outline:
-        'bg-transparent border border-white/20 text-white hover:bg-white/10',
+        'bg-transparent border border-slate-200 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10',
     }
 
     const sizes = {

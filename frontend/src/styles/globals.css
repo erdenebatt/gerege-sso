@@ -4,23 +4,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark theme (default) */
+/* Light theme (default) */
 :root,
-.dark {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --bg-main: #0f172a;
-  --bg-card: #1e293b;
-  --bg-card-hover: #334155;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --border-color: #334155;
-  --border-light: #475569;
-  color-scheme: dark;
-}
-
-/* Light theme */
 .light {
   --primary: #4f46e5;
   --primary-hover: #4338ca;
@@ -33,6 +18,21 @@
   --border-color: #e2e8f0;
   --border-light: #cbd5e1;
   color-scheme: light;
+}
+
+/* Dark theme */
+.dark {
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  --border-light: #475569;
+  color-scheme: dark;
 }
 
 * {
@@ -56,12 +56,10 @@ body {
     @apply rounded-2xl border transition-colors;
     background: var(--bg-card);
     border-color: var(--border-color);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
   }
 
   .dark .card {
     @apply bg-slate-800/50 backdrop-blur-xl border-slate-700/50;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
   }
 
   .card-solid {
@@ -73,12 +71,25 @@ body {
   /* Glass effect */
   .glass {
     @apply backdrop-blur-xl border transition-colors;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.9);
     border-color: var(--border-color);
   }
 
   .dark .glass {
-    @apply bg-slate-800/30 border-slate-700/50;
+    @apply border-slate-700/50;
+    background: rgba(30, 41, 59, 0.8);
+  }
+
+  /* Glass strong - more opaque */
+  .glass-strong {
+    @apply backdrop-blur-xl border transition-colors rounded-2xl;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: var(--border-color);
+  }
+
+  .dark .glass-strong {
+    @apply border-slate-700/50;
+    background: rgba(30, 41, 59, 0.95);
   }
 
   /* Primary button with gradient */
@@ -136,7 +147,7 @@ body {
   .divider::after {
     content: '';
     @apply flex-1 h-px;
-    background: var(--border-color);
+    background-color: var(--border-color);
   }
 
   .divider::before {

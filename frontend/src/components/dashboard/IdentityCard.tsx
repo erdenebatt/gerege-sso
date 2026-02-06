@@ -26,9 +26,9 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
   return (
     <Card variant="strong" hover>
       <CardHeader>
-        <CardTitle>
+        <CardTitle className="text-slate-900 dark:text-white">
           <svg
-            className="w-5 h-5 text-gerege-primary"
+            className="w-5 h-5 text-indigo-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -49,17 +49,17 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
 
       <CardContent>
         {/* Gen ID */}
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div>
-            <div className="text-xs text-white/40 mb-1">Gerege ID</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Gerege ID</div>
             <div className="font-mono text-lg gradient-text">{user.gen_id || '—'}</div>
           </div>
           <button
             onClick={() => handleCopy(user.gen_id)}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+            className="p-2 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
           >
             <svg
-              className="w-4 h-4 text-white/60"
+              className="w-4 h-4 text-slate-500 dark:text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -76,21 +76,21 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
 
         {/* Name */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-xs text-white/40 mb-1">Ургийн овог</div>
-            <div className="font-medium">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Ургийн овог</div>
+            <div className="font-medium text-slate-900 dark:text-white">
               {displayValue(user.gerege?.family_name)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-xs text-white/40 mb-1">Овог</div>
-            <div className="font-medium">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Овог</div>
+            <div className="font-medium text-slate-900 dark:text-white">
               {displayValue(user.gerege?.last_name)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-xs text-white/40 mb-1">Нэр</div>
-            <div className="font-medium">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Нэр</div>
+            <div className="font-medium text-slate-900 dark:text-white">
               {user.gerege?.first_name || '—'}
             </div>
           </div>
@@ -98,15 +98,15 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
 
         {/* Reg No & Birth */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-xs text-white/40 mb-1">Регистрийн дугаар</div>
-            <div className="font-mono">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Регистрийн дугаар</div>
+            <div className="font-mono text-slate-900 dark:text-white">
               {displayValue(user.gerege?.reg_no)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-white/5">
-            <div className="text-xs text-white/40 mb-1">Төрсөн огноо</div>
-            <div className="font-medium">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Төрсөн огноо</div>
+            <div className="font-medium text-slate-900 dark:text-white">
               {displayValue(user.gerege?.birth_date)}
             </div>
           </div>
@@ -115,7 +115,7 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
         {/* Show/Hide Button */}
         <Button
           variant="secondary"
-          className="w-full bg-gradient-to-r from-gerege-primary/20 to-gerege-secondary/20 hover:from-gerege-primary/30 hover:to-gerege-secondary/30 border-0"
+          className="w-full bg-gradient-to-r from-indigo-100 dark:from-indigo-500/20 to-purple-100 dark:to-purple-500/20 hover:from-indigo-200 dark:hover:from-indigo-500/30 hover:to-purple-200 dark:hover:to-purple-500/30 border-0"
           onClick={() => setIsMasked(!isMasked)}
         >
           {isMasked ? (

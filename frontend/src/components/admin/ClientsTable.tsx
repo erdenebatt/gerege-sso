@@ -23,7 +23,7 @@ export function ClientsTable({
 
   if (clients.length === 0) {
     return (
-      <div className="text-center py-10 text-white/40">
+      <div className="text-center py-10 text-slate-400 dark:text-slate-500">
         Клиент бүртгэлгүй байна.
       </div>
     )
@@ -34,35 +34,35 @@ export function ClientsTable({
       <table className="w-full">
         <thead>
           <tr>
-            <th className="text-left px-4 py-3 text-xs font-medium text-white/50 uppercase tracking-wider border-b border-white/10">
+            <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Нэр
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-white/50 uppercase tracking-wider border-b border-white/10">
+            <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Client ID
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-white/50 uppercase tracking-wider border-b border-white/10">
+            <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Redirect URI
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-white/50 uppercase tracking-wider border-b border-white/10">
+            <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Статус
             </th>
-            <th className="text-left px-4 py-3 text-xs font-medium text-white/50 uppercase tracking-wider border-b border-white/10">
+            <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Үйлдэл
             </th>
           </tr>
         </thead>
         <tbody>
           {clients.map((client) => (
-            <tr key={client.id} className="border-b border-white/5">
+            <tr key={client.id} className="border-b border-slate-100 dark:border-slate-800">
               <td className="px-4 py-3">
-                <span className="font-medium">{client.name}</span>
+                <span className="font-medium text-slate-900 dark:text-white">{client.name}</span>
               </td>
               <td className="px-4 py-3">
-                <code className="px-2 py-1 bg-gerege-primary/10 text-gerege-primary rounded text-xs font-mono">
+                <code className="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded text-xs font-mono">
                   {truncate(client.client_id, 20)}
                 </code>
               </td>
-              <td className="px-4 py-3 text-white/80 text-sm">
+              <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-sm">
                 {truncate(client.redirect_uri, 40)}
               </td>
               <td className="px-4 py-3">

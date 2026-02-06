@@ -86,7 +86,7 @@ interface ModalTitleProps {
 
 export function ModalTitle({ children, className }: ModalTitleProps) {
   return (
-    <h3 className={cn('text-xl font-bold', className)}>
+    <h3 className={cn('text-xl font-bold text-slate-900 dark:text-white', className)}>
       {children}
     </h3>
   )
@@ -99,7 +99,7 @@ interface ModalDescriptionProps {
 
 export function ModalDescription({ children, className }: ModalDescriptionProps) {
   return (
-    <p className={cn('text-white/50 mt-2', className)}>
+    <p className={cn('text-slate-500 dark:text-slate-400 mt-2', className)}>
       {children}
     </p>
   )

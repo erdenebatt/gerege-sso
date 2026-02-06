@@ -114,14 +114,14 @@ export function ClientModal({
           />
 
           {secret && (
-            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mt-4">
-              <h4 className="text-orange-400 text-sm font-medium mb-2">
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-4 mt-4">
+              <h4 className="text-amber-600 dark:text-amber-400 text-sm font-medium mb-2">
                 Client Secret (нэг удаа харагдана!)
               </h4>
-              <code className="block bg-black/30 p-3 rounded-lg text-sm font-mono break-all text-white">
+              <code className="block bg-slate-100 dark:bg-slate-800 p-3 rounded-lg text-sm font-mono break-all text-slate-900 dark:text-white">
                 {secret}
               </code>
-              <p className="text-xs text-orange-400/80 mt-2">
+              <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-2">
                 Энэ түлхүүрийг хадгалаарай. Дахин харагдахгүй!
               </p>
             </div>

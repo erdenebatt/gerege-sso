@@ -1,19 +1,15 @@
 'use client'
 
-import Link from 'next/link'
 import Image from 'next/image'
+import { Header } from '@/components/layout'
 
 export default function DevelopersPage() {
   return (
-    <div className="max-w-4xl mx-auto px-5 py-10">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-gerege-primary text-sm mb-6 hover:underline"
-      >
-        ← Нүүр хуудас руу буцах
-      </Link>
+    <div className="min-h-screen">
+      <Header />
 
-      <div className="glass rounded-2xl p-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pt-24">
+        <div className="card p-8 md:p-10">
         <div className="flex items-center gap-4 mb-8 pb-6 border-b border-white/20">
           <Image src="/assets/logo.svg" alt="Gerege" width={48} height={48} />
           <div>
@@ -167,6 +163,7 @@ const { access_token } = await response.json();`}
           </div>
         </div>
       </div>
+      </main>
     </div>
   )
 }

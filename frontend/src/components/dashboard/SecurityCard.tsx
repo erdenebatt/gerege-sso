@@ -13,9 +13,9 @@ export function SecurityCard({ user }: SecurityCardProps) {
   return (
     <Card variant="strong" hover>
       <CardHeader>
-        <CardTitle>
+        <CardTitle className="text-slate-900 dark:text-white">
           <svg
-            className="w-5 h-5 text-gerege-secondary"
+            className="w-5 h-5 text-purple-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -33,9 +33,9 @@ export function SecurityCard({ user }: SecurityCardProps) {
 
       <CardContent>
         {/* Connected Account */}
-        <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -56,19 +56,19 @@ export function SecurityCard({ user }: SecurityCardProps) {
               </svg>
             </div>
             <div>
-              <div className="font-medium">Google</div>
-              <div className="text-sm text-white/50">{user.email}</div>
+              <div className="font-medium text-slate-900 dark:text-white">Google</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{user.email}</div>
             </div>
           </div>
           <Badge variant="success">Идэвхтэй</Badge>
         </div>
 
         {/* Last Login */}
-        <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
               <svg
-                className="w-5 h-5 text-white/60"
+                className="w-5 h-5 text-slate-500 dark:text-slate-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -82,8 +82,8 @@ export function SecurityCard({ user }: SecurityCardProps) {
               </svg>
             </div>
             <div>
-              <div className="font-medium">Сүүлийн нэвтрэлт</div>
-              <div className="text-sm text-white/50">
+              <div className="font-medium text-slate-900 dark:text-white">Сүүлийн нэвтрэлт</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">
                 {formatDateTime(user.updated_at)}
               </div>
             </div>
@@ -91,11 +91,11 @@ export function SecurityCard({ user }: SecurityCardProps) {
         </div>
 
         {/* Session Count */}
-        <div className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100 dark:bg-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
               <svg
-                className="w-5 h-5 text-white/60"
+                className="w-5 h-5 text-slate-500 dark:text-slate-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -109,8 +109,8 @@ export function SecurityCard({ user }: SecurityCardProps) {
               </svg>
             </div>
             <div>
-              <div className="font-medium">Идэвхтэй сессүүд</div>
-              <div className="text-sm text-white/50">1 төхөөрөмж</div>
+              <div className="font-medium text-slate-900 dark:text-white">Идэвхтэй сессүүд</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">1 төхөөрөмж</div>
             </div>
           </div>
         </div>

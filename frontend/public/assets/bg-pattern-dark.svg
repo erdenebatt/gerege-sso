@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bgGradDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="waveGradDark1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:0.2" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.15" />
+    </linearGradient>
+
+    <linearGradient id="waveGradDark2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.2" />
+      <stop offset="50%" style="stop-color:#8b5cf6;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:0.1" />
+    </linearGradient>
+
+    <linearGradient id="waveGradDark3" x1="100%" y1="0%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.25" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Base background -->
+  <rect width="100%" height="100%" fill="url(#bgGradDark)"/>
+
+  <!-- Bottom wave 1 -->
+  <path d="M0,850 C300,750 600,900 960,820 C1320,740 1620,880 1920,800 L1920,1080 L0,1080 Z" fill="url(#waveGradDark1)"/>
+
+  <!-- Bottom wave 2 -->
+  <path d="M0,900 C400,820 700,950 1000,880 C1300,810 1600,920 1920,860 L1920,1080 L0,1080 Z" fill="url(#waveGradDark2)"/>
+
+  <!-- Bottom wave 3 -->
+  <path d="M0,950 C350,900 650,1000 960,940 C1270,880 1570,980 1920,920 L1920,1080 L0,1080 Z" fill="url(#waveGradDark3)"/>
+
+  <!-- Top decorative curve -->
+  <path d="M1920,0 L1920,150 C1700,100 1400,180 1100,120 C800,60 500,140 200,100 C100,85 50,90 0,100 L0,0 Z" fill="url(#waveGradDark2)" opacity="0.5"/>
+
+  <!-- Subtle circles -->
+  <circle cx="200" cy="200" r="300" fill="url(#waveGradDark1)" opacity="0.2"/>
+  <circle cx="1700" cy="300" r="250" fill="url(#waveGradDark2)" opacity="0.15"/>
+</svg>

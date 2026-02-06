@@ -22,7 +22,7 @@ export function AuditLogs({ logs, isLoading }: AuditLogsProps) {
 
   if (logs.length === 0) {
     return (
-      <div className="text-center py-10 text-white/40">
+      <div className="text-center py-10 text-slate-400 dark:text-slate-500">
         Лог бүртгэл байхгүй байна.
       </div>
     )
@@ -33,14 +33,14 @@ export function AuditLogs({ logs, isLoading }: AuditLogsProps) {
       {logs.map((log) => (
         <div
           key={log.id}
-          className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border-b border-white/5"
+          className="flex items-center gap-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700"
         >
-          <span className="text-xs text-white/40 min-w-[140px]">
+          <span className="text-xs text-slate-400 dark:text-slate-500 min-w-[140px]">
             {formatDateTime(log.created_at)}
           </span>
           <Badge variant="info">{log.action}</Badge>
-          <span className="text-white/70 flex-1">{log.user_email}</span>
-          <span className="text-xs text-white/40">{log.ip_address}</span>
+          <span className="text-slate-700 dark:text-slate-300 flex-1">{log.user_email}</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500">{log.ip_address}</span>
         </div>
       ))}
     </div>

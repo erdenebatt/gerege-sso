@@ -16,31 +16,19 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set, get) => ({
       language: 'mn',
-      theme: 'dark',
+      theme: 'light',
 
       setLanguage: (language) => set({ language }),
 
-      setTheme: (theme) => {
-        if (typeof document !== 'undefined') {
-          document.documentElement.classList.remove('light', 'dark')
-          document.documentElement.classList.add(theme)
-        }
-        set({ theme })
-      },
+      setTheme: (theme) => set({ theme }),
 
       toggleTheme: () => {
         const newTheme = get().theme === 'dark' ? 'light' : 'dark'
-        get().setTheme(newTheme)
+        set({ theme: newTheme })
       },
     }),
     {
       name: 'gerege-settings',
-      onRehydrateStorage: () => (state) => {
-        if (state && typeof document !== 'undefined') {
-          document.documentElement.classList.remove('light', 'dark')
-          document.documentElement.classList.add(state.theme)
-        }
-      },
     }
   )
 )

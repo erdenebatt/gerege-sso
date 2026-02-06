@@ -369,10 +369,19 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 		`SELECT id FROM citizens WHERE UPPER(reg_no) = $1 FOR UPDATE`,
 		normalizedRegNo,
 	).Scan(&citizenID)
+
 	if err == sql.ErrNoRows {
-		return fmt.Errorf("citizen not found with reg_no: %s", regNo)
-	}
-	if err != nil {
+		// Create new citizen if not found
+		// We use a placeholder for first_name since it's required but not provided in the ID-only flow
+		err = tx.QueryRow(`
+			INSERT INTO citizens (reg_no, first_name, is_foreign, created_date, updated_date)
+			VALUES ($1, 'Тодорхойгүй', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			RETURNING id
+		`, normalizedRegNo).Scan(&citizenID)
+		if err != nil {
+			return fmt.Errorf("failed to create new citizen: %w", err)
+		}
+	} else if err != nil {
 		return fmt.Errorf("failed to find citizen: %w", err)
 	}
 

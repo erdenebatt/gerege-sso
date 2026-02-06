@@ -101,6 +101,9 @@ export const api = {
       fetchAPI<{ success: boolean }>(`/api/auth/grants/${id}`, {
         method: 'DELETE',
       }),
+
+    danCallback: (regNo: string) =>
+      fetchAPI<{ message: string; reg_no: string }>(`/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`),
   },
 
   oauth: {

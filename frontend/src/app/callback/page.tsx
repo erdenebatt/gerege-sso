@@ -54,6 +54,26 @@ function CallbackPageContent() {
         return
       }
 
+      // DAN success
+      const danSuccess = searchParams.get('dan_success')
+      const regNo = searchParams.get('reg_no')
+      if (danSuccess === 'true' && regNo) {
+        try {
+          // Add artificial delay for UX
+          await new Promise(r => setTimeout(r, 800))
+          await api.auth.danCallback(regNo)
+
+          await fetchUser()
+          setVerifySuccess('ДАН баталгаажуулалт амжилттай!')
+          setView('success')
+        } catch (err: unknown) {
+          console.error(err)
+          setErrorMessage('ДАН баталгаажуулалт амжилтгүй боллоо')
+          setView('error')
+        }
+        return
+      }
+
       // Existing session
       if (existing || token) {
         const userData = await fetchUser()

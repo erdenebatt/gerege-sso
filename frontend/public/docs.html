@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Docs — Gerege SSO</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/style.css">
+    <link rel="stylesheet" href="/assets/brand/gerege-signin.css">
+    <style>
+        body { background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%); min-height: 100vh; }
+        .docs-container {
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+        .docs-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .docs-header h1 {
+            font-size: 36px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .docs-header .subtitle {
+            font-size: 16px;
+            color: rgba(255,255,255,0.6);
+        }
+        .lang-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+        .lang-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background: rgba(0,255,136,0.15);
+            border-color: rgba(0,255,136,0.3);
+            color: #00ff88;
+        }
+        .toc {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+        }
+        .toc h3 {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+        .toc-list a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+        .toc-list a:hover { color: #00ff88; }
+        .section {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 28px;
+        }
+        .section h2 {
+            font-size: 22px;
+            margin-bottom: 16px;
+            color: #00ff88;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h3 {
+            font-size: 16px;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            color: rgba(255,255,255,0.9);
+        }
+        .section p, .section li {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.7;
+        }
+        .section ul { padding-left: 20px; margin: 12px 0; }
+        .section li { margin-bottom: 6px; }
+        .endpoint {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .method {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .method-get { background: rgba(0,170,255,0.2); color: #00aaff; }
+        .method-post { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .method-delete { background: rgba(255,87,87,0.2); color: #ff5757; }
+        .endpoint-path {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            color: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        th { color: rgba(255,255,255,0.5); font-weight: 500; }
+        td { color: rgba(255,255,255,0.8); }
+        td code {
+            background: rgba(0,255,136,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #00ff88;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+        }
+        .code-block {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+            position: relative;
+        }
+        .code-block code {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            color: #00ff88;
+            white-space: pre;
+            display: block;
+            line-height: 1.6;
+        }
+        .code-block .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: rgba(255,255,255,0.6);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .code-block .copy-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        .code-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: -1px;
+            position: relative;
+            z-index: 1;
+        }
+        .code-tab {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            padding: 8px 16px;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .code-tab.active {
+            background: rgba(0,0,0,0.4);
+            color: #00ff88;
+            border-color: rgba(255,255,255,0.1);
+        }
+        .code-panel { display: none; }
+        .code-panel.active { display: block; }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-required { background: rgba(255,170,0,0.2); color: #ffaa00; }
+        .badge-optional { background: rgba(100,100,100,0.2); color: #999; }
+        .badge-pkce { background: rgba(0,170,255,0.2); color: #00aaff; }
+        .warning-box {
+            background: rgba(255,170,0,0.1);
+            border: 1px solid rgba(255,170,0,0.3);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+        }
+        .warning-box strong { color: #ffaa00; }
+        .info-box {
+            background: rgba(0,170,255,0.1);
+            border: 1px solid rgba(0,170,255,0.3);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+        }
+        .info-box strong { color: #00aaff; }
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .asset-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .asset-card img {
+            max-width: 100%;
+            height: 44px;
+            margin-bottom: 12px;
+        }
+        .asset-card .asset-name {
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 8px;
+        }
+        .asset-card a {
+            font-size: 12px;
+            color: #00aaff;
+            text-decoration: none;
+        }
+        .asset-card a:hover { text-decoration: underline; }
+        .preview-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin: 16px 0;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .preview-dark { background: #1a1a2e; }
+        .preview-light { background: #f5f5f5; }
+        @media (max-width: 600px) {
+            .docs-container { padding: 20px 12px 60px; }
+            .section { padding: 20px; }
+            .toc-list { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="docs-container">
+    <div class="docs-header">
+        <div class="logo-container">
+            <img src="/assets/logo.svg" alt="Gerege SSO" class="logo">
+        </div>
+        <h1>API Documentation</h1>
+        <p class="subtitle">Gerege SSO OAuth2 integration guide</p>
+    </div>
+
+    <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('mn')">Монгол</button>
+        <button class="lang-btn" onclick="setLang('en')">English</button>
+    </div>
+
+    <div class="toc">
+        <h3 data-mn="Агуулга" data-en="Contents">Агуулга</h3>
+        <div class="toc-list">
+            <a href="#overview" data-mn="Тойм" data-en="Overview">Тойм</a>
+            <a href="#quick-start" data-mn="Хурдан эхлэл" data-en="Quick Start">Хурдан эхлэл</a>
+            <a href="#oauth-flow" data-mn="OAuth2 урсгал" data-en="OAuth2 Flow">OAuth2 урсгал</a>
+            <a href="#pkce" data-mn="PKCE хамгаалалт" data-en="PKCE Security">PKCE хамгаалалт</a>
+            <a href="#endpoints" data-mn="API Endpoints" data-en="API Endpoints">API Endpoints</a>
+            <a href="#jwt" data-mn="JWT бүтэц" data-en="JWT Structure">JWT бүтэц</a>
+            <a href="#buttons" data-mn="Товчлуур" data-en="Button Assets">Товчлуур</a>
+            <a href="#examples" data-mn="Код жишээ" data-en="Code Examples">Код жишээ</a>
+            <a href="#errors" data-mn="Алдааны кодууд" data-en="Error Codes">Алдааны кодууд</a>
+        </div>
+    </div>
+
+    <!-- Overview -->
+    <div class="section" id="overview">
+        <h2 data-mn="1. Тойм" data-en="1. Overview">1. Тойм</h2>
+        <p data-mn="Gerege SSO нь Монголын иргэдийн дижитал таних системээр аппликейшнүүдэд нэвтрэх боломжийг олгодог OAuth2 зөвшөөрлийн сервер юм." data-en="Gerege SSO is an OAuth2 authorization server that allows applications to authenticate Mongolian citizens through a unified digital identity system.">Gerege SSO нь Монголын иргэдийн дижитал таних системээр аппликейшнүүдэд нэвтрэх боломжийг олгодог OAuth2 зөвшөөрлийн сервер юм.</p>
+
+        <h3 data-mn="Онцлогууд" data-en="Features">Онцлогууд</h3>
+        <ul>
+            <li data-mn="OAuth2 Authorization Code Grant (+ PKCE дэмжлэг)" data-en="OAuth2 Authorization Code Grant (+ PKCE support)">OAuth2 Authorization Code Grant (+ PKCE дэмжлэг)</li>
+            <li data-mn="Google, Apple, Facebook, Twitter-ээр нэвтрэх" data-en="Sign in with Google, Apple, Facebook, Twitter">Google, Apple, Facebook, Twitter-ээр нэвтрэх</li>
+            <li data-mn="Регистрийн дугаараар иргэний баталгаажуулалт" data-en="Citizen verification by registration number">Регистрийн дугаараар иргэний баталгаажуулалт</li>
+            <li data-mn="JWT токен дотор баяжуулсан иргэний мэдээлэл" data-en="Enriched citizen data in JWT tokens">JWT токен дотор баяжуулсан иргэний мэдээлэл</li>
+        </ul>
+
+        <div class="info-box">
+            <strong data-mn="Чухал:" data-en="Important:">Чухал:</strong>
+            <span data-mn="Регистрийн дугаар (reg_no) болон иргэний дугаар (civil_id) нь гуравдагч талын токенд хэзээ ч орохгүй. Зөвхөн gen_id (11 оронтой өвөрмөц дугаар) дамжуулагдана." data-en="Registration number (reg_no) and civil ID (civil_id) are never included in third-party tokens. Only gen_id (unique 11-digit identifier) is transmitted.">Регистрийн дугаар (reg_no) болон иргэний дугаар (civil_id) нь гуравдагч талын токенд хэзээ ч орохгүй. Зөвхөн gen_id (11 оронтой өвөрмөц дугаар) дамжуулагдана.</span>
+        </div>
+    </div>
+
+    <!-- Quick Start -->
+    <div class="section" id="quick-start">
+        <h2 data-mn="2. Хурдан эхлэл" data-en="2. Quick Start">2. Хурдан эхлэл</h2>
+
+        <h3 data-mn="Клиент бүртгүүлэх" data-en="Register Your Client">Клиент бүртгүүлэх</h3>
+        <p data-mn="Gerege SSO админтай холбогдож дараах мэдээллийг өгнө үү:" data-en="Contact Gerege SSO admin with the following information:">Gerege SSO админтай холбогдож дараах мэдээллийг өгнө үү:</p>
+        <ul>
+            <li data-mn="Аппликейшны нэр (зөвшөөрлийн дэлгэцэнд харагдана)" data-en="Application name (displayed on consent screen)">Аппликейшны нэр (зөвшөөрлийн дэлгэцэнд харагдана)</li>
+            <li data-mn="Redirect URI (зөвшөөрлийн дараа буцах хаяг)" data-en="Redirect URI (callback URL after authorization)">Redirect URI (зөвшөөрлийн дараа буцах хаяг)</li>
+        </ul>
+
+        <p data-mn="Та дараах мэдээллийг хүлээн авна:" data-en="You will receive:">Та дараах мэдээллийг хүлээн авна:</p>
+        <ul>
+            <li><code>client_id</code> — <span data-mn="Нийтийн танигч" data-en="Public identifier">Нийтийн танигч</span></li>
+            <li><code>client_secret</code> — <span data-mn="Нууц түлхүүр (backend-д хадгална, хэзээ ч frontend-д бичихгүй)" data-en="Secret key (store securely on backend, never expose to frontend)">Нууц түлхүүр (backend-д хадгална, хэзээ ч frontend-д бичихгүй)</span></li>
+        </ul>
+    </div>
+
+    <!-- OAuth Flow -->
+    <div class="section" id="oauth-flow">
+        <h2 data-mn="3. OAuth2 урсгал" data-en="3. OAuth2 Flow">3. OAuth2 урсгал</h2>
+
+        <div class="code-block">
+            <code>┌──────────┐                              ┌──────────────┐                    ┌──────────────┐
+│  Таны    │                              │   Gerege     │                    │    Таны      │
+│  Апп     │                              │     SSO      │                    │   Сервер     │
+└────┬─────┘                              └──────┬───────┘                    └──────┬───────┘
+     │                                           │                                   │
+     │  1. /api/oauth/authorize?...              │                                   │
+     ├──────────────────────────────────────────▶│                                   │
+     │                                           │                                   │
+     │  2. Consent screen                        │                                   │
+     │◀──────────────────────────────────────────┤                                   │
+     │                                           │                                   │
+     │  3. Redirect: ?code=AUTH_CODE             │                                   │
+     │◀──────────────────────────────────────────┤                                   │
+     │                                           │                                   │
+     │  4. Send code to your server              │                                   │
+     ├───────────────────────────────────────────┼──────────────────────────────────▶│
+     │                                           │                                   │
+     │                                           │  5. POST /api/oauth/token         │
+     │                                           │◀──────────────────────────────────┤
+     │                                           │                                   │
+     │                                           │  6. { access_token: JWT }         │
+     │                                           ├──────────────────────────────────▶│
+     │                                           │                                   │
+     │  7. User authenticated                    │                                   │
+     │◀──────────────────────────────────────────┼───────────────────────────────────┤
+     │                                           │                                   │</code>
+        </div>
+    </div>
+
+    <!-- PKCE -->
+    <div class="section" id="pkce">
+        <h2 data-mn="4. PKCE хамгаалалт" data-en="4. PKCE Security">4. PKCE хамгаалалт</h2>
+
+        <p data-mn="PKCE (Proof Key for Code Exchange) нь authorization code interception халдлагаас хамгаалдаг. Mobile болон SPA аппликейшнүүдэд зайлшгүй шаардлагатай." data-en="PKCE (Proof Key for Code Exchange) protects against authorization code interception attacks. Essential for mobile and SPA applications.">PKCE (Proof Key for Code Exchange) нь authorization code interception халдлагаас хамгаалдаг. Mobile болон SPA аппликейшнүүдэд зайлшгүй шаардлагатай.</p>
+
+        <h3 data-mn="Хэрхэн ажилладаг" data-en="How It Works">Хэрхэн ажилладаг</h3>
+        <ol>
+            <li data-mn="Санамсаргүй code_verifier үүсгэнэ (43-128 тэмдэгт)" data-en="Generate random code_verifier (43-128 characters)">Санамсаргүй code_verifier үүсгэнэ (43-128 тэмдэгт)</li>
+            <li data-mn="SHA-256 hash хийж code_challenge үүсгэнэ" data-en="Create code_challenge by hashing with SHA-256">SHA-256 hash хийж code_challenge үүсгэнэ</li>
+            <li data-mn="Authorize хүсэлтэд code_challenge илгээнэ" data-en="Send code_challenge with authorize request">Authorize хүсэлтэд code_challenge илгээнэ</li>
+            <li data-mn="Token хүсэлтэд code_verifier илгээнэ" data-en="Send code_verifier with token request">Token хүсэлтэд code_verifier илгээнэ</li>
+        </ol>
+
+        <div class="code-tabs">
+            <button class="code-tab active" onclick="showCodeTab(this, 'pkce-js')">JavaScript</button>
+            <button class="code-tab" onclick="showCodeTab(this, 'pkce-py')">Python</button>
+            <button class="code-tab" onclick="showCodeTab(this, 'pkce-go')">Go</button>
+        </div>
+        <div class="code-block" style="border-top-left-radius: 0;">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <div id="pkce-js" class="code-panel active">
+                <code>// JavaScript PKCE implementation
+async function generatePKCE() {
+    // Generate code_verifier (43-128 characters)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const codeVerifier = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+
+    // Generate code_challenge (S256)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+
+    return { codeVerifier, codeChallenge };
+}
+
+// Usage
+const { codeVerifier, codeChallenge } = await generatePKCE();
+sessionStorage.setItem('pkce_verifier', codeVerifier);
+
+// Authorize URL
+const authUrl = `https://sso.gerege.mn/api/oauth/authorize?` +
+    `client_id=${CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+    `response_type=code&` +
+    `scope=openid+profile&` +
+    `code_challenge=${codeChallenge}&` +
+    `code_challenge_method=S256&` +
+    `state=${generateState()}`;
+
+window.location.href = authUrl;</code>
+            </div>
+            <div id="pkce-py" class="code-panel">
+                <code># Python PKCE implementation
+import secrets
+import hashlib
+import base64
+
+def generate_pkce():
+    # Generate code_verifier
+    code_verifier = secrets.token_urlsafe(32)
+
+    # Generate code_challenge (S256)
+    digest = hashlib.sha256(code_verifier.encode()).digest()
+    code_challenge = base64.urlsafe_b64encode(digest).rstrip(b'=').decode()
+
+    return code_verifier, code_challenge
+
+# Usage
+code_verifier, code_challenge = generate_pkce()
+session['pkce_verifier'] = code_verifier
+
+# Authorize URL
+auth_url = (
+    f"https://sso.gerege.mn/api/oauth/authorize?"
+    f"client_id={CLIENT_ID}&"
+    f"redirect_uri={quote(REDIRECT_URI)}&"
+    f"response_type=code&"
+    f"scope=openid+profile&"
+    f"code_challenge={code_challenge}&"
+    f"code_challenge_method=S256&"
+    f"state={generate_state()}"
+)</code>
+            </div>
+            <div id="pkce-go" class="code-panel">
+                <code>// Go PKCE implementation
+package main
+
+import (
+    "crypto/rand"
+    "crypto/sha256"
+    "encoding/base64"
+)
+
+func generatePKCE() (codeVerifier, codeChallenge string, err error) {
+    // Generate code_verifier
+    verifierBytes := make([]byte, 32)
+    if _, err := rand.Read(verifierBytes); err != nil {
+        return "", "", err
+    }
+    codeVerifier = base64.RawURLEncoding.EncodeToString(verifierBytes)
+
+    // Generate code_challenge (S256)
+    hash := sha256.Sum256([]byte(codeVerifier))
+    codeChallenge = base64.RawURLEncoding.EncodeToString(hash[:])
+
+    return codeVerifier, codeChallenge, nil
+}
+
+// Usage
+codeVerifier, codeChallenge, _ := generatePKCE()
+session.Set("pkce_verifier", codeVerifier)
+
+authURL := fmt.Sprintf(
+    "https://sso.gerege.mn/api/oauth/authorize?"+
+        "client_id=%s&"+
+        "redirect_uri=%s&"+
+        "response_type=code&"+
+        "scope=openid+profile&"+
+        "code_challenge=%s&"+
+        "code_challenge_method=S256&"+
+        "state=%s",
+    clientID, url.QueryEscape(redirectURI), codeChallenge, state,
+)</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Endpoints -->
+    <div class="section" id="endpoints">
+        <h2 data-mn="5. API Endpoints" data-en="5. API Endpoints">5. API Endpoints</h2>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/oauth/authorize</span>
+            </div>
+            <p data-mn="Хэрэглэгчийг зөвшөөрлийн дэлгэц рүү чиглүүлнэ." data-en="Redirects user to consent screen.">Хэрэглэгчийг зөвшөөрлийн дэлгэц рүү чиглүүлнэ.</p>
+            <table>
+                <tr><th data-mn="Параметр" data-en="Parameter">Параметр</th><th data-mn="Төрөл" data-en="Type">Төрөл</th><th data-mn="Тайлбар" data-en="Description">Тайлбар</th></tr>
+                <tr><td><code>client_id</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Бүртгэгдсэн client ID" data-en="Registered client ID">Бүртгэгдсэн client ID</td></tr>
+                <tr><td><code>redirect_uri</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Бүртгэлтэй redirect URI" data-en="Registered redirect URI">Бүртгэлтэй redirect URI</td></tr>
+                <tr><td><code>response_type</code></td><td><span class="badge badge-required">required</span></td><td data-mn="'code' байх ёстой" data-en="Must be 'code'"><code>code</code> байх ёстой</td></tr>
+                <tr><td><code>scope</code></td><td><span class="badge badge-optional">optional</span></td><td data-mn="Өгөгдмөл: openid profile" data-en="Default: openid profile">Өгөгдмөл: <code>openid profile</code></td></tr>
+                <tr><td><code>state</code></td><td><span class="badge badge-optional">optional</span></td><td data-mn="CSRF хамгаалалтын токен (зөвлөмж)" data-en="CSRF protection token (recommended)">CSRF хамгаалалтын токен (зөвлөмж)</td></tr>
+                <tr><td><code>code_challenge</code></td><td><span class="badge badge-pkce">PKCE</span></td><td data-mn="S256 method ашиглан үүсгэсэн challenge" data-en="Challenge generated using S256 method">S256 method ашиглан үүсгэсэн challenge</td></tr>
+                <tr><td><code>code_challenge_method</code></td><td><span class="badge badge-pkce">PKCE</span></td><td data-mn="'S256' эсвэл 'plain'. S256 зөвлөмж" data-en="'S256' or 'plain'. S256 recommended"><code>S256</code> эсвэл <code>plain</code></td></tr>
+            </table>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-post">POST</span>
+                <span class="endpoint-path">/api/oauth/token</span>
+            </div>
+            <p data-mn="Authorization code-ийг access token руу солино." data-en="Exchanges authorization code for access token.">Authorization code-ийг access token руу солино.</p>
+            <table>
+                <tr><th data-mn="Параметр" data-en="Parameter">Параметр</th><th data-mn="Төрөл" data-en="Type">Төрөл</th><th data-mn="Тайлбар" data-en="Description">Тайлбар</th></tr>
+                <tr><td><code>grant_type</code></td><td><span class="badge badge-required">required</span></td><td><code>authorization_code</code></td></tr>
+                <tr><td><code>code</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Callback-аас ирсэн код" data-en="Code from callback">Callback-аас ирсэн код</td></tr>
+                <tr><td><code>redirect_uri</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Authorize хүсэлтийнхтэй ижил" data-en="Same as authorize request">Authorize хүсэлтийнхтэй ижил</td></tr>
+                <tr><td><code>client_id</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Таны client ID" data-en="Your client ID">Таны client ID</td></tr>
+                <tr><td><code>client_secret</code></td><td><span class="badge badge-required">required</span></td><td data-mn="Таны client secret" data-en="Your client secret">Таны client secret</td></tr>
+                <tr><td><code>code_verifier</code></td><td><span class="badge badge-pkce">PKCE</span></td><td data-mn="PKCE ашигласан бол заавал" data-en="Required if PKCE was used">PKCE ашигласан бол заавал</td></tr>
+            </table>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-get">GET</span>
+                <span class="endpoint-path">/api/auth/grants</span>
+            </div>
+            <p data-mn="Хэрэглэгчийн зөвшөөрсөн аппликейшнүүдийн жагсаалт." data-en="List of applications the user has authorized.">Хэрэглэгчийн зөвшөөрсөн аппликейшнүүдийн жагсаалт.</p>
+            <p><span class="badge badge-required" data-mn="JWT шаардлагатай" data-en="JWT required">JWT шаардлагатай</span></p>
+        </div>
+
+        <div class="endpoint">
+            <div class="endpoint-header">
+                <span class="method method-delete">DELETE</span>
+                <span class="endpoint-path">/api/auth/grants/:id</span>
+            </div>
+            <p data-mn="Аппликейшны зөвшөөрлийг цуцална." data-en="Revokes application authorization.">Аппликейшны зөвшөөрлийг цуцална.</p>
+            <p><span class="badge badge-required" data-mn="JWT шаардлагатай" data-en="JWT required">JWT шаардлагатай</span></p>
+        </div>
+    </div>
+
+    <!-- JWT Structure -->
+    <div class="section" id="jwt">
+        <h2 data-mn="6. JWT бүтэц" data-en="6. JWT Structure">6. JWT бүтэц</h2>
+
+        <p data-mn="Token endpoint-аас буцах JWT нь дараах бүтэцтэй:" data-en="JWT returned from token endpoint has the following structure:">Token endpoint-аас буцах JWT нь дараах бүтэцтэй:</p>
+
+        <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <code>{
+  "iss": "https://sso.gerege.mn",
+  "sub": "40555880567",
+  "aud": ["your-client-id"],
+  "exp": 1770305833,
+  "iat": 1770302233,
+
+  "email": "user@gmail.com",
+  "picture": "https://lh3.googleusercontent.com/...",
+  "email_verified": true,
+
+  "gerege": {
+    "gen_id": "40555880567",
+    "family_name": "Боржигон",
+    "last_name": "Эрдэнэ",
+    "first_name": "Бат",
+    "birth_date": "1990-05-20",
+    "gender": "male"
+  }
+}</code>
+        </div>
+
+        <h3 data-mn="Gerege claim талбарууд" data-en="Gerege Claim Fields">Gerege claim талбарууд</h3>
+        <table>
+            <tr><th data-mn="Талбар" data-en="Field">Талбар</th><th data-mn="Төрөл" data-en="Type">Төрөл</th><th data-mn="Тайлбар" data-en="Description">Тайлбар</th></tr>
+            <tr><td><code>gen_id</code></td><td>string</td><td data-mn="11 оронтой өвөрмөц дугаар (үргэлж байна)" data-en="11-digit unique identifier (always present)">11 оронтой өвөрмөц дугаар (үргэлж байна)</td></tr>
+            <tr><td><code>family_name</code></td><td>string</td><td data-mn="Ургийн овог" data-en="Family name">Ургийн овог</td></tr>
+            <tr><td><code>last_name</code></td><td>string</td><td data-mn="Овог" data-en="Last name">Овог</td></tr>
+            <tr><td><code>first_name</code></td><td>string</td><td data-mn="Нэр" data-en="First name">Нэр</td></tr>
+            <tr><td><code>birth_date</code></td><td>string</td><td data-mn="YYYY-MM-DD формат" data-en="YYYY-MM-DD format">YYYY-MM-DD формат</td></tr>
+            <tr><td><code>gender</code></td><td>string</td><td data-mn="'male' эсвэл 'female'" data-en="'male' or 'female'"><code>male</code> эсвэл <code>female</code></td></tr>
+        </table>
+
+        <div class="warning-box">
+            <strong data-mn="Анхаар:" data-en="Note:">Анхаар:</strong>
+            <span data-mn="Хэрэв хэрэглэгч иргэний баталгаажуулалт хийгээгүй бол gerege объектод зөвхөн gen_id байна. Бусад талбарууд хоосон байж болно." data-en="If the user has not completed citizen verification, only gen_id will be present in the gerege object. Other fields may be empty.">Хэрэв хэрэглэгч иргэний баталгаажуулалт хийгээгүй бол gerege объектод зөвхөн gen_id байна. Бусад талбарууд хоосон байж болно.</span>
+        </div>
+    </div>
+
+    <!-- Button Assets -->
+    <div class="section" id="buttons">
+        <h2 data-mn="7. Товчлуурын загварууд" data-en="7. Button Assets">7. Товчлуурын загварууд</h2>
+
+        <h3 data-mn="CSS холбох" data-en="Include CSS">CSS холбох</h3>
+        <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <code>&lt;link rel="stylesheet" href="https://sso.gerege.mn/assets/brand/gerege-signin.css"&gt;</code>
+        </div>
+
+        <h3 data-mn="Товчлуурын хувилбарууд" data-en="Button Variants">Товчлуурын хувилбарууд</h3>
+        <div class="preview-row preview-dark">
+            <a href="#" class="gerege-signin-btn gerege-signin-btn--branded" onclick="return false">
+                <svg class="gerege-icon" viewBox="0 0 40 40"><rect x="10" y="4" width="20" height="32" rx="3" fill="rgba(26,26,46,0.3)"/><rect x="13" y="9" width="14" height="2" rx="1" fill="rgba(255,255,255,0.9)"/><rect x="13" y="14" width="14" height="2" rx="1" fill="rgba(255,255,255,0.7)"/><rect x="13" y="19" width="14" height="2" rx="1" fill="rgba(255,255,255,0.7)"/><circle cx="20" cy="29" r="5" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.8)" stroke-width="1.2"/><text x="20" y="31.5" font-family="Arial" font-size="6" fill="white" text-anchor="middle" font-weight="bold">G</text></svg>
+                Gerege-ээр нэвтрэх
+            </a>
+            <a href="#" class="gerege-signin-btn gerege-signin-btn--dark" onclick="return false" style="border:1px solid rgba(255,255,255,0.15)">
+                <svg class="gerege-icon" viewBox="0 0 40 40"><defs><linearGradient id="pi1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00ff88"/><stop offset="100%" stop-color="#00aaff"/></linearGradient></defs><rect x="10" y="4" width="20" height="32" rx="3" fill="url(#pi1)"/><rect x="13" y="9" width="14" height="2" rx="1" fill="rgba(255,255,255,0.85)"/><rect x="13" y="14" width="14" height="2" rx="1" fill="rgba(255,255,255,0.6)"/><rect x="13" y="19" width="14" height="2" rx="1" fill="rgba(255,255,255,0.6)"/><circle cx="20" cy="29" r="5" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.8)" stroke-width="1.2"/><text x="20" y="31.5" font-family="Arial" font-size="6" fill="white" text-anchor="middle" font-weight="bold">G</text></svg>
+                Gerege-ээр нэвтрэх
+            </a>
+        </div>
+
+        <h3 data-mn="Татаж авах" data-en="Download Assets">Татаж авах</h3>
+        <div class="asset-grid">
+            <div class="asset-card">
+                <img src="/assets/brand/btn-signin-branded.svg" alt="Branded">
+                <div class="asset-name">Брэнд товчлуур</div>
+                <a href="/assets/brand/btn-signin-branded.svg" download>SVG</a>
+            </div>
+            <div class="asset-card">
+                <img src="/assets/brand/btn-signin-dark.svg" alt="Dark">
+                <div class="asset-name">Бараан товчлуур</div>
+                <a href="/assets/brand/btn-signin-dark.svg" download>SVG</a>
+            </div>
+            <div class="asset-card">
+                <img src="/assets/brand/btn-signin-light.svg" alt="Light" style="background:#f5f5f5;border-radius:6px;">
+                <div class="asset-name">Цайвар товчлуур</div>
+                <a href="/assets/brand/btn-signin-light.svg" download>SVG</a>
+            </div>
+            <div class="asset-card">
+                <img src="/assets/brand/gerege-icon.svg" alt="Icon">
+                <div class="asset-name">Gerege дүрс</div>
+                <a href="/assets/brand/gerege-icon.svg" download>SVG</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Examples -->
+    <div class="section" id="examples">
+        <h2 data-mn="8. Код жишээнүүд" data-en="8. Code Examples">8. Код жишээнүүд</h2>
+
+        <div class="code-tabs">
+            <button class="code-tab active" onclick="showCodeTab(this, 'example-js')">JavaScript</button>
+            <button class="code-tab" onclick="showCodeTab(this, 'example-py')">Python</button>
+            <button class="code-tab" onclick="showCodeTab(this, 'example-go')">Go</button>
+        </div>
+        <div class="code-block" style="border-top-left-radius: 0;">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <div id="example-js" class="code-panel active">
+                <code>// Node.js/Express example with PKCE
+const express = require('express');
+const crypto = require('crypto');
+const axios = require('axios');
+
+const app = express();
+const CLIENT_ID = 'your-client-id';
+const CLIENT_SECRET = 'your-client-secret';
+const REDIRECT_URI = 'https://yourapp.com/callback';
+
+// Step 1: Initiate OAuth flow
+app.get('/login', (req, res) => {
+    // Generate PKCE
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto.createHash('sha256')
+        .update(codeVerifier).digest('base64url');
+
+    // Store verifier in session
+    req.session.codeVerifier = codeVerifier;
+    req.session.state = crypto.randomBytes(16).toString('hex');
+
+    const authUrl = new URL('https://sso.gerege.mn/api/oauth/authorize');
+    authUrl.searchParams.set('client_id', CLIENT_ID);
+    authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', 'openid profile');
+    authUrl.searchParams.set('state', req.session.state);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    res.redirect(authUrl.toString());
+});
+
+// Step 2: Handle callback
+app.get('/callback', async (req, res) => {
+    const { code, state } = req.query;
+
+    // Verify state
+    if (state !== req.session.state) {
+        return res.status(400).send('Invalid state');
+    }
+
+    // Exchange code for token
+    const tokenResponse = await axios.post(
+        'https://sso.gerege.mn/api/oauth/token',
+        new URLSearchParams({
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: REDIRECT_URI,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            code_verifier: req.session.codeVerifier,
+        }),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const { access_token } = tokenResponse.data;
+
+    // Decode JWT to get user info
+    const payload = JSON.parse(
+        Buffer.from(access_token.split('.')[1], 'base64').toString()
+    );
+
+    console.log('User:', payload.gerege);
+    res.json({ user: payload.gerege });
+});</code>
+            </div>
+            <div id="example-py" class="code-panel">
+                <code># Python/Flask example with PKCE
+from flask import Flask, redirect, request, session, url_for
+import secrets
+import hashlib
+import base64
+import requests
+import jwt
+
+app = Flask(__name__)
+app.secret_key = 'your-secret-key'
+
+CLIENT_ID = 'your-client-id'
+CLIENT_SECRET = 'your-client-secret'
+REDIRECT_URI = 'https://yourapp.com/callback'
+
+@app.route('/login')
+def login():
+    # Generate PKCE
+    code_verifier = secrets.token_urlsafe(32)
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).rstrip(b'=').decode()
+
+    # Store in session
+    session['code_verifier'] = code_verifier
+    session['state'] = secrets.token_hex(16)
+
+    auth_url = (
+        f"https://sso.gerege.mn/api/oauth/authorize?"
+        f"client_id={CLIENT_ID}&"
+        f"redirect_uri={REDIRECT_URI}&"
+        f"response_type=code&"
+        f"scope=openid+profile&"
+        f"state={session['state']}&"
+        f"code_challenge={code_challenge}&"
+        f"code_challenge_method=S256"
+    )
+    return redirect(auth_url)
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    state = request.args.get('state')
+
+    # Verify state
+    if state != session.get('state'):
+        return 'Invalid state', 400
+
+    # Exchange code for token
+    token_response = requests.post(
+        'https://sso.gerege.mn/api/oauth/token',
+        data={
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': REDIRECT_URI,
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'code_verifier': session['code_verifier'],
+        }
+    )
+
+    access_token = token_response.json()['access_token']
+
+    # Decode JWT (without verification for demo)
+    payload = jwt.decode(access_token, options={"verify_signature": False})
+
+    return {
+        'user': payload['gerege'],
+        'email': payload['email']
+    }</code>
+            </div>
+            <div id="example-go" class="code-panel">
+                <code>// Go/Gin example with PKCE
+package main
+
+import (
+    "crypto/rand"
+    "crypto/sha256"
+    "encoding/base64"
+    "encoding/json"
+    "net/http"
+    "net/url"
+    "strings"
+
+    "github.com/gin-contrib/sessions"
+    "github.com/gin-gonic/gin"
+)
+
+const (
+    clientID     = "your-client-id"
+    clientSecret = "your-client-secret"
+    redirectURI  = "https://yourapp.com/callback"
+)
+
+func main() {
+    r := gin.Default()
+
+    r.GET("/login", func(c *gin.Context) {
+        session := sessions.Default(c)
+
+        // Generate PKCE
+        verifierBytes := make([]byte, 32)
+        rand.Read(verifierBytes)
+        codeVerifier := base64.RawURLEncoding.EncodeToString(verifierBytes)
+
+        hash := sha256.Sum256([]byte(codeVerifier))
+        codeChallenge := base64.RawURLEncoding.EncodeToString(hash[:])
+
+        // Generate state
+        stateBytes := make([]byte, 16)
+        rand.Read(stateBytes)
+        state := base64.RawURLEncoding.EncodeToString(stateBytes)
+
+        // Store in session
+        session.Set("code_verifier", codeVerifier)
+        session.Set("state", state)
+        session.Save()
+
+        authURL := "https://sso.gerege.mn/api/oauth/authorize?" +
+            "client_id=" + clientID +
+            "&redirect_uri=" + url.QueryEscape(redirectURI) +
+            "&response_type=code" +
+            "&scope=openid+profile" +
+            "&state=" + state +
+            "&code_challenge=" + codeChallenge +
+            "&code_challenge_method=S256"
+
+        c.Redirect(http.StatusTemporaryRedirect, authURL)
+    })
+
+    r.GET("/callback", func(c *gin.Context) {
+        session := sessions.Default(c)
+        code := c.Query("code")
+        state := c.Query("state")
+
+        // Verify state
+        if state != session.Get("state") {
+            c.JSON(400, gin.H{"error": "invalid state"})
+            return
+        }
+
+        // Exchange code for token
+        data := url.Values{
+            "grant_type":    {"authorization_code"},
+            "code":          {code},
+            "redirect_uri":  {redirectURI},
+            "client_id":     {clientID},
+            "client_secret": {clientSecret},
+            "code_verifier": {session.Get("code_verifier").(string)},
+        }
+
+        resp, _ := http.Post(
+            "https://sso.gerege.mn/api/oauth/token",
+            "application/x-www-form-urlencoded",
+            strings.NewReader(data.Encode()),
+        )
+        defer resp.Body.Close()
+
+        var tokenResp struct {
+            AccessToken string `json:"access_token"`
+        }
+        json.NewDecoder(resp.Body).Decode(&tokenResp)
+
+        // Parse JWT payload (base64 decode middle section)
+        parts := strings.Split(tokenResp.AccessToken, ".")
+        payload, _ := base64.RawURLEncoding.DecodeString(parts[1])
+
+        c.Data(200, "application/json", payload)
+    })
+
+    r.Run(":8080")
+}</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Codes -->
+    <div class="section" id="errors">
+        <h2 data-mn="9. Алдааны кодууд" data-en="9. Error Codes">9. Алдааны кодууд</h2>
+
+        <table>
+            <tr><th data-mn="Код" data-en="Code">Код</th><th data-mn="Тайлбар" data-en="Description">Тайлбар</th></tr>
+            <tr><td><code>invalid_client_id</code></td><td data-mn="Client ID буруу эсвэл идэвхгүй" data-en="Invalid or inactive client ID">Client ID буруу эсвэл идэвхгүй</td></tr>
+            <tr><td><code>redirect_uri_mismatch</code></td><td data-mn="Redirect URI бүртгэлтэйгээ таарахгүй байна" data-en="Redirect URI doesn't match registered">Redirect URI бүртгэлтэйгээ таарахгүй байна</td></tr>
+            <tr><td><code>invalid_client_credentials</code></td><td data-mn="Client secret буруу" data-en="Invalid client secret">Client secret буруу</td></tr>
+            <tr><td><code>invalid_code</code></td><td data-mn="Authorization code буруу эсвэл хугацаа дууссан" data-en="Invalid or expired authorization code">Authorization code буруу эсвэл хугацаа дууссан</td></tr>
+            <tr><td><code>invalid_code_verifier</code></td><td data-mn="PKCE code_verifier таарахгүй байна" data-en="PKCE code_verifier mismatch">PKCE code_verifier таарахгүй байна</td></tr>
+            <tr><td><code>access_denied</code></td><td data-mn="Хэрэглэгч зөвшөөрөлөөс татгалзсан" data-en="User denied authorization">Хэрэглэгч зөвшөөрөлөөс татгалзсан</td></tr>
+        </table>
+    </div>
+
+    <div class="footer" style="text-align:center; padding-top:40px;">
+        <p>&copy; 2025 Gerege SSO &middot; <a href="/" style="color:rgba(255,255,255,0.5);text-decoration:none" data-mn="Нүүр хуудас" data-en="Home">Нүүр хуудас</a> &middot; <a href="/developers.html" style="color:rgba(255,255,255,0.5);text-decoration:none" data-mn="Хөгжүүлэгчид" data-en="Developers">Хөгжүүлэгчид</a></p>
+    </div>
+</div>
+
+<script>
+function copyCode(btn) {
+    var codeEl = btn.parentElement.querySelector('.code-panel.active code') ||
+                 btn.parentElement.querySelector('code');
+    navigator.clipboard.writeText(codeEl.textContent).then(function() {
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+    });
+}
+
+function showCodeTab(btn, panelId) {
+    var container = btn.closest('.section') || btn.closest('.docs-container');
+    container.querySelectorAll('.code-tab').forEach(function(t) { t.classList.remove('active'); });
+    container.querySelectorAll('.code-panel').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById(panelId).classList.add('active');
+}
+
+function setLang(lang) {
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(lang === 'mn' ? 'монгол' : 'english'));
+    });
+
+    document.querySelectorAll('[data-mn][data-en]').forEach(function(el) {
+        el.textContent = el.getAttribute('data-' + lang);
+    });
+
+    localStorage.setItem('docs_lang', lang);
+}
+
+// Init language
+var savedLang = localStorage.getItem('docs_lang') || 'mn';
+setLang(savedLang);
+</script>
+</body>
+</html>

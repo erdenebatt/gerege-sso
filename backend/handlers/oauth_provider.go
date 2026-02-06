@@ -23,6 +23,7 @@ type OAuthProviderHandler struct {
 	jwtService    *services.JWTService
 	userService   *services.UserService
 	auditService  *services.AuditService
+	grantService  *services.GrantService
 	redis         *redis.Client
 	config        *config.Config
 }
@@ -33,6 +34,7 @@ func NewOAuthProviderHandler(
 	jwtService *services.JWTService,
 	userService *services.UserService,
 	auditService *services.AuditService,
+	grantService *services.GrantService,
 	redis *redis.Client,
 	cfg *config.Config,
 ) *OAuthProviderHandler {
@@ -41,6 +43,7 @@ func NewOAuthProviderHandler(
 		jwtService:    jwtService,
 		userService:   userService,
 		auditService:  auditService,
+		grantService:  grantService,
 		redis:         redis,
 		config:        cfg,
 	}
@@ -49,6 +52,7 @@ func NewOAuthProviderHandler(
 // Authorize handles GET /api/oauth/authorize
 // Step 1: Validates params and redirects to consent page.
 // Step 2 (POST with approve=true): Generates auth code and redirects back to client.
+// Supports PKCE with code_challenge and code_challenge_method parameters.
 func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 	clientID := c.Query("client_id")
 	redirectURI := c.Query("redirect_uri")
@@ -56,6 +60,16 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 	scope := c.DefaultQuery("scope", "openid profile")
 	state := c.Query("state")
 	approve := c.Query("approve")
+
+	// PKCE parameters
+	codeChallenge := c.Query("code_challenge")
+	codeChallengeMethod := c.DefaultQuery("code_challenge_method", "plain")
+
+	// Validate code_challenge_method if code_challenge is provided
+	if codeChallenge != "" && codeChallengeMethod != "S256" && codeChallengeMethod != "plain" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code_challenge_method, must be 'S256' or 'plain'"})
+		return
+	}
 
 	// Validate response_type
 	if responseType != "code" {
@@ -95,6 +109,11 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 			url.QueryEscape(state),
 			url.QueryEscape(client.Name),
 		)
+		// Forward PKCE parameters to consent page
+		if codeChallenge != "" {
+			consentURL += "&code_challenge=" + url.QueryEscape(codeChallenge)
+			consentURL += "&code_challenge_method=" + url.QueryEscape(codeChallengeMethod)
+		}
 		c.Redirect(http.StatusSeeOther, consentURL)
 		return
 	}
@@ -109,8 +128,8 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 	}
 	code := base64.URLEncoding.EncodeToString(codeBytes)
 
-	// Store auth code in Redis (5-min TTL, single-use)
-	if err := h.clientService.StoreAuthCode(code, clientID, genID, redirectURI, scope); err != nil {
+	// Store auth code in Redis (5-min TTL, single-use) with PKCE params
+	if err := h.clientService.StoreAuthCode(code, clientID, genID, redirectURI, scope, codeChallenge, codeChallengeMethod); err != nil {
 		log.Printf("Failed to store auth code: %v", err)
 		middleware.RecordOAuthAuthorize(false)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store authorization code"})
@@ -119,7 +138,7 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 
 	middleware.RecordOAuthAuthorize(true)
 
-	// Audit: record consent event
+	// Audit: record consent event and create/update grant
 	user, _ := h.userService.FindByGenID(genID)
 	if user != nil {
 		h.auditService.AddLog(user.ID, "oauth_consent_granted", map[string]interface{}{
@@ -127,6 +146,12 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 			"app_name":  client.Name,
 			"scope":     scope,
 		}, c.ClientIP(), c.Request.UserAgent())
+
+		// Record the grant (or update if already exists)
+		scopes := strings.Split(scope, " ")
+		if err := h.grantService.CreateOrUpdateGrant(user.ID, clientID, scopes); err != nil {
+			log.Printf("Failed to record grant: %v", err)
+		}
 	}
 
 	// Redirect back to client with code and state
@@ -142,12 +167,14 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 }
 
 // Token handles POST /api/oauth/token — exchanges auth code for an enriched JWT.
+// Supports PKCE verification with code_verifier parameter.
 func (h *OAuthProviderHandler) Token(c *gin.Context) {
 	grantType := c.PostForm("grant_type")
 	code := c.PostForm("code")
 	redirectURI := c.PostForm("redirect_uri")
 	clientID := c.PostForm("client_id")
 	clientSecret := c.PostForm("client_secret")
+	codeVerifier := c.PostForm("code_verifier")
 
 	if grantType != "authorization_code" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
@@ -162,11 +189,18 @@ func (h *OAuthProviderHandler) Token(c *gin.Context) {
 		return
 	}
 
-	// Consume the single-use auth code
-	storedClientID, genID, storedRedirectURI, scope, err := h.clientService.ConsumeAuthCode(code)
+	// Consume the single-use auth code (now includes PKCE params)
+	storedClientID, genID, storedRedirectURI, scope, codeChallenge, codeChallengeMethod, err := h.clientService.ConsumeAuthCode(code)
 	if err != nil {
 		log.Printf("Auth code consumption failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or expired authorization code"})
+		return
+	}
+
+	// Verify PKCE if code_challenge was provided during authorization
+	if !services.VerifyPKCE(codeVerifier, codeChallenge, codeChallengeMethod) {
+		log.Printf("PKCE verification failed for client %s", clientID)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code_verifier"})
 		return
 	}
 
@@ -251,4 +285,147 @@ func (h *OAuthProviderHandler) DeleteClient(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "client deactivated"})
+}
+
+// ListMyGrants handles GET /api/auth/grants — lists the current user's authorized apps.
+func (h *OAuthProviderHandler) ListMyGrants(c *gin.Context) {
+	userGenID, _ := c.Get("user_id")
+	genID := userGenID.(string)
+
+	user, err := h.userService.FindByGenID(genID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	grants, err := h.grantService.ListUserGrants(user.ID)
+	if err != nil {
+		log.Printf("Failed to list grants: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list grants"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"grants": grants})
+}
+
+// RevokeGrant handles DELETE /api/auth/grants/:id — revokes a specific grant.
+func (h *OAuthProviderHandler) RevokeGrant(c *gin.Context) {
+	grantID := c.Param("id")
+	userGenID, _ := c.Get("user_id")
+	genID := userGenID.(string)
+
+	user, err := h.userService.FindByGenID(genID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		return
+	}
+
+	if err := h.grantService.RevokeGrant(user.ID, grantID); err != nil {
+		log.Printf("Failed to revoke grant: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.auditService.AddLog(user.ID, "oauth_grant_revoked", map[string]interface{}{
+		"grant_id": grantID,
+	}, c.ClientIP(), c.Request.UserAgent())
+
+	c.JSON(http.StatusOK, gin.H{"message": "grant revoked"})
+}
+
+// GetStats handles GET /api/admin/stats — returns system statistics.
+func (h *OAuthProviderHandler) GetStats(c *gin.Context) {
+	var totalClients, activeClients int
+	var totalUsers, verifiedUsers int
+	var logins24h int
+
+	// Count clients
+	h.clientService.DB().QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE is_active) FROM oauth_clients`).Scan(&totalClients, &activeClients)
+
+	// Count users
+	h.clientService.DB().QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM users`).Scan(&totalUsers, &verifiedUsers)
+
+	// Count logins in last 24h
+	h.clientService.DB().QueryRow(`
+		SELECT COUNT(*) FROM audit_logs
+		WHERE action IN ('login_success', 'oauth_consent_granted')
+		AND created_at > NOW() - INTERVAL '24 hours'
+	`).Scan(&logins24h)
+
+	c.JSON(http.StatusOK, gin.H{
+		"clients": gin.H{
+			"total":  totalClients,
+			"active": activeClients,
+		},
+		"users": gin.H{
+			"total":    totalUsers,
+			"verified": verifiedUsers,
+		},
+		"logins_24h": logins24h,
+	})
+}
+
+// GetAuditLogs handles GET /api/admin/audit-logs — returns recent audit logs.
+func (h *OAuthProviderHandler) GetAuditLogs(c *gin.Context) {
+	limit := 50
+
+	rows, err := h.clientService.DB().Query(`
+		SELECT a.id, a.user_id, COALESCE(u.email, 'unknown') as user_email,
+		       a.action, a.details, a.ip_address, a.created_at
+		FROM audit_logs a
+		LEFT JOIN users u ON u.id = a.user_id
+		ORDER BY a.created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		log.Printf("Failed to fetch audit logs: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch audit logs"})
+		return
+	}
+	defer rows.Close()
+
+	var logs []gin.H
+	for rows.Next() {
+		var id, userID int64
+		var userEmail, action, details, ipAddress string
+		var createdAt string
+		if err := rows.Scan(&id, &userID, &userEmail, &action, &details, &ipAddress, &createdAt); err != nil {
+			continue
+		}
+		logs = append(logs, gin.H{
+			"id":         id,
+			"user_id":    userID,
+			"user_email": userEmail,
+			"action":     action,
+			"details":    details,
+			"ip_address": ipAddress,
+			"created_at": createdAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"logs": logs})
+}
+
+// UpdateClient handles PUT /api/admin/clients/:id — updates a client.
+func (h *OAuthProviderHandler) UpdateClient(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Name        string   `json:"name"`
+		RedirectURI string   `json:"redirect_uri"`
+		Scopes      []string `json:"scopes"`
+		IsActive    *bool    `json:"is_active"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if err := h.clientService.UpdateClient(id, req.Name, req.RedirectURI, req.Scopes, req.IsActive); err != nil {
+		log.Printf("Failed to update client: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "client updated"})
 }

@@ -460,6 +460,8 @@ grant_type=authorization_code
             <tr><td><code>response_type</code></td><td>Тийм</td><td><code>code</code> байх ёстой</td></tr>
             <tr><td><code>scope</code></td><td>Үгүй</td><td>Өгөгдмөл: <code>openid profile</code></td></tr>
             <tr><td><code>state</code></td><td>Зөвлөмж</td><td>CSRF хамгаалалтын токен</td></tr>
+            <tr><td><code>code_challenge</code></td><td>Зөвлөмж</td><td>PKCE code challenge (S256 зөвлөмж)</td></tr>
+            <tr><td><code>code_challenge_method</code></td><td>Үгүй</td><td><code>S256</code> эсвэл <code>plain</code>. Өгөгдмөл: <code>plain</code></td></tr>
         </table>
 
         <h3>Токен солилцоо <span class="badge badge-post">POST</span></h3>
@@ -471,7 +473,31 @@ grant_type=authorization_code
             <tr><td><code>redirect_uri</code></td><td>Тийм</td><td>Authorize хүсэлтэд ашигласан URI-тай ижил байх</td></tr>
             <tr><td><code>client_id</code></td><td>Тийм</td><td>Таны client ID</td></tr>
             <tr><td><code>client_secret</code></td><td>Тийм</td><td>Таны client secret</td></tr>
+            <tr><td><code>code_verifier</code></td><td>PKCE</td><td>PKCE ашигласан бол code_verifier шаардлагатай</td></tr>
         </table>
+
+        <h3>PKCE (Proof Key for Code Exchange)</h3>
+        <p>PKCE нь authorization code interception халдлагаас хамгаалдаг. Mobile болон SPA аппликэйшнүүдэд зөвлөмж болгодог.</p>
+        <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Хуулах</button>
+            <code>// JavaScript дээр PKCE үүсгэх
+function generatePKCE() {
+    // code_verifier үүсгэх (43-128 тэмдэгт)
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const codeVerifier = btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    // code_challenge үүсгэх (S256)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    return crypto.subtle.digest('SHA-256', data).then(hash => {
+        const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        return { codeVerifier, codeChallenge };
+    });
+}</code>
+        </div>
     </div>
 
     <!-- Хэсэг 6: Эхлэх -->

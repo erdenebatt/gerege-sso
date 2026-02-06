@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Gerege SSO</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/style.css">
+    <style>
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .login-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-card h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .login-card p {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            text-align: left;
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 8px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 0 3px rgba(0,255,136,0.1);
+        }
+        .login-btn {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #00ff88, #00aaff);
+            border: none;
+            border-radius: 10px;
+            color: #1a1a2e;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,255,136,0.3);
+        }
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error-msg {
+            background: rgba(255,87,87,0.15);
+            border: 1px solid rgba(255,87,87,0.3);
+            color: #ff5757;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error-msg.show {
+            display: block;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 24px;
+            color: rgba(255,255,255,0.4);
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .back-link:hover {
+            color: rgba(255,255,255,0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-container">
+                <img src="/assets/logo.svg" alt="Gerege SSO" class="logo">
+            </div>
+            <h1>Admin</h1>
+            <p>API түлхүүрээр нэвтрэх</p>
+
+            <div id="errorMsg" class="error-msg"></div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="apiKey">API Key</label>
+                    <input type="password" id="apiKey" name="apiKey" placeholder="Таны API түлхүүр..." autocomplete="off" required>
+                </div>
+
+                <button type="submit" class="login-btn" id="loginBtn">Нэвтрэх</button>
+            </form>
+
+            <a href="/" class="back-link">&larr; Нүүр хуудас</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!apiKey) {
+                errorMsg.textContent = 'API түлхүүр оруулна уу.';
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Шалгаж байна...';
+            errorMsg.classList.remove('show');
+
+            try {
+                // Test the API key by fetching stats
+                const resp = await fetch('/api/admin/stats', {
+                    headers: { 'X-Admin-Key': apiKey }
+                });
+
+                if (resp.ok) {
+                    // Store key in session storage
+                    sessionStorage.setItem('admin_key', apiKey);
+                    window.location.href = '/admin/dashboard.html';
+                } else {
+                    errorMsg.textContent = 'API түлхүүр буруу байна.';
+                    errorMsg.classList.add('show');
+                }
+            } catch (err) {
+                errorMsg.textContent = 'Сүлжээний алдаа гарлаа.';
+                errorMsg.classList.add('show');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Нэвтрэх';
+            }
+        });
+
+        // Check if already logged in
+        if (sessionStorage.getItem('admin_key')) {
+            window.location.href = '/admin/dashboard.html';
+        }
+    </script>
+</body>
+</html>

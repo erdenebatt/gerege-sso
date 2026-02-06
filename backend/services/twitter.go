@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,15 +40,20 @@ func NewTwitterOAuthService(clientID, clientSecret, redirectURL string) *Twitter
 }
 
 // GetAuthURL returns the Twitter OAuth authorization URL
+// Uses S256 PKCE method for enhanced security
 func (s *TwitterOAuthService) GetAuthURL(state, codeChallenge string) string {
+	// Compute S256 code_challenge from the provided verifier
+	h := sha256.Sum256([]byte(codeChallenge))
+	s256Challenge := base64.RawURLEncoding.EncodeToString(h[:])
+
 	params := url.Values{
 		"response_type":         {"code"},
 		"client_id":             {s.clientID},
 		"redirect_uri":          {s.redirectURL},
 		"scope":                 {"users.read tweet.read offline.access"},
 		"state":                 {state},
-		"code_challenge":        {codeChallenge},
-		"code_challenge_method": {"plain"},
+		"code_challenge":        {s256Challenge},
+		"code_challenge_method": {"S256"},
 	}
 	return "https://twitter.com/i/oauth2/authorize?" + params.Encode()
 }

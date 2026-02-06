@@ -159,6 +159,10 @@
             var state      = params.get('state')         || '';
             var appName    = params.get('app_name')      || 'Unknown App';
 
+            // PKCE parameters
+            var codeChallenge = params.get('code_challenge') || '';
+            var codeChallengeMethod = params.get('code_challenge_method') || '';
+
             document.getElementById('appName').textContent = appName;
 
             // Read the JWT token from localStorage (set by callback.html after login)
@@ -173,6 +177,12 @@
                     + '&scope='         + encodeURIComponent(scope)
                     + '&state='         + encodeURIComponent(state)
                     + '&approve=true';
+
+                // Forward PKCE parameters if present
+                if (codeChallenge) {
+                    authorizeUrl += '&code_challenge=' + encodeURIComponent(codeChallenge);
+                    authorizeUrl += '&code_challenge_method=' + encodeURIComponent(codeChallengeMethod || 'plain');
+                }
 
                 // We need to send the JWT as a bearer token. Use fetch + redirect.
                 fetch(authorizeUrl, {

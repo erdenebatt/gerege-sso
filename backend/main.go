@@ -99,11 +99,12 @@ func main() {
 
 	// Initialize OAuth2 provider service
 	clientService := services.NewClientService(db, rdb)
+	grantService := services.NewGrantService(db)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
-	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, rdb, cfg)
+	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 
 	// Setup Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -139,6 +140,10 @@ func main() {
 			auth.GET("/me", middleware.JWTAuth(jwtService), authHandler.Me)
 			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
 			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
+
+			// User grants endpoints
+			auth.GET("/grants", middleware.JWTAuth(jwtService), oauthProviderHandler.ListMyGrants)
+			auth.DELETE("/grants/:id", middleware.JWTAuth(jwtService), oauthProviderHandler.RevokeGrant)
 		}
 
 		// OAuth2 provider routes
@@ -153,7 +158,10 @@ func main() {
 		{
 			admin.POST("/clients", oauthProviderHandler.CreateClient)
 			admin.GET("/clients", oauthProviderHandler.ListClients)
+			admin.PUT("/clients/:id", oauthProviderHandler.UpdateClient)
 			admin.DELETE("/clients/:id", oauthProviderHandler.DeleteClient)
+			admin.GET("/stats", oauthProviderHandler.GetStats)
+			admin.GET("/audit-logs", oauthProviderHandler.GetAuditLogs)
 		}
 	}
 

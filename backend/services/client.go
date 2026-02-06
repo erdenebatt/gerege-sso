@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -25,6 +27,11 @@ type ClientService struct {
 // NewClientService creates a new ClientService
 func NewClientService(db *sql.DB, redis *redis.Client) *ClientService {
 	return &ClientService{db: db, redis: redis}
+}
+
+// DB returns the database connection (for admin queries).
+func (s *ClientService) DB() *sql.DB {
+	return s.db
 }
 
 // CreateClient registers a new OAuth2 client. Returns the client and the
@@ -145,21 +152,89 @@ func (s *ClientService) DeleteClient(id string) error {
 	return nil
 }
 
+// UpdateClient updates a client's details.
+func (s *ClientService) UpdateClient(id, name, redirectURI string, scopes []string, isActive *bool) error {
+	// Build dynamic update query
+	query := "UPDATE oauth_clients SET updated_at = CURRENT_TIMESTAMP"
+	args := []interface{}{}
+	argNum := 1
+
+	if name != "" {
+		query += fmt.Sprintf(", name = $%d", argNum)
+		args = append(args, name)
+		argNum++
+	}
+	if redirectURI != "" {
+		query += fmt.Sprintf(", redirect_uri = $%d", argNum)
+		args = append(args, redirectURI)
+		argNum++
+	}
+	if len(scopes) > 0 {
+		query += fmt.Sprintf(", allowed_scopes = $%d", argNum)
+		args = append(args, pq.Array(scopes))
+		argNum++
+	}
+	if isActive != nil {
+		query += fmt.Sprintf(", is_active = $%d", argNum)
+		args = append(args, *isActive)
+		argNum++
+	}
+
+	query += fmt.Sprintf(" WHERE id = $%d", argNum)
+	args = append(args, id)
+
+	res, err := s.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update client: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("client not found")
+	}
+	return nil
+}
+
 // authCodePayload is the JSON structure stored in Redis for an auth code.
 type authCodePayload struct {
-	ClientID    string `json:"client_id"`
-	GenID       string `json:"gen_id"`
-	RedirectURI string `json:"redirect_uri"`
-	Scope       string `json:"scope"`
+	ClientID            string `json:"client_id"`
+	GenID               string `json:"gen_id"`
+	RedirectURI         string `json:"redirect_uri"`
+	Scope               string `json:"scope"`
+	CodeChallenge       string `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
+}
+
+// VerifyPKCE verifies the code_verifier against the stored code_challenge.
+// Supports "S256" (SHA-256 hash) and "plain" methods.
+func VerifyPKCE(codeVerifier, codeChallenge, method string) bool {
+	if codeChallenge == "" {
+		// No PKCE was used during authorization
+		return true
+	}
+	if codeVerifier == "" {
+		// PKCE was required but no verifier provided
+		return false
+	}
+
+	if method == "S256" {
+		h := sha256.Sum256([]byte(codeVerifier))
+		computed := base64.RawURLEncoding.EncodeToString(h[:])
+		return computed == codeChallenge
+	}
+	// Plain method (not recommended, but supported for backwards compatibility)
+	return codeVerifier == codeChallenge
 }
 
 // StoreAuthCode saves an authorization code in Redis with a 5-minute TTL.
-func (s *ClientService) StoreAuthCode(code, clientID, userGenID, redirectURI, scope string) error {
+// Includes PKCE code_challenge and method if provided.
+func (s *ClientService) StoreAuthCode(code, clientID, userGenID, redirectURI, scope, codeChallenge, codeChallengeMethod string) error {
 	payload := authCodePayload{
-		ClientID:    clientID,
-		GenID:       userGenID,
-		RedirectURI: redirectURI,
-		Scope:       scope,
+		ClientID:            clientID,
+		GenID:               userGenID,
+		RedirectURI:         redirectURI,
+		Scope:               scope,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -171,22 +246,23 @@ func (s *ClientService) StoreAuthCode(code, clientID, userGenID, redirectURI, sc
 }
 
 // ConsumeAuthCode atomically retrieves and deletes an authorization code from Redis.
-func (s *ClientService) ConsumeAuthCode(code string) (clientID, genID, redirectURI, scope string, err error) {
+// Returns PKCE code_challenge and method along with other fields.
+func (s *ClientService) ConsumeAuthCode(code string) (clientID, genID, redirectURI, scope, codeChallenge, codeChallengeMethod string, err error) {
 	ctx := context.Background()
 	key := "oauth_code:" + code
 
 	val, err := s.redis.GetDel(ctx, key).Result()
 	if err == redis.Nil {
-		return "", "", "", "", fmt.Errorf("authorization code not found or expired")
+		return "", "", "", "", "", "", fmt.Errorf("authorization code not found or expired")
 	}
 	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to consume auth code: %w", err)
+		return "", "", "", "", "", "", fmt.Errorf("failed to consume auth code: %w", err)
 	}
 
 	var payload authCodePayload
 	if err := json.Unmarshal([]byte(val), &payload); err != nil {
-		return "", "", "", "", fmt.Errorf("failed to unmarshal auth code payload: %w", err)
+		return "", "", "", "", "", "", fmt.Errorf("failed to unmarshal auth code payload: %w", err)
 	}
 
-	return payload.ClientID, payload.GenID, payload.RedirectURI, payload.Scope, nil
+	return payload.ClientID, payload.GenID, payload.RedirectURI, payload.Scope, payload.CodeChallenge, payload.CodeChallengeMethod, nil
 }

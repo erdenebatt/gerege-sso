@@ -75,36 +75,36 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
         </div>
 
         {/* Name */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Ургийн овог</div>
-            <div className="font-medium text-slate-900 dark:text-white">
+            <div className="font-medium text-slate-900 dark:text-white truncate">
               {displayValue(user.gerege?.family_name)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Овог</div>
-            <div className="font-medium text-slate-900 dark:text-white">
+            <div className="font-medium text-slate-900 dark:text-white truncate">
               {displayValue(user.gerege?.last_name)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Нэр</div>
-            <div className="font-medium text-slate-900 dark:text-white">
+            <div className="font-medium text-slate-900 dark:text-white truncate">
               {user.gerege?.first_name || '—'}
             </div>
           </div>
         </div>
 
         {/* Reg No & Birth */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Регистрийн дугаар</div>
             <div className="font-mono text-slate-900 dark:text-white">
               {displayValue(user.gerege?.reg_no)}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Төрсөн огноо</div>
             <div className="font-medium text-slate-900 dark:text-white">
               {displayValue(user.gerege?.birth_date)}

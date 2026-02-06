@@ -7,20 +7,18 @@ import (
 
 // Citizen represents the citizens table (master data)
 type Citizen struct {
-	ID              int64          `json:"id"`
-	CivilID         sql.NullString `json:"civil_id"`
-	RegNo           string         `json:"reg_no"`
-	FamilyName      sql.NullString `json:"family_name"`
-	LastName        sql.NullString `json:"last_name"`
-	FirstName       string         `json:"first_name"`
-	Sex             sql.NullString `json:"sex"`
-	BirthDate       sql.NullTime   `json:"birth_date"`
-	PhonePrimary    sql.NullString `json:"phone_primary"`
-	Email           sql.NullString `json:"email"`
-	CurrentProvince sql.NullString `json:"current_province"`
-	CurrentDistrict sql.NullString `json:"current_district"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID         int64          `json:"id"`
+	CivilID    sql.NullString `json:"civil_id"`
+	RegNo      string         `json:"reg_no"`
+	FamilyName sql.NullString `json:"family_name"`
+	LastName   sql.NullString `json:"last_name"`
+	FirstName  string         `json:"first_name"`
+	Gender     sql.NullInt64  `json:"gender"`
+	BirthDate  sql.NullTime   `json:"birth_date"`
+	PhoneNo    sql.NullString `json:"phone_no"`
+	Email      sql.NullString `json:"email"`
+	AimagName  sql.NullString `json:"aimag_name"`
+	SumName    sql.NullString `json:"sum_name"`
 }
 
 // User represents the users table (SSO users)
@@ -110,9 +108,12 @@ type TwitterUserInfo struct {
 
 // UserResponse represents the API response for user info
 type UserResponse struct {
-	GenID    string     `json:"gen_id"`
-	Email    string     `json:"email"`
-	Picture  string     `json:"picture,omitempty"`
-	Verified bool       `json:"verified"`
-	Gerege   GeregeInfo `json:"gerege"`
+	GenID       string     `json:"gen_id"`
+	Email       string     `json:"email"`
+	Picture     string     `json:"picture,omitempty"`
+	Verified    bool       `json:"verified"`
+	CreatedAt   string     `json:"created_at"`
+	UpdatedAt   string     `json:"updated_at"`
+	LastLoginAt string     `json:"last_login_at,omitempty"`
+	Gerege      GeregeInfo `json:"gerege"`
 }

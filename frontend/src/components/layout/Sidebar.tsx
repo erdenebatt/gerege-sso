@@ -64,7 +64,7 @@ export function Sidebar() {
   const { logout } = useAuthStore()
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 z-50 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
       {/* Logo */}
       <div className="flex items-center h-16 px-6 border-b border-slate-200 dark:border-slate-700">
         <Link href="/" className="flex items-center gap-2">

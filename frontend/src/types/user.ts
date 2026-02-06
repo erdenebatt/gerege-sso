@@ -16,6 +16,7 @@ export interface User {
   gerege: GeregeInfo
   created_at?: string
   updated_at?: string
+  last_login_at?: string
 }
 
 export interface Grant {

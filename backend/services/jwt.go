@@ -43,6 +43,24 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 	// If user has associated citizen data
 	if user.Citizen != nil {
 		gerege.RegNo = user.Citizen.RegNo
+		gerege.FirstName = user.Citizen.FirstName
+		if user.Citizen.FamilyName.Valid {
+			gerege.FamilyName = user.Citizen.FamilyName.String
+		}
+		if user.Citizen.LastName.Valid {
+			gerege.LastName = user.Citizen.LastName.String
+		}
+		if user.Citizen.BirthDate.Valid {
+			gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+		}
+		if user.Citizen.Gender.Valid {
+			if user.Citizen.Gender.Int64 == 1 {
+				gerege.Gender = "male"
+			} else {
+				gerege.Gender = "female"
+			}
+		}
+
 		name := user.Citizen.FirstName
 		if user.Citizen.LastName.Valid {
 			name = user.Citizen.LastName.String + " " + user.Citizen.FirstName
@@ -117,11 +135,10 @@ func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string,
 		if user.Citizen.BirthDate.Valid {
 			gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
 		}
-		if user.Citizen.Sex.Valid {
-			switch user.Citizen.Sex.String {
-			case "M":
+		if user.Citizen.Gender.Valid {
+			if user.Citizen.Gender.Int64 == 1 {
 				gerege.Gender = "male"
-			case "F":
+			} else {
 				gerege.Gender = "female"
 			}
 		}

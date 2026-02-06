@@ -416,12 +416,18 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	// Build response
 	response := models.UserResponse{
-		GenID:    user.GenID,
-		Email:    user.Email,
-		Verified: user.Verified,
+		GenID:     user.GenID,
+		Email:     user.Email,
+		Verified:  user.Verified,
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
 		Gerege: models.GeregeInfo{
 			Verified: user.Verified,
 		},
+	}
+
+	if user.LastLoginAt.Valid {
+		response.LastLoginAt = user.LastLoginAt.Time.Format(time.RFC3339)
 	}
 
 	if user.Picture.Valid {
@@ -440,8 +446,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		if user.Citizen.BirthDate.Valid {
 			response.Gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
 		}
-		if user.Citizen.Sex.Valid {
-			response.Gerege.Gender = user.Citizen.Sex.String
+		if user.Citizen.Gender.Valid {
+			if user.Citizen.Gender.Int64 == 1 {
+				response.Gerege.Gender = "male"
+			} else {
+				response.Gerege.Gender = "female"
+			}
 		}
 		// Build display name
 		name := user.Citizen.FirstName

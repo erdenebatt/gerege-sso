@@ -84,7 +84,7 @@ export function SecurityCard({ user }: SecurityCardProps) {
             <div>
               <div className="font-medium text-slate-900 dark:text-white">Сүүлийн нэвтрэлт</div>
               <div className="text-sm text-slate-500 dark:text-slate-400">
-                {formatDateTime(user.updated_at)}
+                {formatDateTime(user.last_login_at || user.updated_at)}
               </div>
             </div>
           </div>

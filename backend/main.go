@@ -77,6 +77,7 @@ func main() {
 	jwtService := services.NewJWTService(cfg.JWT.Secret, cfg.JWT.Expiry, rdb)
 	userService := services.NewUserService(db, genIDService)
 	auditService := services.NewAuditService(db)
+	apiLogService := services.NewAPILogService(db)
 
 	// Initialize Apple OAuth service (optional)
 	var appleOAuthService *services.AppleOAuthService
@@ -121,6 +122,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
+	apiLogHandler := handlers.NewAPILogHandler(apiLogService)
 
 	// Setup Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -129,6 +131,7 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.Logger())
+	router.Use(middleware.APILogger(apiLogService))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.Metrics())
@@ -166,6 +169,9 @@ func main() {
 			auth.GET("/dan", authHandler.DanLogin)
 			auth.GET("/dan/authorized", authHandler.DanAuthorized)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
+
+			// API logs
+			auth.GET("/api-logs", middleware.JWTAuth(jwtService), apiLogHandler.GetAPILogs)
 
 			// User grants endpoints
 			auth.GET("/grants", middleware.JWTAuth(jwtService), oauthProviderHandler.ListMyGrants)

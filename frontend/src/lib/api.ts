@@ -25,11 +25,7 @@ export class ApiError extends Error {
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 500
 
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  retries = 0
-): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 0): Promise<Response> {
   try {
     const res = await fetch(url, options)
 
@@ -52,10 +48,7 @@ async function fetchWithRetry(
   }
 }
 
-export async function fetchAPI<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
 
   const res = await fetchWithRetry(`${API_BASE}${endpoint}`, {
@@ -145,6 +138,25 @@ export const api = {
         `/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`
       ),
 
+    apiLogs: () =>
+      fetchAPI<{
+        logs: {
+          id: number
+          method: string
+          path: string
+          query: string
+          status_code: number
+          latency_ms: number
+          client_ip: string
+          user_agent: string
+          request_headers: string
+          request_body: string
+          response_headers: string
+          response_body: string
+          created_at: string
+        }[]
+      }>('/api/auth/api-logs'),
+
     logout: () =>
       fetchAPI<{ message: string }>('/api/auth/logout', {
         method: 'POST',
@@ -202,8 +214,7 @@ export const api = {
   },
 
   admin: {
-    stats: (apiKey: string) =>
-      fetchWithAdminKey<AdminStats>('/api/admin/stats', apiKey),
+    stats: (apiKey: string) => fetchWithAdminKey<AdminStats>('/api/admin/stats', apiKey),
 
     clients: (apiKey: string) =>
       fetchWithAdminKey<{ clients: OAuthClient[] }>('/api/admin/clients', apiKey),

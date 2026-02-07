@@ -4,54 +4,111 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Timestamp helper functions (used by citizens triggers)
+CREATE OR REPLACE FUNCTION set_timestamps_on_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.created_date = NOW();
+    NEW.updated_date = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION set_updated_date_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_date = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Citizens table (master data) - Production schema
 CREATE TABLE IF NOT EXISTS citizens (
-    id SERIAL PRIMARY KEY,
-    civil_id BIGINT UNIQUE,
-    reg_no VARCHAR(12) UNIQUE NOT NULL,
-    family_name VARCHAR(100),
-    last_name VARCHAR(100),
-    first_name VARCHAR(100) NOT NULL,
-    gender INTEGER DEFAULT 1,
-    birth_date DATE,
-    phone_no VARCHAR(20),
-    email VARCHAR(255),
-    is_foreign INTEGER DEFAULT 0,
-    country_code VARCHAR(10),
-    hash VARCHAR(255),
-    parent_address_id INTEGER DEFAULT 0,
-    parent_address_name VARCHAR(100),
-    aimag_id INTEGER DEFAULT 0,
-    aimag_code VARCHAR(10),
-    aimag_name VARCHAR(100),
-    sum_id INTEGER DEFAULT 0,
-    sum_code VARCHAR(10),
-    sum_name VARCHAR(100),
-    bag_id INTEGER DEFAULT 0,
-    bag_code VARCHAR(10),
-    bag_name VARCHAR(100),
-    address_detail TEXT,
-    address_type VARCHAR(10),
-    address_type_name VARCHAR(100),
-    nationality VARCHAR(100),
-    country_name VARCHAR(100),
-    country_name_en VARCHAR(100),
-    profile_img_url TEXT,
-    created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_user_id INTEGER DEFAULT 0,
-    created_org_id INTEGER DEFAULT 0,
-    updated_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_user_id INTEGER DEFAULT 0,
-    updated_org_id INTEGER DEFAULT 0,
-    deleted_user_id INTEGER DEFAULT 0,
-    deleted_org_id INTEGER DEFAULT 0,
-    deleted_date TIMESTAMP WITH TIME ZONE
+    id                   BIGSERIAL PRIMARY KEY,
+
+    civil_id             BIGINT,
+    reg_no               VARCHAR(10),
+    family_name          VARCHAR(80),
+    last_name            VARCHAR(150),
+    first_name           VARCHAR(150),
+    gender               BIGINT,
+    birth_date           VARCHAR(10),
+
+    phone_no             VARCHAR(8),
+    email                VARCHAR(80),
+
+    is_foreign           BIGINT,
+    country_code         VARCHAR(3),
+    hash                 VARCHAR(200),
+
+    parent_address_id    BIGINT,
+    parent_address_name  VARCHAR(20),
+
+    aimag_id             BIGINT,
+    aimag_code           VARCHAR(3),
+    aimag_name           VARCHAR(255),
+
+    sum_id               BIGINT,
+    sum_code             VARCHAR(3),
+    sum_name             VARCHAR(255),
+
+    bag_id               BIGINT,
+    bag_code             VARCHAR(3),
+    bag_name             VARCHAR(255),
+
+    address_detail       VARCHAR(255),
+    address_type         VARCHAR(255),
+    address_type_name    VARCHAR(255),
+
+    nationality          VARCHAR(255),
+    country_name         VARCHAR(255),
+    country_name_en      VARCHAR(255),
+
+    profile_img_url      VARCHAR(255),
+
+    created_date         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    created_user_id      BIGINT       NOT NULL DEFAULT 0,
+    created_org_id       BIGINT       NOT NULL DEFAULT 0,
+
+    updated_date         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_user_id      BIGINT       NOT NULL DEFAULT 0,
+    updated_org_id       BIGINT       NOT NULL DEFAULT 0,
+
+    deleted_user_id      BIGINT,
+    deleted_org_id       BIGINT,
+    deleted_date         TIMESTAMPTZ
 );
 
--- Create indexes on citizens for fast lookup
-CREATE INDEX IF NOT EXISTS idx_citizens_reg_no ON citizens(reg_no);
-CREATE INDEX IF NOT EXISTS idx_citizens_civil_id ON citizens(civil_id);
-CREATE INDEX IF NOT EXISTS idx_citizens_email ON citizens(email);
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_citizens_civil_id     ON citizens(civil_id);
+CREATE INDEX IF NOT EXISTS idx_citizens_gender        ON citizens(gender);
+CREATE INDEX IF NOT EXISTS idx_citizens_birth_date    ON citizens(birth_date);
+CREATE INDEX IF NOT EXISTS idx_citizens_phone         ON citizens(phone_no);
+CREATE INDEX IF NOT EXISTS idx_citizens_email         ON citizens(email);
+CREATE INDEX IF NOT EXISTS idx_citizens_aimag         ON citizens(aimag_id);
+CREATE INDEX IF NOT EXISTS idx_citizens_sum           ON citizens(sum_id);
+CREATE INDEX IF NOT EXISTS idx_citizens_bag           ON citizens(bag_id);
+CREATE INDEX IF NOT EXISTS idx_citizens_deleted_date  ON citizens(deleted_date);
+
+-- Partial UNIQUE indexes (only active records)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_citizens_reg_no_active
+    ON citizens(reg_no) WHERE deleted_date IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_citizens_hash_active
+    ON citizens(hash) WHERE deleted_date IS NULL;
+
+-- Timestamp triggers for citizens
+DROP TRIGGER IF EXISTS trg_citizens_ins_set_timestamps ON citizens;
+CREATE TRIGGER trg_citizens_ins_set_timestamps
+    BEFORE INSERT ON citizens
+    FOR EACH ROW
+    EXECUTE FUNCTION set_timestamps_on_insert();
+
+DROP TRIGGER IF EXISTS trg_citizens_upd_set_updated ON citizens;
+CREATE TRIGGER trg_citizens_upd_set_updated
+    BEFORE UPDATE ON citizens
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_date_timestamp();
 
 -- Users table (SSO users)
 CREATE TABLE IF NOT EXISTS users (
@@ -110,7 +167,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
--- Function to update updated_at timestamp
+-- Function to update updated_at timestamp (for users, sessions, etc.)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -119,21 +176,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Function to update updated_date timestamp (for citizens)
-CREATE OR REPLACE FUNCTION update_updated_date_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_date = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Triggers for updated_at / updated_date
-CREATE TRIGGER update_citizens_updated_date
-    BEFORE UPDATE ON citizens
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_date_column();
-
+-- Trigger for users updated_at
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW

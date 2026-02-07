@@ -61,6 +61,13 @@ func NewAuthHandler(
 }
 
 // GoogleLogin initiates Google OAuth flow
+// @Summary Google login
+// @Description Initiates Google OAuth2 authentication flow
+// @Tags auth
+// @Produce json
+// @Success 303 {string} string "Redirect to Google"
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/auth/google [get]
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	// Generate state token
 	b := make([]byte, 32)
@@ -84,6 +91,14 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 }
 
 // GoogleCallback handles OAuth callback from Google
+// @Summary Google OAuth callback
+// @Description Handles the OAuth2 callback from Google after user authentication
+// @Tags auth
+// @Param state query string true "OAuth state parameter"
+// @Param code query string true "Authorization code"
+// @Success 303 {string} string "Redirect to frontend with exchange code"
+// @Failure 303 {string} string "Redirect to frontend with error"
+// @Router /api/auth/google/callback [get]
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	ctx := context.Background()
 
@@ -223,6 +238,15 @@ func (h *AuthHandler) generateTokenExchangeCode(jwtToken string) (string, error)
 }
 
 // ExchangeToken exchanges a single-use code for a JWT token
+// @Summary Exchange token
+// @Description Exchanges a single-use authorization code for a JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body object true "Exchange code request" example({"code":"abc123"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/auth/exchange-token [post]
 func (h *AuthHandler) ExchangeToken(c *gin.Context) {
 	var req struct {
 		Code string `json:"code" binding:"required"`
@@ -258,6 +282,13 @@ func (h *AuthHandler) redirectWithError(c *gin.Context, message string) {
 }
 
 // AppleLogin initiates Apple Sign-In flow
+// @Summary Apple login
+// @Description Initiates Apple Sign-In OAuth flow
+// @Tags auth
+// @Success 303 {string} string "Redirect to Apple"
+// @Failure 500 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /api/auth/apple [get]
 func (h *AuthHandler) AppleLogin(c *gin.Context) {
 	if h.appleOAuthService == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Apple Sign-In not configured"})
@@ -286,6 +317,16 @@ func (h *AuthHandler) AppleLogin(c *gin.Context) {
 }
 
 // AppleCallback handles OAuth callback from Apple
+// @Summary Apple OAuth callback
+// @Description Handles the OAuth callback from Apple Sign-In (supports form_post and query)
+// @Tags auth
+// @Accept application/x-www-form-urlencoded
+// @Param state formData string false "OAuth state parameter"
+// @Param code formData string false "Authorization code"
+// @Param id_token formData string false "Apple ID token"
+// @Success 303 {string} string "Redirect to frontend with exchange code"
+// @Failure 303 {string} string "Redirect to frontend with error"
+// @Router /api/auth/apple/callback [post]
 func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	if h.appleOAuthService == nil {
 		h.redirectWithError(c, "Apple Sign-In not configured")
@@ -451,6 +492,13 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 }
 
 // Logout handles user logout by blacklisting the JWT token
+// @Summary Logout
+// @Description Logs out the user by blacklisting their JWT token
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Router /api/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	claimsVal, exists := c.Get("claims")
 	if !exists {
@@ -470,6 +518,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // Me returns the current user's information
+// @Summary Get current user
+// @Description Returns the authenticated user's profile information
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	// Get claims from context (set by JWT middleware)
 	claimsVal, exists := c.Get("claims")
@@ -552,6 +609,17 @@ func (h *AuthHandler) Me(c *gin.Context) {
 }
 
 // VerifyIdentity handles identity verification with reg_no
+// @Summary Verify identity
+// @Description Verifies user identity by linking to citizen registry via reg_no
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body object true "Verify identity request" example({"reg_no":"AB12345678"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /api/auth/verify [post]
 func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 	claimsVal, exists := c.Get("claims")
 	if !exists {
@@ -596,6 +664,13 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 }
 
 // FacebookLogin initiates Facebook OAuth flow
+// @Summary Facebook login
+// @Description Initiates Facebook OAuth authentication flow
+// @Tags auth
+// @Success 303 {string} string "Redirect to Facebook"
+// @Failure 500 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /api/auth/facebook [get]
 func (h *AuthHandler) FacebookLogin(c *gin.Context) {
 	if h.facebookOAuthService == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Facebook login not configured"})
@@ -624,6 +699,14 @@ func (h *AuthHandler) FacebookLogin(c *gin.Context) {
 }
 
 // FacebookCallback handles OAuth callback from Facebook
+// @Summary Facebook OAuth callback
+// @Description Handles the OAuth2 callback from Facebook after user authentication
+// @Tags auth
+// @Param state query string true "OAuth state parameter"
+// @Param code query string true "Authorization code"
+// @Success 303 {string} string "Redirect to frontend with exchange code"
+// @Failure 303 {string} string "Redirect to frontend with error"
+// @Router /api/auth/facebook/callback [get]
 func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	if h.facebookOAuthService == nil {
 		h.redirectWithError(c, "Facebook login not configured")
@@ -757,6 +840,13 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 }
 
 // TwitterLogin initiates Twitter/X OAuth flow
+// @Summary Twitter/X login
+// @Description Initiates Twitter/X OAuth2 authentication flow with PKCE
+// @Tags auth
+// @Success 303 {string} string "Redirect to Twitter"
+// @Failure 500 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /api/auth/twitter [get]
 func (h *AuthHandler) TwitterLogin(c *gin.Context) {
 	if h.twitterOAuthService == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Twitter login not configured"})
@@ -793,6 +883,14 @@ func (h *AuthHandler) TwitterLogin(c *gin.Context) {
 }
 
 // TwitterCallback handles OAuth callback from Twitter/X
+// @Summary Twitter/X OAuth callback
+// @Description Handles the OAuth2 callback from Twitter/X after user authentication
+// @Tags auth
+// @Param state query string true "OAuth state parameter"
+// @Param code query string true "Authorization code"
+// @Success 303 {string} string "Redirect to frontend with exchange code"
+// @Failure 303 {string} string "Redirect to frontend with error"
+// @Router /api/auth/twitter/callback [get]
 func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	if h.twitterOAuthService == nil {
 		h.redirectWithError(c, "Twitter login not configured")
@@ -906,6 +1004,11 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 }
 
 // DanLogin initiates DAN SSO flow
+// @Summary DAN login
+// @Description Initiates DAN (Цахим иргэний үнэмлэх) SSO authentication flow
+// @Tags auth
+// @Success 303 {string} string "Redirect to DAN SSO"
+// @Router /api/auth/dan [get]
 func (h *AuthHandler) DanLogin(c *gin.Context) {
 	// Generate state token
 	stateBytes, err := json.Marshal(map[string]string{
@@ -930,6 +1033,17 @@ func (h *AuthHandler) DanLogin(c *gin.Context) {
 }
 
 // DanCallback handles callback from DAN (via proxy/redirect)
+// @Summary DAN callback
+// @Description Handles callback from DAN SSO, links citizen identity to user
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Param reg_no query string true "Citizen registration number"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/auth/dan/callback [get]
 func (h *AuthHandler) DanCallback(c *gin.Context) {
 	claimsVal, exists := c.Get("claims")
 	if !exists {
@@ -974,6 +1088,16 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 // ConfirmIdentityLink confirms identity and links a new provider to existing user.
 // No JWT required - security is provided by the time-limited Redis pending_link entry
 // plus the reg_no verification against the citizen database.
+// @Summary Confirm identity link
+// @Description Confirms identity and links a new OAuth provider to an existing user account
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body object true "Confirm link request" example({"gen_id":"abc","reg_no":"AB12345678"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/auth/confirm-link [post]
 func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	ctx := context.Background()
 

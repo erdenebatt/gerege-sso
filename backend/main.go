@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gerege-sso/config"
+	_ "gerege-sso/docs"
 	"gerege-sso/handlers"
 	"gerege-sso/middleware"
 	"gerege-sso/services"
@@ -20,7 +21,21 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// @title Gerege SSO API
+// @version 1.0
+// @description Gerege нэгдсэн нэвтрэлтийн систем API
+// @host localhost:8080
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @securityDefinitions.apikey AdminAPIKey
+// @in header
+// @name X-API-Key
 
 func main() {
 	// Load configuration
@@ -121,6 +136,7 @@ func main() {
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Ready)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Rate limiter for auth endpoints (20 requests per minute per IP)
 	authRateLimit := middleware.RateLimit(rdb, 20, 1*time.Minute)

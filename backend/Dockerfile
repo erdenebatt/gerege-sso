@@ -2,14 +2,14 @@
 # Stage 1: Development (hot-reload with air)
 # Usage: docker build --target dev -t gerege-backend-dev .
 # ==============================================================================
-FROM golang:1.21-alpine AS dev
+FROM golang:1.24-alpine AS dev
 
 WORKDIR /app
 
 RUN apk add --no-cache git
 
-# Install air for hot-reload (v1.49.0 is last version compatible with Go 1.21)
-RUN go install github.com/cosmtrek/air@v1.49.0
+# Install air for hot-reload
+RUN go install github.com/air-verse/air@v1.61.7
 
 # Copy dependency files first for layer caching
 COPY go.mod go.sum ./
@@ -25,7 +25,7 @@ CMD ["air", "-c", ".air.toml"]
 # ==============================================================================
 # Stage 2: Builder (compile static binary)
 # ==============================================================================
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 

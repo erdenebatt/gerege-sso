@@ -53,6 +53,22 @@ func NewOAuthProviderHandler(
 // Step 1: Validates params and redirects to consent page.
 // Step 2 (POST with approve=true): Generates auth code and redirects back to client.
 // Supports PKCE with code_challenge and code_challenge_method parameters.
+// @Summary OAuth2 authorize
+// @Description Initiates OAuth2 authorization code flow with optional PKCE support
+// @Tags oauth
+// @Produce json
+// @Security BearerAuth
+// @Param client_id query string true "Client ID"
+// @Param redirect_uri query string true "Redirect URI"
+// @Param response_type query string true "Response type (must be 'code')"
+// @Param scope query string false "Requested scopes" default(openid profile)
+// @Param state query string false "State parameter"
+// @Param code_challenge query string false "PKCE code challenge"
+// @Param code_challenge_method query string false "PKCE method (S256 or plain)"
+// @Param approve query string false "Set to 'true' to approve"
+// @Success 303 {string} string "Redirect to consent page or client"
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/oauth/authorize [get]
 func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 	clientID := c.Query("client_id")
 	redirectURI := c.Query("redirect_uri")
@@ -168,6 +184,21 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 
 // Token handles POST /api/oauth/token — exchanges auth code for an enriched JWT.
 // Supports PKCE verification with code_verifier parameter.
+// @Summary OAuth2 token exchange
+// @Description Exchanges authorization code for an access token (supports PKCE)
+// @Tags oauth
+// @Accept application/x-www-form-urlencoded
+// @Produce json
+// @Param grant_type formData string true "Grant type (must be 'authorization_code')"
+// @Param code formData string true "Authorization code"
+// @Param redirect_uri formData string true "Redirect URI"
+// @Param client_id formData string true "Client ID"
+// @Param client_secret formData string true "Client secret"
+// @Param code_verifier formData string false "PKCE code verifier"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /api/oauth/token [post]
 func (h *OAuthProviderHandler) Token(c *gin.Context) {
 	grantType := c.PostForm("grant_type")
 	code := c.PostForm("code")
@@ -240,6 +271,17 @@ func (h *OAuthProviderHandler) Token(c *gin.Context) {
 }
 
 // CreateClient handles POST /api/admin/clients — registers a new OAuth2 client.
+// @Summary Create OAuth2 client
+// @Description Registers a new OAuth2 client application
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security AdminAPIKey
+// @Param body body object true "Client creation request" example({"name":"My App","redirect_uri":"https://example.com/callback","scopes":["openid","profile"]})
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/admin/clients [post]
 func (h *OAuthProviderHandler) CreateClient(c *gin.Context) {
 	var req struct {
 		Name        string   `json:"name" binding:"required"`
@@ -266,6 +308,14 @@ func (h *OAuthProviderHandler) CreateClient(c *gin.Context) {
 }
 
 // ListClients handles GET /api/admin/clients
+// @Summary List OAuth2 clients
+// @Description Returns all registered OAuth2 clients
+// @Tags admin
+// @Produce json
+// @Security AdminAPIKey
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/admin/clients [get]
 func (h *OAuthProviderHandler) ListClients(c *gin.Context) {
 	clients, err := h.clientService.ListClients()
 	if err != nil {
@@ -277,6 +327,15 @@ func (h *OAuthProviderHandler) ListClients(c *gin.Context) {
 }
 
 // DeleteClient handles DELETE /api/admin/clients/:id — deactivates a client.
+// @Summary Delete OAuth2 client
+// @Description Deactivates an OAuth2 client
+// @Tags admin
+// @Produce json
+// @Security AdminAPIKey
+// @Param id path string true "Client ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/admin/clients/{id} [delete]
 func (h *OAuthProviderHandler) DeleteClient(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.clientService.DeleteClient(id); err != nil {
@@ -288,6 +347,15 @@ func (h *OAuthProviderHandler) DeleteClient(c *gin.Context) {
 }
 
 // ListMyGrants handles GET /api/auth/grants — lists the current user's authorized apps.
+// @Summary List my grants
+// @Description Lists all OAuth2 grants (authorized apps) for the current user
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/auth/grants [get]
 func (h *OAuthProviderHandler) ListMyGrants(c *gin.Context) {
 	userGenID, _ := c.Get("user_id")
 	genID := userGenID.(string)
@@ -309,6 +377,16 @@ func (h *OAuthProviderHandler) ListMyGrants(c *gin.Context) {
 }
 
 // RevokeGrant handles DELETE /api/auth/grants/:id — revokes a specific grant.
+// @Summary Revoke grant
+// @Description Revokes a specific OAuth2 grant (disconnects an authorized app)
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Grant ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/auth/grants/{id} [delete]
 func (h *OAuthProviderHandler) RevokeGrant(c *gin.Context) {
 	grantID := c.Param("id")
 	userGenID, _ := c.Get("user_id")
@@ -334,6 +412,14 @@ func (h *OAuthProviderHandler) RevokeGrant(c *gin.Context) {
 }
 
 // GetStats handles GET /api/admin/stats — returns system statistics.
+// @Summary Get system stats
+// @Description Returns system statistics (clients, users, logins)
+// @Tags admin
+// @Produce json
+// @Security AdminAPIKey
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/admin/stats [get]
 func (h *OAuthProviderHandler) GetStats(c *gin.Context) {
 	stats, err := h.auditService.GetStats()
 	if err != nil {
@@ -356,6 +442,14 @@ func (h *OAuthProviderHandler) GetStats(c *gin.Context) {
 }
 
 // GetAuditLogs handles GET /api/admin/audit-logs — returns recent audit logs.
+// @Summary Get audit logs
+// @Description Returns the 50 most recent audit log entries
+// @Tags admin
+// @Produce json
+// @Security AdminAPIKey
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/admin/audit-logs [get]
 func (h *OAuthProviderHandler) GetAuditLogs(c *gin.Context) {
 	logs, err := h.auditService.GetRecentLogs(50)
 	if err != nil {
@@ -368,6 +462,18 @@ func (h *OAuthProviderHandler) GetAuditLogs(c *gin.Context) {
 }
 
 // UpdateClient handles PUT /api/admin/clients/:id — updates a client.
+// @Summary Update OAuth2 client
+// @Description Updates an existing OAuth2 client
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Security AdminAPIKey
+// @Param id path string true "Client ID"
+// @Param body body object true "Client update request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /api/admin/clients/{id} [put]
 func (h *OAuthProviderHandler) UpdateClient(c *gin.Context) {
 	id := c.Param("id")
 

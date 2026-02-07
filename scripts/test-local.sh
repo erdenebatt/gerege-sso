@@ -98,7 +98,7 @@ docker run --rm \
     -e REDIS_PORT=6379 \
     -v "$PROJECT_DIR/backend":/app \
     -w /app \
-    golang:1.21-alpine sh -c "apk add --no-cache git >/dev/null 2>&1 && go test ./... -v -count=1" 2>&1
+    golang:1.24-alpine sh -c "apk add --no-cache git >/dev/null 2>&1 && go test ./... -v -count=1" 2>&1
 
 TEST_EXIT=$?
 if [ $TEST_EXIT -eq 0 ]; then

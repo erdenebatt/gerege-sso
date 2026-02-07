@@ -25,6 +25,12 @@ func NewHealthHandler(db *sql.DB, redis *redis.Client) *HealthHandler {
 }
 
 // Health returns basic health status
+// @Summary Health check
+// @Description Returns basic service health status
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /health [get]
 func (h *HealthHandler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "healthy",
@@ -34,6 +40,13 @@ func (h *HealthHandler) Health(c *gin.Context) {
 }
 
 // Ready checks if all dependencies are ready
+// @Summary Readiness check
+// @Description Checks if all dependencies (PostgreSQL, Redis) are ready
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {object} map[string]interface{}
+// @Router /ready [get]
 func (h *HealthHandler) Ready(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()

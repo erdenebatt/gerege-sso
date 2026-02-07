@@ -1,0 +1,746 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: Gerege нэгдсэн нэвтрэлтийн систем API
+  title: Gerege SSO API
+  version: "1.0"
+paths:
+  /api/admin/audit-logs:
+    get:
+      description: Returns the 50 most recent audit log entries
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: Get audit logs
+      tags:
+      - admin
+  /api/admin/clients:
+    get:
+      description: Returns all registered OAuth2 clients
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: List OAuth2 clients
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Registers a new OAuth2 client application
+      parameters:
+      - description: Client creation request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: Create OAuth2 client
+      tags:
+      - admin
+  /api/admin/clients/{id}:
+    delete:
+      description: Deactivates an OAuth2 client
+      parameters:
+      - description: Client ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: Delete OAuth2 client
+      tags:
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing OAuth2 client
+      parameters:
+      - description: Client ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Client update request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: Update OAuth2 client
+      tags:
+      - admin
+  /api/admin/stats:
+    get:
+      description: Returns system statistics (clients, users, logins)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - AdminAPIKey: []
+      summary: Get system stats
+      tags:
+      - admin
+  /api/auth/apple:
+    get:
+      description: Initiates Apple Sign-In OAuth flow
+      responses:
+        "303":
+          description: Redirect to Apple
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Apple login
+      tags:
+      - auth
+  /api/auth/apple/callback:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Handles the OAuth callback from Apple Sign-In (supports form_post
+        and query)
+      parameters:
+      - description: OAuth state parameter
+        in: formData
+        name: state
+        type: string
+      - description: Authorization code
+        in: formData
+        name: code
+        type: string
+      - description: Apple ID token
+        in: formData
+        name: id_token
+        type: string
+      responses:
+        "303":
+          description: Redirect to frontend with error
+          schema:
+            type: string
+      summary: Apple OAuth callback
+      tags:
+      - auth
+  /api/auth/confirm-link:
+    post:
+      consumes:
+      - application/json
+      description: Confirms identity and links a new OAuth provider to an existing
+        user account
+      parameters:
+      - description: Confirm link request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Confirm identity link
+      tags:
+      - auth
+  /api/auth/dan:
+    get:
+      description: Initiates DAN (Цахим иргэний үнэмлэх) SSO authentication flow
+      responses:
+        "303":
+          description: Redirect to DAN SSO
+          schema:
+            type: string
+      summary: DAN login
+      tags:
+      - auth
+  /api/auth/dan/callback:
+    get:
+      description: Handles callback from DAN SSO, links citizen identity to user
+      parameters:
+      - description: Citizen registration number
+        in: query
+        name: reg_no
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: DAN callback
+      tags:
+      - auth
+  /api/auth/exchange-token:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a single-use authorization code for a JWT token
+      parameters:
+      - description: Exchange code request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Exchange token
+      tags:
+      - auth
+  /api/auth/facebook:
+    get:
+      description: Initiates Facebook OAuth authentication flow
+      responses:
+        "303":
+          description: Redirect to Facebook
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Facebook login
+      tags:
+      - auth
+  /api/auth/facebook/callback:
+    get:
+      description: Handles the OAuth2 callback from Facebook after user authentication
+      parameters:
+      - description: OAuth state parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      responses:
+        "303":
+          description: Redirect to frontend with error
+          schema:
+            type: string
+      summary: Facebook OAuth callback
+      tags:
+      - auth
+  /api/auth/google:
+    get:
+      description: Initiates Google OAuth2 authentication flow
+      produces:
+      - application/json
+      responses:
+        "303":
+          description: Redirect to Google
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Google login
+      tags:
+      - auth
+  /api/auth/google/callback:
+    get:
+      description: Handles the OAuth2 callback from Google after user authentication
+      parameters:
+      - description: OAuth state parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      responses:
+        "303":
+          description: Redirect to frontend with error
+          schema:
+            type: string
+      summary: Google OAuth callback
+      tags:
+      - auth
+  /api/auth/grants:
+    get:
+      description: Lists all OAuth2 grants (authorized apps) for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my grants
+      tags:
+      - auth
+  /api/auth/grants/{id}:
+    delete:
+      description: Revokes a specific OAuth2 grant (disconnects an authorized app)
+      parameters:
+      - description: Grant ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Revoke grant
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      description: Logs out the user by blacklisting their JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      description: Returns the authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /api/auth/twitter:
+    get:
+      description: Initiates Twitter/X OAuth2 authentication flow with PKCE
+      responses:
+        "303":
+          description: Redirect to Twitter
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Twitter/X login
+      tags:
+      - auth
+  /api/auth/twitter/callback:
+    get:
+      description: Handles the OAuth2 callback from Twitter/X after user authentication
+      parameters:
+      - description: OAuth state parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      responses:
+        "303":
+          description: Redirect to frontend with error
+          schema:
+            type: string
+      summary: Twitter/X OAuth callback
+      tags:
+      - auth
+  /api/auth/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verifies user identity by linking to citizen registry via reg_no
+      parameters:
+      - description: Verify identity request
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify identity
+      tags:
+      - auth
+  /api/oauth/authorize:
+    get:
+      description: Initiates OAuth2 authorization code flow with optional PKCE support
+      parameters:
+      - description: Client ID
+        in: query
+        name: client_id
+        required: true
+        type: string
+      - description: Redirect URI
+        in: query
+        name: redirect_uri
+        required: true
+        type: string
+      - description: Response type (must be 'code')
+        in: query
+        name: response_type
+        required: true
+        type: string
+      - default: openid profile
+        description: Requested scopes
+        in: query
+        name: scope
+        type: string
+      - description: State parameter
+        in: query
+        name: state
+        type: string
+      - description: PKCE code challenge
+        in: query
+        name: code_challenge
+        type: string
+      - description: PKCE method (S256 or plain)
+        in: query
+        name: code_challenge_method
+        type: string
+      - description: Set to 'true' to approve
+        in: query
+        name: approve
+        type: string
+      produces:
+      - application/json
+      responses:
+        "303":
+          description: Redirect to consent page or client
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: OAuth2 authorize
+      tags:
+      - oauth
+  /api/oauth/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Exchanges authorization code for an access token (supports PKCE)
+      parameters:
+      - description: Grant type (must be 'authorization_code')
+        in: formData
+        name: grant_type
+        required: true
+        type: string
+      - description: Authorization code
+        in: formData
+        name: code
+        required: true
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        required: true
+        type: string
+      - description: Client ID
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: Client secret
+        in: formData
+        name: client_secret
+        required: true
+        type: string
+      - description: PKCE code verifier
+        in: formData
+        name: code_verifier
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: OAuth2 token exchange
+      tags:
+      - oauth
+  /health:
+    get:
+      description: Returns basic service health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /ready:
+    get:
+      description: Checks if all dependencies (PostgreSQL, Redis) are ready
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Readiness check
+      tags:
+      - health
+securityDefinitions:
+  AdminAPIKey:
+    in: header
+    name: X-API-Key
+    type: apiKey
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

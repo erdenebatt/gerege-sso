@@ -184,7 +184,7 @@ func main() {
 		// OAuth2 provider routes
 		oauth := api.Group("/oauth")
 		{
-			oauth.GET("/authorize", middleware.JWTAuth(jwtService), oauthProviderHandler.Authorize)
+			oauth.GET("/authorize", oauthProviderHandler.Authorize)
 			oauth.POST("/token", oauthProviderHandler.Token)
 		}
 

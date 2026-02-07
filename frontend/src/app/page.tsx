@@ -29,7 +29,11 @@ function LoginPageContent() {
         const user = await fetchUser()
         if (user) {
           const redirect = searchParams.get('redirect') || '/dashboard'
-          router.replace(redirect)
+          if (redirect.startsWith('/api/')) {
+            window.location.href = redirect
+          } else {
+            router.replace(redirect)
+          }
           return
         }
       }
@@ -54,9 +58,10 @@ function LoginPageContent() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        backgroundImage: theme === 'dark' ? 'url(/assets/bg-pattern-dark.svg)' : 'url(/assets/bg-pattern.svg)',
+        backgroundImage:
+          theme === 'dark' ? 'url(/assets/bg-pattern-dark.svg)' : 'url(/assets/bg-pattern.svg)',
         backgroundSize: 'cover',
-        backgroundPosition: 'center'
+        backgroundPosition: 'center',
       }}
     >
       <Header />
@@ -83,8 +88,18 @@ function LoginPageContent() {
           {/* Error message */}
           {error && (
             <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl mb-6 text-sm flex items-center gap-2">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               {error}
             </div>
@@ -110,17 +125,24 @@ function LoginPageContent() {
       {/* Footer */}
       <footer className="py-6 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
-          <p className="text-slate-500 dark:text-slate-400">
-            {t.copyright}
-          </p>
+          <p className="text-slate-500 dark:text-slate-400">{t.copyright}</p>
           <div className="flex items-center gap-6">
-            <Link href="/privacy" className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <Link
+              href="/privacy"
+              className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
               {t.privacy}
             </Link>
-            <Link href="/terms" className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <Link
+              href="/terms"
+              className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
               {t.terms}
             </Link>
-            <Link href="/docs" className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <Link
+              href="/docs"
+              className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
               {t.api}
             </Link>
           </div>

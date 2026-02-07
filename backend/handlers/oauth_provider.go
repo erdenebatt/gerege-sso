@@ -110,9 +110,32 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 		return
 	}
 
-	// Get authenticated user's gen_id from JWT claims
-	userGenID, _ := c.Get("user_id")
-	genID := userGenID.(string)
+	// Inline JWT authentication — redirect to login if not authenticated
+	genID := ""
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		if cookie, err := c.Cookie("gerege_token"); err == nil && cookie != "" {
+			authHeader = "Bearer " + cookie
+		}
+	}
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+			if claims, err := h.jwtService.ValidateToken(parts[1]); err == nil && !h.jwtService.IsBlacklisted(claims.ID) {
+				genID = claims.Subject
+			}
+		}
+	}
+
+	// If not authenticated, redirect to SSO login page with return URL
+	if genID == "" {
+		loginURL := fmt.Sprintf("%s/?redirect=%s",
+			h.config.Public.URL,
+			url.QueryEscape(c.Request.URL.String()),
+		)
+		c.Redirect(http.StatusFound, loginURL)
+		return
+	}
 
 	// If user has NOT yet approved, redirect to consent page
 	if approve != "true" {

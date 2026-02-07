@@ -164,6 +164,7 @@ func main() {
 			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
 			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
 			auth.GET("/dan", authHandler.DanLogin)
+			auth.GET("/dan/authorized", authHandler.DanAuthorized)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
 
 			// User grants endpoints

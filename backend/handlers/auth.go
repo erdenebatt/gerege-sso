@@ -1048,9 +1048,59 @@ func (h *AuthHandler) DanLogin(c *gin.Context) {
 	c.Redirect(http.StatusSeeOther, authURL)
 }
 
-// DanCallback handles callback from DAN (via proxy/redirect)
+// DanAuthorized handles the browser redirect from DAN SSO
+// DAN redirects here with reg_no and state, then we redirect to the frontend
+// @Summary DAN authorized redirect
+// @Description Receives redirect from DAN SSO with reg_no and state, redirects to frontend
+// @Tags auth
+// @Param reg_no query string true "Citizen registration number"
+// @Param state query string true "Base64 encoded state with redirect_url"
+// @Success 303 {string} string "Redirect to frontend callback"
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/auth/dan/authorized [get]
+func (h *AuthHandler) DanAuthorized(c *gin.Context) {
+	regNo := c.Query("reg_no")
+	state := c.Query("state")
+
+	if state == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing state"})
+		return
+	}
+
+	// Decode state to get redirect_url
+	stateBytes, err := base64.RawURLEncoding.DecodeString(state)
+	if err != nil {
+		log.Printf("Failed to decode DAN state: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state"})
+		return
+	}
+
+	var stateData map[string]string
+	if err := json.Unmarshal(stateBytes, &stateData); err != nil {
+		log.Printf("Failed to parse DAN state: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state format"})
+		return
+	}
+
+	redirectURL := stateData["redirect_url"]
+	if redirectURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing redirect_url in state"})
+		return
+	}
+
+	// Append reg_no to redirect URL
+	separator := "?"
+	if strings.Contains(redirectURL, "?") {
+		separator = "&"
+	}
+	finalURL := fmt.Sprintf("%s%sreg_no=%s", redirectURL, separator, url.QueryEscape(regNo))
+
+	c.Redirect(http.StatusSeeOther, finalURL)
+}
+
+// DanCallback handles the frontend API call after DAN redirect
 // @Summary DAN callback
-// @Description Handles callback from DAN SSO, links citizen identity to user
+// @Description Links citizen identity to user after DAN SSO verification
 // @Tags auth
 // @Produce json
 // @Security BearerAuth
@@ -1068,7 +1118,6 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 	}
 	claims := claimsVal.(*services.Claims)
 
-	// Get reg_no from query (this is how user says it returns)
 	regNo := c.Query("reg_no")
 	if regNo == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing reg_no"})
@@ -1094,7 +1143,6 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 		log.Printf("Failed to log DAN verification: %v", err)
 	}
 
-	// Success response
 	c.JSON(http.StatusOK, gin.H{
 		"message": "DAN verification successful",
 		"reg_no":  regNo,

@@ -145,7 +145,7 @@ func main() {
 		auth.POST("/logout", middleware.JWTAuth(jwtService), authHandler.Logout)
 			auth.GET("/me", middleware.JWTAuth(jwtService), authHandler.Me)
 			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
-			auth.POST("/confirm-link", middleware.JWTAuth(jwtService), authHandler.ConfirmIdentityLink)
+			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
 			auth.GET("/dan", authHandler.DanLogin)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
 

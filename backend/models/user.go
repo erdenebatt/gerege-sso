@@ -8,13 +8,13 @@ import (
 // Citizen represents the citizens table (master data)
 type Citizen struct {
 	ID         int64          `json:"id"`
-	CivilID    sql.NullString `json:"civil_id"`
+	CivilID    sql.NullInt64  `json:"civil_id"`
 	RegNo      string         `json:"reg_no"`
 	FamilyName sql.NullString `json:"family_name"`
 	LastName   sql.NullString `json:"last_name"`
 	FirstName  string         `json:"first_name"`
 	Gender     sql.NullInt64  `json:"gender"`
-	BirthDate  sql.NullTime   `json:"birth_date"`
+	BirthDate  sql.NullString `json:"birth_date"`
 	PhoneNo    sql.NullString `json:"phone_no"`
 	Email      sql.NullString `json:"email"`
 	AimagName  sql.NullString `json:"aimag_name"`

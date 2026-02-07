@@ -60,7 +60,7 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 			gerege.LastName = user.Citizen.LastName.String
 		}
 		if user.Citizen.BirthDate.Valid {
-			gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+			gerege.BirthDate = user.Citizen.BirthDate.String
 		}
 		if user.Citizen.Gender.Valid {
 			if user.Citizen.Gender.Int64 == 1 {
@@ -150,7 +150,7 @@ func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string,
 		}
 		gerege.FirstName = user.Citizen.FirstName
 		if user.Citizen.BirthDate.Valid {
-			gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+			gerege.BirthDate = user.Citizen.BirthDate.String
 		}
 		if user.Citizen.Gender.Valid {
 			if user.Citizen.Gender.Int64 == 1 {

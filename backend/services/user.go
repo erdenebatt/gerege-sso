@@ -335,14 +335,15 @@ func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
 	return citizen, nil
 }
 
-// FindCitizenByRegNo finds a citizen by registration number
+// FindCitizenByRegNo finds a citizen by registration number (case-insensitive, Latin-to-Cyrillic aware)
 func (s *UserService) FindCitizenByRegNo(regNo string) (*models.Citizen, error) {
+	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
 	citizen := &models.Citizen{}
 	err := s.db.QueryRow(`
 		SELECT id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
 		       phone_no, email, aimag_name, sum_name
-		FROM citizens WHERE reg_no = $1
-	`, regNo).Scan(
+		FROM citizens WHERE UPPER(reg_no) = $1
+	`, normalizedRegNo).Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
 		&citizen.FirstName, &citizen.Gender, &citizen.BirthDate,
 		&citizen.PhoneNo, &citizen.Email, &citizen.AimagName, &citizen.SumName,

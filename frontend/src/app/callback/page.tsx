@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -25,7 +25,12 @@ function CallbackPageContent() {
   const [verifySuccess, setVerifySuccess] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
 
+  const handledRef = useRef(false)
+
   useEffect(() => {
+    if (handledRef.current) return
+    handledRef.current = true
+
     const handleCallback = async () => {
       const exchangeCode = searchParams.get('code')
       const existing = searchParams.get('existing')

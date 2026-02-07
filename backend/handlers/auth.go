@@ -531,7 +531,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 			response.Gerege.LastName = user.Citizen.LastName.String
 		}
 		if user.Citizen.BirthDate.Valid {
-			response.Gerege.BirthDate = user.Citizen.BirthDate.Time.Format("2006-01-02")
+			response.Gerege.BirthDate = user.Citizen.BirthDate.String
 		}
 		if user.Citizen.Gender.Valid {
 			if user.Citizen.Gender.Int64 == 1 {
@@ -971,17 +971,11 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 	})
 }
 
-// ConfirmIdentityLink confirms identity and links a new provider to existing user
+// ConfirmIdentityLink confirms identity and links a new provider to existing user.
+// No JWT required - security is provided by the time-limited Redis pending_link entry
+// plus the reg_no verification against the citizen database.
 func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	ctx := context.Background()
-
-	// Validate JWT claims
-	claimsVal, exists := c.Get("claims")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	claims := claimsVal.(*services.Claims)
 
 	var req struct {
 		GenID string `json:"gen_id" binding:"required"`
@@ -992,13 +986,7 @@ func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 		return
 	}
 
-	// Verify the JWT subject matches the requested gen_id
-	if claims.Subject != req.GenID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "gen_id does not match authenticated user"})
-		return
-	}
-
-	// Check for pending link request
+	// Check for pending link request (time-limited, single-use)
 	pendingKey := "pending_link:" + req.GenID
 	pendingJSON, err := h.redis.Get(ctx, pendingKey).Result()
 	if err != nil {
@@ -1031,15 +1019,12 @@ func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 		// Reload user with citizen data
 		user, _ = h.userService.FindByGenID(req.GenID)
 	} else {
-		// Verify reg_no matches existing citizen
-		if user.Citizen == nil || user.Citizen.RegNo != req.RegNo {
-			// Also check with Latin to Cyrillic conversion
-			citizen, err := h.userService.FindCitizenByRegNo(req.RegNo)
-			if err != nil || citizen == nil || (user.CitizenID.Valid && citizen.ID != user.CitizenID.Int64) {
-				middleware.RecordIdentityVerification(false)
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Identity verification failed: reg_no does not match"})
-				return
-			}
+		// Verify reg_no matches existing citizen (case-insensitive)
+		citizen, err := h.userService.FindCitizenByRegNo(req.RegNo)
+		if err != nil || citizen == nil || (user.CitizenID.Valid && citizen.ID != user.CitizenID.Int64) {
+			middleware.RecordIdentityVerification(false)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Identity verification failed: reg_no does not match"})
+			return
 		}
 	}
 

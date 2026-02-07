@@ -214,38 +214,134 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              {/* Last login info */}
+              {/* Active session / current login detail */}
               {logins.length > 0 &&
                 (() => {
                   const lastLogin = logins[0]
                   const method = getMethodFromDetails(lastLogin.details)
                   const provider = LOGIN_PROVIDERS.find((p) => p.method === method)
+                  let parsedDetails: Record<string, string> = {}
+                  try {
+                    parsedDetails = JSON.parse(lastLogin.details)
+                  } catch {
+                    /* empty */
+                  }
+                  const loginEmail = parsedDetails.email || user.email
+                  const userAgent = parsedDetails.user_agent || ''
+
+                  // Parse user agent for display
+                  let browserInfo = ''
+                  if (userAgent) {
+                    if (userAgent.includes('Chrome') && !userAgent.includes('Edg'))
+                      browserInfo = 'Chrome'
+                    else if (userAgent.includes('Firefox')) browserInfo = 'Firefox'
+                    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome'))
+                      browserInfo = 'Safari'
+                    else if (userAgent.includes('Edg')) browserInfo = 'Edge'
+                    else browserInfo = 'Бусад'
+
+                    if (userAgent.includes('Windows')) browserInfo += ' · Windows'
+                    else if (userAgent.includes('Mac OS')) browserInfo += ' · macOS'
+                    else if (userAgent.includes('Linux')) browserInfo += ' · Linux'
+                    else if (userAgent.includes('Android')) browserInfo += ' · Android'
+                    else if (userAgent.includes('iPhone') || userAgent.includes('iPad'))
+                      browserInfo += ' · iOS'
+                  }
+
                   return (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100 dark:bg-slate-800 mb-4">
-                      <div className={`shrink-0 ${provider?.color || 'text-slate-400'}`}>
-                        {provider?.icon || (
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-500/10 dark:to-purple-500/10 border border-indigo-100 dark:border-indigo-500/20 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                          Идэвхтэй нэвтрэлт
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 mb-3">
+                        <div
+                          className={`w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm ${provider?.color || 'text-slate-400'}`}
+                        >
+                          {provider?.icon || (
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-slate-900 dark:text-white">
+                            {provider?.name || 'Нэвтрэлт'} -аар нэвтэрсэн
+                          </div>
+                          <div className="text-sm text-slate-600 dark:text-slate-300 truncate">
+                            {loginEmail}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-slate-800/60">
                           <svg
-                            className="w-5 h-5"
+                            className="w-4 h-4 text-slate-400 shrink-0"
                             fill="none"
-                            viewBox="0 0 24 24"
                             stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
                             <path
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
+                          <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                            {formatDateTime(lastLogin.created_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-slate-800/60">
+                          <svg
+                            className="w-4 h-4 text-slate-400 shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                            />
+                          </svg>
+                          <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                            IP: {lastLogin.ip_address}
+                          </span>
+                        </div>
+                        {browserInfo && (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 dark:bg-slate-800/60">
+                            <svg
+                              className="w-4 h-4 text-slate-400 shrink-0"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                              {browserInfo}
+                            </span>
+                          </div>
                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-slate-900 dark:text-white">
-                          Сүүлийн нэвтрэлт: {provider?.name || 'Нэвтрэлт'}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          {user.email} &middot; {formatDateTime(lastLogin.created_at)}
-                        </div>
                       </div>
                     </div>
                   )
@@ -253,25 +349,30 @@ export default function DashboardPage() {
 
               {/* Total + per-provider counts */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-center">
-                  <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-center border border-indigo-100 dark:border-indigo-500/20">
+                  <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                     {Object.values(loginCounts).reduce((a, b) => a + b, 0)}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">
                     Нийт нэвтрэлт
                   </div>
                 </div>
                 {LOGIN_PROVIDERS.map((provider) => {
                   const count = loginCounts[provider.method] || 0
+                  const connected = user.providers?.[provider.key] ?? false
                   return (
                     <div
                       key={provider.key}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-center"
+                      className={`p-4 rounded-xl text-center border transition-colors ${
+                        connected && count > 0
+                          ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                          : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 opacity-50'
+                      }`}
                     >
-                      <div className="flex justify-center mb-1">
+                      <div className="flex justify-center mb-2">
                         <div className={provider.color}>{provider.icon}</div>
                       </div>
-                      <div className="text-lg font-bold text-slate-900 dark:text-white">
+                      <div className="text-xl font-bold text-slate-900 dark:text-white">
                         {count}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">

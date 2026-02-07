@@ -117,8 +117,8 @@ services:
     restart: unless-stopped
     environment:
       - PORT=8081
-      - OAUTH_CLIENT_ID=test_app_local_dev_client_id_001
-      - OAUTH_CLIENT_SECRET=test_app_local_dev_secret_001
+      - OAUTH_CLIENT_ID=2c283c5ebe61e75cff0d60e52cf88f6b39d53caaf3b79635c7e84af4c137e0a7
+      - OAUTH_CLIENT_SECRET=dadc33aa0884013896713b2e7f18144a2f9debc242c071343eb75707061df251
       - SSO_BASE_URL=http://localhost:3000
       - SSO_BACKEND_URL=http://localhost:8080
       - SSO_BACKEND_INTERNAL_URL=http://backend:8080

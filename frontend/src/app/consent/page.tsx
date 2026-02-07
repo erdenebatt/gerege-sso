@@ -17,27 +17,23 @@ function ConsentPageContent() {
   const codeChallenge = searchParams.get('code_challenge') || ''
   const codeChallengeMethod = searchParams.get('code_challenge_method') || ''
 
-  const handleAllow = async () => {
+  const handleAllow = () => {
     setIsLoading(true)
 
-    try {
-      const result = await api.oauth.authorize({
-        clientId,
-        redirectUri,
-        scope,
-        state,
-        approve: true,
-        codeChallenge,
-        codeChallengeMethod,
-      })
-
-      if (result.redirect) {
-        window.location.href = result.redirect
-      }
-    } catch (err) {
-      alert('Алдаа гарлаа. Дахин оролдоно уу.')
-      setIsLoading(false)
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope,
+      state,
+      approve: 'true',
+    })
+    if (codeChallenge) {
+      params.set('code_challenge', codeChallenge)
+      params.set('code_challenge_method', codeChallengeMethod || 'plain')
     }
+
+    window.location.href = `/api/oauth/authorize?${params.toString()}`
   }
 
   const handleDeny = () => {

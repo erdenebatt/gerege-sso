@@ -1,5 +1,5 @@
 basePath: /
-host: localhost:8080
+host: sso.gerege.mn
 info:
   contact: {}
   description: Gerege нэгдсэн нэвтрэлтийн систем API
@@ -734,6 +734,8 @@ paths:
       summary: Readiness check
       tags:
       - health
+schemes:
+- https
 securityDefinitions:
   AdminAPIKey:
     in: header

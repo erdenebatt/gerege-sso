@@ -28,8 +28,9 @@ import (
 // @title Gerege SSO API
 // @version 1.0
 // @description Gerege нэгдсэн нэвтрэлтийн систем API
-// @host localhost:8080
+// @host sso.gerege.mn
 // @BasePath /
+// @schemes https
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization

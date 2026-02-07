@@ -1,4 +1,7 @@
 {
+    "schemes": [
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "Gerege нэгдсэн нэвтрэлтийн систем API",
@@ -6,7 +9,7 @@
         "contact": {},
         "version": "1.0"
     },
-    "host": "localhost:8080",
+    "host": "sso.gerege.mn",
     "basePath": "/",
     "paths": {
         "/api/admin/audit-logs": {

@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui'
-import { api } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
 import type { User } from '@/types'
 
 const PROVIDERS = [
-  { key: 'google', method: 'google_oauth', name: 'Google' },
-  { key: 'facebook', method: 'facebook_oauth', name: 'Facebook' },
-  { key: 'twitter', method: 'twitter_oauth', name: 'Twitter / X' },
-  { key: 'apple', method: 'apple_oauth', name: 'Apple' },
+  { key: 'google', name: 'Google' },
+  { key: 'facebook', name: 'Facebook' },
+  { key: 'twitter', name: 'Twitter / X' },
+  { key: 'apple', name: 'Apple' },
 ]
 
 interface SecurityCardProps {
@@ -18,23 +16,6 @@ interface SecurityCardProps {
 }
 
 export function SecurityCard({ user }: SecurityCardProps) {
-  const [lastLoginTime, setLastLoginTime] = useState<string | null>(null)
-
-  const fetchLastLogin = useCallback(() => {
-    api.auth
-      .loginActivity()
-      .then((data) => {
-        if (data.logins && data.logins.length > 0) {
-          setLastLoginTime(data.logins[0].created_at)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    fetchLastLogin()
-  }, [fetchLastLogin])
-
   const connectedProviders = PROVIDERS.filter((p) => user.providers?.[p.key])
   const connectedCount = connectedProviders.length
   const connectedNames = connectedProviders.map((p) => p.name).join(', ')
@@ -110,7 +91,7 @@ export function SecurityCard({ user }: SecurityCardProps) {
             <div>
               <div className="font-medium text-slate-900 dark:text-white">Сүүлийн нэвтрэлт</div>
               <div className="text-sm text-slate-500 dark:text-slate-400">
-                {formatDateTime(lastLoginTime || user.last_login_at || user.updated_at)}
+                {formatDateTime(user.last_login_at || user.updated_at)}
               </div>
             </div>
           </div>

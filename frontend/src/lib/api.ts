@@ -22,14 +22,45 @@ export class ApiError extends Error {
   }
 }
 
+const MAX_RETRIES = 3
+const RETRY_BASE_MS = 500
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 0
+): Promise<Response> {
+  try {
+    const res = await fetch(url, options)
+
+    // Retry on 5xx server errors
+    if (res.status >= 500 && retries < MAX_RETRIES) {
+      const delay = RETRY_BASE_MS * Math.pow(2, retries)
+      await new Promise((r) => setTimeout(r, delay))
+      return fetchWithRetry(url, options, retries + 1)
+    }
+
+    return res
+  } catch (err) {
+    // Retry on network errors
+    if (retries < MAX_RETRIES) {
+      const delay = RETRY_BASE_MS * Math.pow(2, retries)
+      await new Promise((r) => setTimeout(r, delay))
+      return fetchWithRetry(url, options, retries + 1)
+    }
+    throw err
+  }
+}
+
 export async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken()
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithRetry(`${API_BASE}${endpoint}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -56,8 +87,9 @@ export async function fetchWithAdminKey<T>(
   apiKey: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithRetry(`${API_BASE}${endpoint}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       'X-Admin-Key': apiKey,
@@ -83,6 +115,12 @@ export const api = {
   auth: {
     me: () => fetchAPI<User>('/api/auth/me'),
 
+    exchangeToken: (code: string) =>
+      fetchAPI<{ token: string }>('/api/auth/exchange-token', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+
     verify: (regNo: string) =>
       fetchAPI<{ success: boolean; message?: string }>('/api/auth/verify', {
         method: 'POST',
@@ -103,7 +141,14 @@ export const api = {
       }),
 
     danCallback: (regNo: string) =>
-      fetchAPI<{ message: string; reg_no: string }>(`/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`),
+      fetchAPI<{ message: string; reg_no: string }>(
+        `/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`
+      ),
+
+    logout: () =>
+      fetchAPI<{ message: string }>('/api/auth/logout', {
+        method: 'POST',
+      }),
   },
 
   oauth: {
@@ -136,6 +181,7 @@ export const api = {
         method: 'GET',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         redirect: 'manual',
+        credentials: 'include',
       })
 
       const location = res.headers.get('Location')

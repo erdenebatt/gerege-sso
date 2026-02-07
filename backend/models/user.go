@@ -70,6 +70,15 @@ type JWTClaims struct {
 	Gerege GeregeInfo `json:"gerege"`
 }
 
+// ProviderUserInfo is a unified representation of user info from any OAuth provider
+type ProviderUserInfo struct {
+	ProviderID    string `json:"provider_id"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}
+
 // GoogleUserInfo represents Google OAuth user info
 type GoogleUserInfo struct {
 	ID            string `json:"id"`

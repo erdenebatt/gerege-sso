@@ -58,7 +58,7 @@ func main() {
 	// Initialize services
 	genIDService := services.NewGenIDService(db)
 	oauthService := services.NewOAuthService(cfg)
-	jwtService := services.NewJWTService(cfg.JWT.Secret, cfg.JWT.Expiry)
+	jwtService := services.NewJWTService(cfg.JWT.Secret, cfg.JWT.Expiry, rdb)
 	userService := services.NewUserService(db, genIDService)
 	auditService := services.NewAuditService(db)
 
@@ -114,6 +114,7 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(middleware.Logger())
 	router.Use(middleware.CORS())
+	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.Metrics())
 
 	// Health and metrics routes
@@ -121,11 +122,15 @@ func main() {
 	router.GET("/ready", healthHandler.Ready)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	// Rate limiter for auth endpoints (20 requests per minute per IP)
+	authRateLimit := middleware.RateLimit(rdb, 20, 1*time.Minute)
+
 	// API routes
 	api := router.Group("/api")
 	{
 		// Auth routes
 		auth := api.Group("/auth")
+		auth.Use(authRateLimit)
 		{
 			auth.GET("/google", authHandler.GoogleLogin)
 			auth.GET("/google/callback", authHandler.GoogleCallback)
@@ -136,10 +141,11 @@ func main() {
 			auth.GET("/facebook/callback", authHandler.FacebookCallback)
 			auth.GET("/twitter", authHandler.TwitterLogin)
 			auth.GET("/twitter/callback", authHandler.TwitterCallback)
-			auth.POST("/logout", authHandler.Logout)
+			auth.POST("/exchange-token", authHandler.ExchangeToken)
+		auth.POST("/logout", middleware.JWTAuth(jwtService), authHandler.Logout)
 			auth.GET("/me", middleware.JWTAuth(jwtService), authHandler.Me)
 			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
-			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
+			auth.POST("/confirm-link", middleware.JWTAuth(jwtService), authHandler.ConfirmIdentityLink)
 			auth.GET("/dan", authHandler.DanLogin)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
 

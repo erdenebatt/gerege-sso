@@ -9,11 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// JWTAuth middleware validates JWT tokens
+// JWTAuth middleware validates JWT tokens and checks blacklist
 func JWTAuth(jwtService *services.JWTService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get token from Authorization header
 		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			// Fallback: check httpOnly cookie
+			if cookie, err := c.Cookie("gerege_token"); err == nil && cookie != "" {
+				authHeader = "Bearer " + cookie
+			}
+		}
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 			c.Abort()
@@ -34,6 +40,13 @@ func JWTAuth(jwtService *services.JWTService) gin.HandlerFunc {
 		claims, err := jwtService.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Check if token has been blacklisted (logout)
+		if jwtService.IsBlacklisted(claims.ID) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token has been revoked"})
 			c.Abort()
 			return
 		}

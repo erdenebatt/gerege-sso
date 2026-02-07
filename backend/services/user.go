@@ -10,6 +10,18 @@ import (
 	"gerege-sso/models"
 )
 
+// providerColumns maps provider names to their database column names.
+// Used as a whitelist to prevent SQL injection.
+var providerColumns = map[string]string{
+	"google":   "google_sub",
+	"apple":    "apple_sub",
+	"facebook": "facebook_id",
+	"twitter":  "twitter_id",
+}
+
+// userColumns is the standard set of columns selected for user queries
+const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at`
+
 // UserService handles user-related operations
 type UserService struct {
 	db           *sql.DB
@@ -24,304 +36,194 @@ func NewUserService(db *sql.DB, genIDService *GenIDService) *UserService {
 	}
 }
 
-// FindByGoogleSub finds a user by their Google sub (ID)
-func (s *UserService) FindByGoogleSub(googleSub string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE google_sub = $1
-	`, googleSub).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
+// scannable is an interface satisfied by both *sql.Row and *sql.Rows
+type scannable interface {
+	Scan(dest ...interface{}) error
+}
 
+// scanUser scans a user row into a User struct
+func scanUser(row scannable) (*models.User, error) {
+	user := &models.User{}
+	err := row.Scan(
+		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub,
+		&user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
+		&user.Picture, &user.CitizenID, &user.Verified,
+		&user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
+	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
+		return nil, fmt.Errorf("failed to scan user: %w", err)
 	}
+	return user, nil
+}
 
-	// Load citizen data if exists
-	if user.CitizenID.Valid {
+// loadCitizen loads citizen data for a user if citizen_id is set
+func (s *UserService) loadCitizen(user *models.User) {
+	if user != nil && user.CitizenID.Valid {
 		citizen, err := s.FindCitizenByID(user.CitizenID.Int64)
 		if err == nil {
 			user.Citizen = citizen
 		}
 	}
+}
 
+// FindByProviderID finds a user by their provider-specific ID (unified method)
+func (s *UserService) FindByProviderID(provider, providerID string) (*models.User, error) {
+	col, ok := providerColumns[provider]
+	if !ok {
+		return nil, fmt.Errorf("unknown provider: %s", provider)
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM users WHERE %s = $1", userColumns, col)
+	user, err := scanUser(s.db.QueryRow(query, providerID))
+	if err != nil {
+		return nil, err
+	}
+	s.loadCitizen(user)
 	return user, nil
+}
+
+// CreateFromProvider creates a new user from any OAuth provider (unified method)
+func (s *UserService) CreateFromProvider(provider string, info *models.ProviderUserInfo) (*models.User, error) {
+	col, ok := providerColumns[provider]
+	if !ok {
+		return nil, fmt.Errorf("unknown provider: %s", provider)
+	}
+
+	genID, err := s.genIDService.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
+	}
+
+	email := info.Email
+	if email == "" {
+		email = info.ProviderID + "@" + provider + ".placeholder"
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO users (gen_id, %s, email, email_verified, picture, verified)
+		VALUES ($1, $2, $3, $4, $5, false)
+		RETURNING %s
+	`, col, userColumns)
+
+	user, err := scanUser(s.db.QueryRow(query, genID, info.ProviderID, email, info.EmailVerified, info.Picture))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+	return user, nil
+}
+
+// LinkProviderID links a provider account to an existing user (unified method)
+func (s *UserService) LinkProviderID(userID int64, provider, providerID string) error {
+	col, ok := providerColumns[provider]
+	if !ok {
+		return fmt.Errorf("unknown provider: %s", provider)
+	}
+
+	query := fmt.Sprintf("UPDATE users SET %s = $1 WHERE id = $2", col)
+	_, err := s.db.Exec(query, providerID, userID)
+	return err
+}
+
+// --- Legacy methods (thin wrappers for backward compatibility) ---
+
+// FindByGoogleSub finds a user by their Google sub (ID)
+func (s *UserService) FindByGoogleSub(googleSub string) (*models.User, error) {
+	return s.FindByProviderID("google", googleSub)
 }
 
 // FindByAppleSub finds a user by their Apple sub (ID)
 func (s *UserService) FindByAppleSub(appleSub string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE apple_sub = $1
-	`, appleSub).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
-	}
-
-	// Load citizen data if exists
-	if user.CitizenID.Valid {
-		citizen, err := s.FindCitizenByID(user.CitizenID.Int64)
-		if err == nil {
-			user.Citizen = citizen
-		}
-	}
-
-	return user, nil
-}
-
-// FindByEmail finds a user by email
-func (s *UserService) FindByEmail(email string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE email = $1
-	`, email).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
-	}
-
-	return user, nil
-}
-
-// FindByGenID finds a user by gen_id
-func (s *UserService) FindByGenID(genID string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE gen_id = $1
-	`, genID).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
-	}
-
-	// Load citizen data if exists
-	if user.CitizenID.Valid {
-		citizen, err := s.FindCitizenByID(user.CitizenID.Int64)
-		if err == nil {
-			user.Citizen = citizen
-		}
-	}
-
-	return user, nil
-}
-
-// Create creates a new user from Google info
-func (s *UserService) Create(googleInfo *models.GoogleUserInfo) (*models.User, error) {
-	// Generate unique 11-digit gen_id
-	genID, err := s.genIDService.Generate()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
-	}
-
-	user := &models.User{}
-	err = s.db.QueryRow(`
-		INSERT INTO users (gen_id, google_sub, email, email_verified, picture, verified)
-		VALUES ($1, $2, $3, $4, $5, false)
-		RETURNING id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-	`, genID, googleInfo.ID, googleInfo.Email, googleInfo.VerifiedEmail, googleInfo.Picture).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
-}
-
-// CreateFromApple creates a new user from Apple info
-func (s *UserService) CreateFromApple(appleInfo *models.AppleUserInfo) (*models.User, error) {
-	// Generate unique 11-digit gen_id
-	genID, err := s.genIDService.Generate()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
-	}
-
-	user := &models.User{}
-	err = s.db.QueryRow(`
-		INSERT INTO users (gen_id, apple_sub, email, email_verified, verified)
-		VALUES ($1, $2, $3, $4, false)
-		RETURNING id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-	`, genID, appleInfo.Sub, appleInfo.Email, appleInfo.EmailVerified).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
-}
-
-// LinkAppleSub links an Apple account to an existing user
-func (s *UserService) LinkAppleSub(userID int64, appleSub string) error {
-	_, err := s.db.Exec(`
-		UPDATE users SET apple_sub = $1 WHERE id = $2
-	`, appleSub, userID)
-	return err
-}
-
-// LinkGoogleSub links a Google account to an existing user
-func (s *UserService) LinkGoogleSub(userID int64, googleSub string) error {
-	_, err := s.db.Exec(`
-		UPDATE users SET google_sub = $1 WHERE id = $2
-	`, googleSub, userID)
-	return err
+	return s.FindByProviderID("apple", appleSub)
 }
 
 // FindByFacebookID finds a user by their Facebook ID
 func (s *UserService) FindByFacebookID(facebookID string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE facebook_id = $1
-	`, facebookID).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
-	}
-
-	// Load citizen data if exists
-	if user.CitizenID.Valid {
-		citizen, err := s.FindCitizenByID(user.CitizenID.Int64)
-		if err == nil {
-			user.Citizen = citizen
-		}
-	}
-
-	return user, nil
-}
-
-// CreateFromFacebook creates a new user from Facebook info
-func (s *UserService) CreateFromFacebook(fbInfo *models.FacebookUserInfo) (*models.User, error) {
-	// Generate unique 11-digit gen_id
-	genID, err := s.genIDService.Generate()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
-	}
-
-	user := &models.User{}
-	err = s.db.QueryRow(`
-		INSERT INTO users (gen_id, facebook_id, email, email_verified, picture, verified)
-		VALUES ($1, $2, $3, true, $4, false)
-		RETURNING id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-	`, genID, fbInfo.ID, fbInfo.Email, fbInfo.Picture).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
-}
-
-// LinkFacebookID links a Facebook account to an existing user
-func (s *UserService) LinkFacebookID(userID int64, facebookID string) error {
-	_, err := s.db.Exec(`
-		UPDATE users SET facebook_id = $1 WHERE id = $2
-	`, facebookID, userID)
-	return err
+	return s.FindByProviderID("facebook", facebookID)
 }
 
 // FindByTwitterID finds a user by their Twitter ID
 func (s *UserService) FindByTwitterID(twitterID string) (*models.User, error) {
-	user := &models.User{}
-	err := s.db.QueryRow(`
-		SELECT id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-		FROM users WHERE twitter_id = $1
-	`, twitterID).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find user: %w", err)
-	}
-
-	// Load citizen data if exists
-	if user.CitizenID.Valid {
-		citizen, err := s.FindCitizenByID(user.CitizenID.Int64)
-		if err == nil {
-			user.Citizen = citizen
-		}
-	}
-
-	return user, nil
+	return s.FindByProviderID("twitter", twitterID)
 }
 
-// CreateFromTwitter creates a new user from Twitter info
-func (s *UserService) CreateFromTwitter(twitterInfo *models.TwitterUserInfo) (*models.User, error) {
-	// Generate unique 11-digit gen_id
-	genID, err := s.genIDService.Generate()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
-	}
+// LinkGoogleSub links a Google account to an existing user
+func (s *UserService) LinkGoogleSub(userID int64, googleSub string) error {
+	return s.LinkProviderID(userID, "google", googleSub)
+}
 
-	user := &models.User{}
-	// Twitter doesn't provide email by default, so we use username@twitter as placeholder
-	placeholderEmail := twitterInfo.Username + "@twitter.placeholder"
-	err = s.db.QueryRow(`
-		INSERT INTO users (gen_id, twitter_id, email, email_verified, picture, verified)
-		VALUES ($1, $2, $3, false, $4, false)
-		RETURNING id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at
-	`, genID, twitterInfo.ID, placeholderEmail, twitterInfo.ProfileImageURL).Scan(
-		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub, &user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified, &user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
-	)
+// LinkAppleSub links an Apple account to an existing user
+func (s *UserService) LinkAppleSub(userID int64, appleSub string) error {
+	return s.LinkProviderID(userID, "apple", appleSub)
+}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
+// LinkFacebookID links a Facebook account to an existing user
+func (s *UserService) LinkFacebookID(userID int64, facebookID string) error {
+	return s.LinkProviderID(userID, "facebook", facebookID)
 }
 
 // LinkTwitterID links a Twitter account to an existing user
 func (s *UserService) LinkTwitterID(userID int64, twitterID string) error {
-	_, err := s.db.Exec(`
-		UPDATE users SET twitter_id = $1 WHERE id = $2
-	`, twitterID, userID)
-	return err
+	return s.LinkProviderID(userID, "twitter", twitterID)
+}
+
+// Create creates a new user from Google info
+func (s *UserService) Create(googleInfo *models.GoogleUserInfo) (*models.User, error) {
+	return s.CreateFromProvider("google", &models.ProviderUserInfo{
+		ProviderID:    googleInfo.ID,
+		Email:         googleInfo.Email,
+		EmailVerified: googleInfo.VerifiedEmail,
+		Picture:       googleInfo.Picture,
+	})
+}
+
+// CreateFromApple creates a new user from Apple info
+func (s *UserService) CreateFromApple(appleInfo *models.AppleUserInfo) (*models.User, error) {
+	return s.CreateFromProvider("apple", &models.ProviderUserInfo{
+		ProviderID:    appleInfo.Sub,
+		Email:         appleInfo.Email,
+		EmailVerified: appleInfo.EmailVerified,
+	})
+}
+
+// CreateFromFacebook creates a new user from Facebook info
+func (s *UserService) CreateFromFacebook(fbInfo *models.FacebookUserInfo) (*models.User, error) {
+	return s.CreateFromProvider("facebook", &models.ProviderUserInfo{
+		ProviderID:    fbInfo.ID,
+		Email:         fbInfo.Email,
+		EmailVerified: true,
+		Picture:       fbInfo.Picture,
+	})
+}
+
+// CreateFromTwitter creates a new user from Twitter info
+func (s *UserService) CreateFromTwitter(twitterInfo *models.TwitterUserInfo) (*models.User, error) {
+	return s.CreateFromProvider("twitter", &models.ProviderUserInfo{
+		ProviderID: twitterInfo.ID,
+		Email:      twitterInfo.Username + "@twitter.placeholder",
+		Picture:    twitterInfo.ProfileImageURL,
+	})
+}
+
+// --- Non-provider-specific methods ---
+
+// FindByEmail finds a user by email
+func (s *UserService) FindByEmail(email string) (*models.User, error) {
+	query := fmt.Sprintf("SELECT %s FROM users WHERE email = $1", userColumns)
+	return scanUser(s.db.QueryRow(query, email))
+}
+
+// FindByGenID finds a user by gen_id
+func (s *UserService) FindByGenID(genID string) (*models.User, error) {
+	query := fmt.Sprintf("SELECT %s FROM users WHERE gen_id = $1", userColumns)
+	user, err := scanUser(s.db.QueryRow(query, genID))
+	if err != nil {
+		return nil, err
+	}
+	s.loadCitizen(user)
+	return user, nil
 }
 
 // UpdateLastLogin updates the user's last login timestamp
@@ -371,16 +273,7 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	).Scan(&citizenID)
 
 	if err == sql.ErrNoRows {
-		// Create new citizen if not found
-		// We use a placeholder for first_name since it's required but not provided in the ID-only flow
-		err = tx.QueryRow(`
-			INSERT INTO citizens (reg_no, first_name, is_foreign, created_date, updated_date)
-			VALUES ($1, 'Тодорхойгүй', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			RETURNING id
-		`, normalizedRegNo).Scan(&citizenID)
-		if err != nil {
-			return fmt.Errorf("failed to create new citizen: %w", err)
-		}
+		return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
 	} else if err != nil {
 		return fmt.Errorf("failed to find citizen: %w", err)
 	}

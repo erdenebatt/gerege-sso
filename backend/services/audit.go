@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 )
 
 // AuditService handles writing to the audit_logs table
@@ -40,4 +41,78 @@ func (s *AuditService) AddLog(userID int64, action string, details map[string]in
 
 	log.Printf("Audit: user_id=%d action=%s ip=%s", userID, action, ip)
 	return nil
+}
+
+// SystemStats holds aggregated system statistics
+type SystemStats struct {
+	TotalClients  int `json:"total_clients"`
+	ActiveClients int `json:"active_clients"`
+	TotalUsers    int `json:"total_users"`
+	VerifiedUsers int `json:"verified_users"`
+	Logins24h     int `json:"logins_24h"`
+}
+
+// GetStats returns aggregated system statistics
+func (s *AuditService) GetStats() (*SystemStats, error) {
+	stats := &SystemStats{}
+
+	err := s.db.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE is_active) FROM oauth_clients`).
+		Scan(&stats.TotalClients, &stats.ActiveClients)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count clients: %w", err)
+	}
+
+	err = s.db.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM users`).
+		Scan(&stats.TotalUsers, &stats.VerifiedUsers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	err = s.db.QueryRow(`
+		SELECT COUNT(*) FROM audit_logs
+		WHERE action IN ('login_success', 'oauth_consent_granted')
+		AND created_at > NOW() - INTERVAL '24 hours'
+	`).Scan(&stats.Logins24h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count logins: %w", err)
+	}
+
+	return stats, nil
+}
+
+// AuditLogEntry represents a single audit log entry for API responses
+type AuditLogEntry struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	UserEmail string    `json:"user_email"`
+	Action    string    `json:"action"`
+	Details   string    `json:"details"`
+	IPAddress string    `json:"ip_address"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// GetRecentLogs returns the most recent audit log entries
+func (s *AuditService) GetRecentLogs(limit int) ([]AuditLogEntry, error) {
+	rows, err := s.db.Query(`
+		SELECT a.id, a.user_id, COALESCE(u.email, 'unknown') as user_email,
+		       a.action, a.details, a.ip_address, a.created_at
+		FROM audit_logs a
+		LEFT JOIN users u ON u.id = a.user_id
+		ORDER BY a.created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []AuditLogEntry
+	for rows.Next() {
+		var entry AuditLogEntry
+		if err := rows.Scan(&entry.ID, &entry.UserID, &entry.UserEmail, &entry.Action, &entry.Details, &entry.IPAddress, &entry.CreatedAt); err != nil {
+			continue
+		}
+		logs = append(logs, entry)
+	}
+	return logs, nil
 }

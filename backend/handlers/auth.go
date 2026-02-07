@@ -596,11 +596,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 			response.Gerege.BirthDate = user.Citizen.BirthDate.String
 		}
 		if user.Citizen.Gender.Valid {
-			if user.Citizen.Gender.Int64 == 1 {
-				response.Gerege.Gender = "male"
-			} else {
-				response.Gerege.Gender = "female"
-			}
+			response.Gerege.Gender = user.Citizen.Gender.String
 		}
 		// Build display name
 		name := user.Citizen.FirstName

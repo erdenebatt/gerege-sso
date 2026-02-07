@@ -234,6 +234,14 @@ func (s *UserService) UpdateLastLogin(userID int64) error {
 	return err
 }
 
+// UpdatePicture updates the user's profile picture URL
+func (s *UserService) UpdatePicture(userID int64, picture string) error {
+	_, err := s.db.Exec(`
+		UPDATE users SET picture = $1 WHERE id = $2
+	`, picture, userID)
+	return err
+}
+
 // latinToCyrillic converts Latin letters to their Cyrillic equivalents
 func latinToCyrillic(s string) string {
 	replacer := strings.NewReplacer(
@@ -316,8 +324,8 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
 	citizen := &models.Citizen{}
 	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
-		       phone_no, email, aimag_name, sum_name
+		SELECT id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
+		       phone_primary, email, current_province, current_district
 		FROM citizens WHERE id = $1
 	`, id).Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
@@ -340,8 +348,8 @@ func (s *UserService) FindCitizenByRegNo(regNo string) (*models.Citizen, error) 
 	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
 	citizen := &models.Citizen{}
 	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
-		       phone_no, email, aimag_name, sum_name
+		SELECT id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
+		       phone_primary, email, current_province, current_district
 		FROM citizens WHERE UPPER(reg_no) = $1
 	`, normalizedRegNo).Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,

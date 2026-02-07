@@ -108,9 +108,14 @@ func (h *AuthHandler) handleOAuthCallback(c *gin.Context, info *ProviderUserInfo
 		log.Printf("Created new user from %s: %s (gen_id: %s)", info.Provider, user.Email, user.GenID)
 	}
 
-	// Update last login
+	// Update last login and picture
 	if err := h.userService.UpdateLastLogin(user.ID); err != nil {
 		log.Printf("Failed to update last login: %v", err)
+	}
+	if info.Picture != "" && (!user.Picture.Valid || user.Picture.String != info.Picture) {
+		if err := h.userService.UpdatePicture(user.ID, info.Picture); err != nil {
+			log.Printf("Failed to update picture: %v", err)
+		}
 	}
 
 	// Generate JWT

@@ -173,9 +173,13 @@ app.get('/profile', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Test App running at http://localhost:${PORT}`);
-  console.log(`SSO Base URL: ${SSO_BASE_URL}`);
-  console.log(`SSO Backend URL: ${SSO_BACKEND_URL}`);
-  console.log(`Client ID: ${OAUTH_CLIENT_ID}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Test App running at http://localhost:${PORT}`);
+    console.log(`SSO Base URL: ${SSO_BASE_URL}`);
+    console.log(`SSO Backend URL: ${SSO_BACKEND_URL}`);
+    console.log(`Client ID: ${OAUTH_CLIENT_ID}`);
+  });
+}
+
+module.exports = { app, base64url, generatePKCE, pendingAuth, userTokens };

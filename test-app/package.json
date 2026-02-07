@@ -4,11 +4,16 @@
   "description": "OAuth2 test client for Gerege SSO",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --verbose"
   },
   "dependencies": {
     "express": "^4.21.0",
     "ejs": "^3.1.10",
     "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
   }
 }

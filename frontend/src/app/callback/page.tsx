@@ -53,7 +53,11 @@ function CallbackPageContent() {
           window.history.replaceState({}, document.title, '/callback')
           const userData = await fetchUser()
           if (userData) {
-            setView(userData.verified ? 'success' : 'verify')
+            if (userData.verified) {
+              router.replace('/dashboard')
+              return
+            }
+            setView('verify')
           } else {
             setErrorMessage('Хэрэглэгчийн мэдээлэл олдсонгүй')
             setView('error')
@@ -70,13 +74,9 @@ function CallbackPageContent() {
       const regNo = searchParams.get('reg_no')
       if (danSuccess === 'true' && regNo) {
         try {
-          // Add artificial delay for UX
-          await new Promise(r => setTimeout(r, 800))
           await api.auth.danCallback(regNo)
-
           await fetchUser()
-          setVerifySuccess('ДАН баталгаажуулалт амжилттай!')
-          setView('success')
+          router.replace('/dashboard')
         } catch (err: unknown) {
           console.error(err)
           setErrorMessage('ДАН баталгаажуулалт амжилтгүй боллоо')
@@ -89,7 +89,11 @@ function CallbackPageContent() {
       if (existing || token) {
         const userData = await fetchUser()
         if (userData) {
-          setView(userData.verified ? 'success' : 'verify')
+          if (userData.verified) {
+            router.replace('/dashboard')
+            return
+          }
+          setView('verify')
         } else {
           setErrorMessage('Токен хүчингүй болсон')
           setView('error')
@@ -103,7 +107,7 @@ function CallbackPageContent() {
     }
 
     handleCallback()
-  }, [searchParams, token, setToken, fetchUser])
+  }, [searchParams, token, setToken, fetchUser, router])
 
   const handleVerify = async () => {
     const trimmedRegNo = regNo.trim().toUpperCase()
@@ -121,7 +125,7 @@ function CallbackPageContent() {
       setVerifySuccess('Амжилттай баталгаажлаа!')
       setTimeout(() => {
         fetchUser()
-        setView('success')
+        router.replace('/dashboard')
       }, 1500)
     } catch (err) {
       setVerifyError(err instanceof Error ? err.message : 'Алдаа гарлаа')
@@ -147,7 +151,7 @@ function CallbackPageContent() {
       setVerifySuccess('Бүртгэл амжилттай холбогдлоо!')
       setTimeout(() => {
         fetchUser()
-        setView('success')
+        router.replace('/dashboard')
       }, 1500)
     } catch (err) {
       setVerifyError(err instanceof Error ? err.message : 'Алдаа гарлаа')
@@ -160,19 +164,6 @@ function CallbackPageContent() {
     logout()
     router.replace('/')
   }
-
-  const copyToken = () => {
-    if (token) {
-      navigator.clipboard.writeText(token)
-      alert('Токен хуулагдлаа!')
-    }
-  }
-
-  const truncatedToken = token
-    ? token.length > 50
-      ? token.substring(0, 50) + '...'
-      : token
-    : ''
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5 bg-slate-50 dark:bg-slate-900">
@@ -196,77 +187,16 @@ function CallbackPageContent() {
           </div>
         )}
 
-        {/* Success */}
-        {view === 'success' && user && (
-          <div className="py-5">
+        {/* Success - redirecting to dashboard */}
+        {view === 'success' && (
+          <div className="py-10">
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-3xl flex items-center justify-center mx-auto mb-5">
               ✓
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-5">Амжилттай нэвтэрлээ!</h2>
-
-            <div className="bg-slate-100 dark:bg-white/5 rounded-xl p-4 text-left mb-5">
-              <div className="flex justify-between py-2 border-b border-slate-200 dark:border-white/10">
-                <span className="text-slate-500 dark:text-white/60 text-sm">Gen ID:</span>
-                <span className="font-medium text-sm text-slate-900 dark:text-white">{user.gen_id}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-slate-200 dark:border-white/10">
-                <span className="text-slate-500 dark:text-white/60 text-sm">И-мэйл:</span>
-                <span className="font-medium text-sm text-slate-900 dark:text-white">{user.email}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-slate-500 dark:text-white/60 text-sm">Баталгаажсан:</span>
-                <span
-                  className={`font-medium text-sm ${user.verified ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}
-                >
-                  {user.verified ? 'Тийм' : 'Үгүй'}
-                </span>
-              </div>
-              {user.gerege?.name && (
-                <div className="flex justify-between py-2 border-t border-slate-200 dark:border-white/10">
-                  <span className="text-slate-500 dark:text-white/60 text-sm">Нэр:</span>
-                  <span className="font-medium text-sm text-slate-900 dark:text-white">{user.gerege.name}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-slate-100 dark:bg-black/20 rounded-lg p-3 text-left mb-5">
-              <label className="text-xs text-slate-500 dark:text-white/60 mb-2 block">JWT Token:</label>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 font-mono text-xs text-indigo-600 dark:text-gerege-primary bg-indigo-50 dark:bg-gerege-primary/10 p-2 rounded break-all">
-                  {truncatedToken}
-                </code>
-                <button
-                  onClick={copyToken}
-                  className="p-2 bg-slate-200 dark:bg-white/10 rounded hover:bg-slate-300 dark:hover:bg-white/20 transition-colors text-slate-600 dark:text-white"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Button
-                variant="primary"
-                className="w-full"
-                onClick={() => router.push('/dashboard')}
-              >
-                Хянах самбар руу
-              </Button>
-              <Button variant="danger" className="w-full" onClick={handleLogout}>
-                Гарах
-              </Button>
-            </div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
+              Амжилттай нэвтэрлээ!
+            </h2>
+            <p className="text-slate-500 dark:text-white/60">Хянах самбар руу шилжиж байна...</p>
           </div>
         )}
 
@@ -276,23 +206,31 @@ function CallbackPageContent() {
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-3xl flex items-center justify-center mx-auto mb-5">
               ✓
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-5">Амжилттай нэвтэрлээ!</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-5">
+              Амжилттай нэвтэрлээ!
+            </h2>
 
             {user && (
               <div className="bg-slate-100 dark:bg-white/5 rounded-xl p-4 text-left mb-5">
                 <div className="flex justify-between py-2 border-b border-slate-200 dark:border-white/10">
                   <span className="text-slate-500 dark:text-white/60 text-sm">Gen ID:</span>
-                  <span className="font-medium text-sm text-slate-900 dark:text-white">{user.gen_id}</span>
+                  <span className="font-medium text-sm text-slate-900 dark:text-white">
+                    {user.gen_id}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-slate-500 dark:text-white/60 text-sm">И-мэйл:</span>
-                  <span className="font-medium text-sm text-slate-900 dark:text-white">{user.email}</span>
+                  <span className="font-medium text-sm text-slate-900 dark:text-white">
+                    {user.email}
+                  </span>
                 </div>
               </div>
             )}
 
             <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-xl p-5 text-left mb-5">
-              <h3 className="font-medium text-slate-900 dark:text-white mb-2">Иргэний баталгаажуулалт</h3>
+              <h3 className="font-medium text-slate-900 dark:text-white mb-2">
+                Иргэний баталгаажуулалт
+              </h3>
               <p className="text-sm text-slate-600 dark:text-white/70 mb-3">
                 Регистрийн дугаараа оруулж баталгаажуулна уу:
               </p>
@@ -335,10 +273,12 @@ function CallbackPageContent() {
         {view === 'pending_link' && (
           <div className="py-5">
             <div className="text-4xl mb-5">🔗</div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">Бүртгэл холбох</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
+              Бүртгэл холбох
+            </h2>
             <p className="text-sm text-slate-600 dark:text-white/70 mb-5 leading-relaxed">
-              Энэ и-мэйл хаягаар өмнө бүртгэл үүссэн байна. Бүртгэлүүдийг
-              холбохын тулд регистрийн дугаараа оруулж баталгаажуулна уу:
+              Энэ и-мэйл хаягаар өмнө бүртгэл үүссэн байна. Бүртгэлүүдийг холбохын тулд регистрийн
+              дугаараа оруулж баталгаажуулна уу:
             </p>
 
             <div className="flex gap-2 mb-4">
@@ -385,7 +325,9 @@ function CallbackPageContent() {
             <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-3xl flex items-center justify-center mx-auto mb-5">
               ✗
             </div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">Алдаа гарлаа</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-3">
+              Алдаа гарлаа
+            </h2>
             <p className="text-slate-600 dark:text-white/70 mb-5">{errorMessage}</p>
             <Link
               href="/"

@@ -76,7 +76,7 @@ function CallbackPageContent() {
         try {
           await api.auth.danCallback(regNo)
           await fetchUser()
-          router.replace('/dashboard')
+          router.replace('/dashboard/dan')
         } catch (err: unknown) {
           console.error(err)
           setErrorMessage('ДАН баталгаажуулалт амжилтгүй боллоо')

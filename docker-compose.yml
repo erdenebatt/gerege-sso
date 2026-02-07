@@ -105,6 +105,30 @@ services:
       retries: 3
 
   # ===================
+  # Test App (OAuth2 Client)
+  # ===================
+  test-app:
+    build:
+      context: ./test-app
+      dockerfile: Dockerfile
+    container_name: gerege-test-app
+    restart: unless-stopped
+    environment:
+      - PORT=1000
+      - OAUTH_CLIENT_ID=${TEST_APP_CLIENT_ID}
+      - OAUTH_CLIENT_SECRET=${TEST_APP_CLIENT_SECRET}
+      - SSO_BASE_URL=https://sso.gerege.mn
+      - SSO_BACKEND_URL=https://sso.gerege.mn
+      - SSO_BACKEND_INTERNAL_URL=http://localhost:8080
+      - REDIRECT_URI=https://test.sso.gerege.mn/callback
+    ports:
+      - "127.0.0.1:1000:1000"
+    depends_on:
+      - backend
+    networks:
+      - gerege-network
+
+  # ===================
   # Reverse Proxy
   # ===================
   nginx:
@@ -122,6 +146,7 @@ services:
     depends_on:
       - backend
       - frontend
+      - test-app
       - grafana
     networks:
       - gerege-network

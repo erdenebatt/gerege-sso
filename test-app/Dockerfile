@@ -7,6 +7,6 @@ RUN npm ci --production 2>/dev/null || npm install --production
 
 COPY . .
 
-EXPOSE 8081
+EXPOSE 1000
 
 CMD ["node", "server.js"]

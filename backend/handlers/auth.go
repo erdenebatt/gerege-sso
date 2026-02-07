@@ -656,6 +656,11 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 
 	middleware.RecordIdentityVerification(true)
 
+	// Log DAN verification
+	if err := h.userService.LogDanVerification(user.ID, req.RegNo, "reg_no"); err != nil {
+		log.Printf("Failed to log DAN verification: %v", err)
+	}
+
 	// Log audit
 	h.auditService.AddLog(user.ID, "identity_verified", map[string]interface{}{
 		"reg_no": req.RegNo,

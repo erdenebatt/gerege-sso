@@ -121,7 +121,7 @@ services:
       - OAUTH_CLIENT_SECRET=dadc33aa0884013896713b2e7f18144a2f9debc242c071343eb75707061df251
       - SSO_BASE_URL=http://localhost:3000
       - SSO_BACKEND_URL=http://localhost:8080
-      - SSO_BACKEND_INTERNAL_URL=http://localhost:8080
+      - SSO_BACKEND_INTERNAL_URL=http://backend:8080
       - REDIRECT_URI=http://localhost:1000/callback
     ports:
       - "127.0.0.1:1000:1000"

@@ -119,7 +119,7 @@ services:
       - OAUTH_CLIENT_SECRET=${TEST_APP_CLIENT_SECRET}
       - SSO_BASE_URL=https://sso.gerege.mn
       - SSO_BACKEND_URL=https://sso.gerege.mn
-      - SSO_BACKEND_INTERNAL_URL=http://localhost:8080
+      - SSO_BACKEND_INTERNAL_URL=http://backend:8080
       - REDIRECT_URI=https://test.sso.gerege.mn/callback
     ports:
       - "127.0.0.1:1000:1000"

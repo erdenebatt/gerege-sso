@@ -13,6 +13,7 @@ export interface User {
   email: string
   picture?: string
   verified: boolean
+  providers: Record<string, boolean>
   gerege: GeregeInfo
   created_at?: string
   updated_at?: string
@@ -36,6 +37,19 @@ export interface Grant {
   scopes: string[]
   granted_at: string
   last_used_at?: string
+}
+
+export interface LoginEntry {
+  id: number
+  action: string
+  details: string
+  ip_address: string
+  created_at: string
+}
+
+export interface LoginActivityResponse {
+  logins: LoginEntry[]
+  counts: Record<string, number>
 }
 
 export interface VerificationLevel {

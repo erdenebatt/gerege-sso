@@ -1,6 +1,7 @@
 import type {
   User,
   Grant,
+  LoginActivityResponse,
   AdminStats,
   OAuthClient,
   CreateClientDTO,
@@ -137,6 +138,8 @@ export const api = {
       fetchAPI<{ message: string; reg_no: string }>(
         `/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`
       ),
+
+    loginActivity: () => fetchAPI<LoginActivityResponse>('/api/auth/login-activity'),
 
     apiLogs: () =>
       fetchAPI<{

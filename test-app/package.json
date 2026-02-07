@@ -1,0 +1,14 @@
+{
+  "name": "gerege-sso-test-app",
+  "version": "1.0.0",
+  "description": "OAuth2 test client for Gerege SSO",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ejs": "^3.1.10",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

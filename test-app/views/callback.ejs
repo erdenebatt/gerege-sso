@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Callback - Test App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      padding: 32px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 32px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 { color: #1a1a2e; margin-bottom: 16px; font-size: 22px; }
+    .error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #16a34a;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .section {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .section h2 {
+      font-size: 14px;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    .token-box {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td {
+      padding: 6px 0;
+      font-size: 14px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    td:first-child {
+      font-weight: 600;
+      color: #475569;
+      width: 140px;
+    }
+    td:last-child {
+      color: #1e293b;
+      word-break: break-all;
+    }
+    .actions {
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OAuth2 Callback</h1>
+
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+      <a href="/" class="btn btn-secondary">Буцах</a>
+    <% } else { %>
+      <div class="success">Token exchange амжилттай!</div>
+
+      <div class="section">
+        <h2>Token Response</h2>
+        <table>
+          <tr>
+            <td>token_type</td>
+            <td><%= token.token_type %></td>
+          </tr>
+          <tr>
+            <td>expires_in</td>
+            <td><%= token.expires_in %>s</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>Access Token (JWT)</h2>
+        <div class="token-box"><%= token.access_token %></div>
+      </div>
+
+      <% if (decoded) { %>
+        <div class="section">
+          <h2>Decoded JWT Payload</h2>
+          <table>
+            <% if (decoded.sub) { %>
+              <tr><td>sub (gen_id)</td><td><%= decoded.sub %></td></tr>
+            <% } %>
+            <% if (decoded.email) { %>
+              <tr><td>email</td><td><%= decoded.email %></td></tr>
+            <% } %>
+            <% if (decoded.name) { %>
+              <tr><td>name</td><td><%= decoded.name %></td></tr>
+            <% } %>
+            <% if (decoded.aud) { %>
+              <tr><td>aud</td><td><%= decoded.aud %></td></tr>
+            <% } %>
+            <% if (decoded.scope) { %>
+              <tr><td>scope</td><td><%= decoded.scope %></td></tr>
+            <% } %>
+            <% if (decoded.iat) { %>
+              <tr><td>iat</td><td><%= new Date(decoded.iat * 1000).toLocaleString() %></td></tr>
+            <% } %>
+            <% if (decoded.exp) { %>
+              <tr><td>exp</td><td><%= new Date(decoded.exp * 1000).toLocaleString() %></td></tr>
+            <% } %>
+            <% if (decoded.gerege) { %>
+              <tr><td>gerege</td><td><%= JSON.stringify(decoded.gerege) %></td></tr>
+            <% } %>
+          </table>
+        </div>
+      <% } %>
+
+      <div class="actions">
+        <a href="/profile?session=<%= sessionId %>" class="btn btn-primary">Profile харах</a>
+        <a href="/" class="btn btn-secondary">Нүүр хуудас</a>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

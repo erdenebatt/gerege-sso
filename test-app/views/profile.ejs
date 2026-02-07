@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - Test App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      padding: 32px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 32px;
+      margin-bottom: 20px;
+    }
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .profile-name h1 {
+      font-size: 22px;
+      color: #1a1a2e;
+    }
+    .profile-name p {
+      color: #64748b;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #2563eb;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    h2 {
+      font-size: 14px;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    td {
+      padding: 10px 0;
+      font-size: 14px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    td:first-child {
+      font-weight: 600;
+      color: #475569;
+      width: 160px;
+    }
+    td:last-child {
+      color: #1e293b;
+      word-break: break-all;
+    }
+    .gerege-section {
+      margin-top: 16px;
+    }
+    .gerege-card {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .gerege-card h3 {
+      font-size: 14px;
+      color: #92400e;
+      margin-bottom: 12px;
+    }
+    .gerege-card table td:first-child { color: #92400e; }
+    .raw-section {
+      margin-top: 8px;
+    }
+    .raw-token {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 11px;
+      word-break: break-all;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    .raw-payload {
+      background: #1e293b;
+      color: #a5f3fc;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Profile Card -->
+    <div class="card">
+      <div class="profile-header">
+        <div class="avatar">
+          <%= decoded.name ? decoded.name.charAt(0).toUpperCase() : '?' %>
+        </div>
+        <div class="profile-name">
+          <h1><%= decoded.name || 'Unknown' %></h1>
+          <p><%= decoded.email || 'No email' %></p>
+          <span class="badge">OAuth2 User</span>
+        </div>
+      </div>
+
+      <h2>User Info (JWT Claims)</h2>
+      <table>
+        <% if (decoded.sub) { %>
+          <tr><td>Gen ID (sub)</td><td><%= decoded.sub %></td></tr>
+        <% } %>
+        <% if (decoded.email) { %>
+          <tr><td>Email</td><td><%= decoded.email %></td></tr>
+        <% } %>
+        <% if (decoded.name) { %>
+          <tr><td>Name</td><td><%= decoded.name %></td></tr>
+        <% } %>
+        <% if (decoded.aud) { %>
+          <tr><td>Audience (client)</td><td><%= decoded.aud %></td></tr>
+        <% } %>
+        <% if (decoded.scope) { %>
+          <tr><td>Scope</td><td><%= decoded.scope %></td></tr>
+        <% } %>
+        <% if (decoded.iss) { %>
+          <tr><td>Issuer</td><td><%= decoded.iss %></td></tr>
+        <% } %>
+        <% if (decoded.iat) { %>
+          <tr><td>Issued At</td><td><%= new Date(decoded.iat * 1000).toLocaleString() %></td></tr>
+        <% } %>
+        <% if (decoded.exp) { %>
+          <tr><td>Expires At</td><td><%= new Date(decoded.exp * 1000).toLocaleString() %></td></tr>
+        <% } %>
+      </table>
+    </div>
+
+    <!-- Gerege Claim Card -->
+    <% if (decoded.gerege) { %>
+      <div class="card gerege-section">
+        <div class="gerege-card">
+          <h3>Gerege Claim (Citizen Data)</h3>
+          <table>
+            <% if (decoded.gerege.gen_id) { %>
+              <tr><td>Gen ID</td><td><%= decoded.gerege.gen_id %></td></tr>
+            <% } %>
+            <% if (decoded.gerege.family_name) { %>
+              <tr><td>Family Name</td><td><%= decoded.gerege.family_name %></td></tr>
+            <% } %>
+            <% if (decoded.gerege.last_name) { %>
+              <tr><td>Last Name</td><td><%= decoded.gerege.last_name %></td></tr>
+            <% } %>
+            <% if (decoded.gerege.first_name) { %>
+              <tr><td>First Name</td><td><%= decoded.gerege.first_name %></td></tr>
+            <% } %>
+            <% if (decoded.gerege.birth_date) { %>
+              <tr><td>Birth Date</td><td><%= decoded.gerege.birth_date %></td></tr>
+            <% } %>
+            <% if (decoded.gerege.gender) { %>
+              <tr><td>Gender</td><td><%= decoded.gerege.gender %></td></tr>
+            <% } %>
+          </table>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Raw JWT -->
+    <div class="card raw-section">
+      <h2>Access Token</h2>
+      <div class="raw-token"><%= accessToken %></div>
+
+      <h2 style="margin-top: 16px;">Full Decoded Payload</h2>
+      <div class="raw-payload"><%= JSON.stringify(decoded, null, 2) %></div>
+    </div>
+
+    <div class="actions">
+      <a href="/" class="btn btn-secondary">Нүүр хуудас</a>
+    </div>
+  </div>
+</body>
+</html>

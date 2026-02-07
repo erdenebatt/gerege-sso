@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test App - Gerege SSO</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      color: #1a1a2e;
+      margin-bottom: 8px;
+      font-size: 24px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 32px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .login-btn {
+      display: inline-block;
+      background: #2563eb;
+      color: white;
+      padding: 14px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .login-btn:hover { background: #1d4ed8; }
+    .info {
+      margin-top: 32px;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+      text-align: left;
+      font-size: 13px;
+      color: #475569;
+    }
+    .info dt { font-weight: 600; margin-top: 8px; }
+    .info dd { margin-left: 0; color: #64748b; word-break: break-all; }
+    .info dt:first-child { margin-top: 0; }
+    .badge {
+      display: inline-block;
+      background: #dbeafe;
+      color: #2563eb;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">&#x1F512;</div>
+    <span class="badge">OAuth2 Test Client</span>
+    <h1>Test App</h1>
+    <p class="subtitle">
+      Gerege SSO-н OAuth2 Authorization Code flow-г шалгах тест апп.<br>
+      PKCE (S256) ашиглан аюулгүй нэвтрэлт хийнэ.
+    </p>
+
+    <a href="/login" class="login-btn">Gerege SSO-оор нэвтрэх</a>
+
+    <dl class="info">
+      <dt>Client ID</dt>
+      <dd><%= clientId %></dd>
+      <dt>SSO URL</dt>
+      <dd><%= ssoBaseUrl %></dd>
+      <dt>Redirect URI</dt>
+      <dd>http://localhost:3001/callback</dd>
+      <dt>Scopes</dt>
+      <dd>openid, profile</dd>
+      <dt>PKCE</dt>
+      <dd>S256 (SHA-256)</dd>
+    </dl>
+  </div>
+</body>
+</html>

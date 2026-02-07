@@ -24,11 +24,18 @@ function LoginPageContent() {
       setError(decodeURIComponent(urlError))
     }
 
+    // Store redirect param for after OAuth login flow
+    const redirectParam = searchParams.get('redirect')
+    if (redirectParam) {
+      localStorage.setItem('oauth_redirect', redirectParam)
+    }
+
     const checkAuth = async () => {
       if (token) {
         const user = await fetchUser()
         if (user) {
-          const redirect = searchParams.get('redirect') || '/dashboard'
+          const redirect = redirectParam || localStorage.getItem('oauth_redirect') || '/dashboard'
+          localStorage.removeItem('oauth_redirect')
           if (redirect.startsWith('/api/')) {
             window.location.href = redirect
           } else {

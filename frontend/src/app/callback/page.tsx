@@ -53,6 +53,17 @@ function CallbackPageContent() {
           window.history.replaceState({}, document.title, '/callback')
           const userData = await fetchUser()
           if (userData) {
+            // Check if there's a pending OAuth redirect (from test app etc.)
+            const oauthRedirect = localStorage.getItem('oauth_redirect')
+            if (oauthRedirect) {
+              localStorage.removeItem('oauth_redirect')
+              if (oauthRedirect.startsWith('/api/')) {
+                window.location.href = oauthRedirect
+              } else {
+                router.replace(oauthRedirect)
+              }
+              return
+            }
             if (userData.verified) {
               router.replace('/dashboard')
               return
@@ -89,6 +100,16 @@ function CallbackPageContent() {
       if (existing || token) {
         const userData = await fetchUser()
         if (userData) {
+          const oauthRedirect = localStorage.getItem('oauth_redirect')
+          if (oauthRedirect) {
+            localStorage.removeItem('oauth_redirect')
+            if (oauthRedirect.startsWith('/api/')) {
+              window.location.href = oauthRedirect
+            } else {
+              router.replace(oauthRedirect)
+            }
+            return
+          }
           if (userData.verified) {
             router.replace('/dashboard')
             return

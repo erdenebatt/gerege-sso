@@ -19,6 +19,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.fbsbx.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'pbs.twimg.com',
+      },
     ],
   },
   async rewrites() {

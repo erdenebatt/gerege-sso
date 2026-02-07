@@ -4,14 +4,15 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8081;
 
 // Config from environment
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID || 'test_app_local_dev_client_id_001';
 const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || 'test_app_local_dev_secret_001';
 const SSO_BASE_URL = process.env.SSO_BASE_URL || 'http://localhost:3000';
 const SSO_BACKEND_URL = process.env.SSO_BACKEND_URL || 'http://localhost:8080';
-const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3001/callback';
+const SSO_BACKEND_INTERNAL_URL = process.env.SSO_BACKEND_INTERNAL_URL || SSO_BACKEND_URL;
+const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:8081/callback';
 
 // In-memory store for PKCE verifiers and tokens (keyed by state)
 const pendingAuth = new Map();
@@ -96,7 +97,7 @@ app.get('/callback', async (req, res) => {
 
   try {
     // Exchange authorization code for token
-    const tokenUrl = `${SSO_BACKEND_URL}/api/oauth/token`;
+    const tokenUrl = `${SSO_BACKEND_INTERNAL_URL}/api/oauth/token`;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code: code,

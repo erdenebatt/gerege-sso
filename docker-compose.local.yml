@@ -116,13 +116,15 @@ services:
     container_name: gerege-local-test-app
     restart: unless-stopped
     environment:
+      - PORT=8081
       - OAUTH_CLIENT_ID=test_app_local_dev_client_id_001
       - OAUTH_CLIENT_SECRET=test_app_local_dev_secret_001
       - SSO_BASE_URL=http://localhost:3000
-      - SSO_BACKEND_URL=http://backend:8080
-      - REDIRECT_URI=http://localhost:3001/callback
+      - SSO_BACKEND_URL=http://localhost:8080
+      - SSO_BACKEND_INTERNAL_URL=http://backend:8080
+      - REDIRECT_URI=http://localhost:8081/callback
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:8081:8081"
     depends_on:
       - backend
     networks:

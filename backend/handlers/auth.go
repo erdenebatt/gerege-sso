@@ -188,9 +188,14 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		log.Printf("Created new user: %s (gen_id: %s)", user.Email, user.GenID)
 	}
 
-	// Update last login
+	// Update last login and picture
 	if err := h.userService.UpdateLastLogin(user.ID); err != nil {
 		log.Printf("Failed to update last login: %v", err)
+	}
+	if googleUser.Picture != "" && (!user.Picture.Valid || user.Picture.String != googleUser.Picture) {
+		if err := h.userService.UpdatePicture(user.ID, googleUser.Picture); err != nil {
+			log.Printf("Failed to update picture: %v", err)
+		}
 	}
 
 	// Generate JWT

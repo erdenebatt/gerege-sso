@@ -29,11 +29,6 @@ func NewClientService(db *sql.DB, redis *redis.Client) *ClientService {
 	return &ClientService{db: db, redis: redis}
 }
 
-// DB returns the database connection (for admin queries).
-func (s *ClientService) DB() *sql.DB {
-	return s.db
-}
-
 // CreateClient registers a new OAuth2 client. Returns the client and the
 // plain-text secret (shown only once).
 func (s *ClientService) CreateClient(name, redirectURI string, scopes []string) (*models.OAuthClient, string, error) {

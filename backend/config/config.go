@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"time"
 )
@@ -75,6 +76,15 @@ type PublicConfig struct {
 }
 
 func Load() *Config {
+	// Validate required secrets at startup
+	jwtSecret := getEnv("JWT_SECRET", "")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: JWT_SECRET environment variable is required")
+	}
+	if len(jwtSecret) < 32 {
+		log.Fatal("FATAL: JWT_SECRET must be at least 32 characters long")
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("BACKEND_PORT", "8080"),
@@ -91,14 +101,14 @@ func Load() *Config {
 			Port: getEnv("REDIS_PORT", "6379"),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "default-secret-change-me"),
+			Secret: jwtSecret,
 			Expiry: parseDuration(getEnv("JWT_EXPIRY", "24h")),
 		},
 		Auth: AuthConfig{
 			// Google OAuth
-			GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", "1063121088827-nlk712ollu5m9ish6sd0ai1mt2nv3b8k.apps.googleusercontent.com"),
-			GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", "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"),
-			GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "https://sso.gerege.mn/api/auth/google/callback"),
+			GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+			GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+			GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 
 			// Apple OAuth
 			AppleClientID:    getEnv("APPLE_CLIENT_ID", ""),
@@ -118,9 +128,9 @@ func Load() *Config {
 			TwitterRedirectURL:  getEnv("TWITTER_REDIRECT_URL", "https://sso.gerege.mn/api/auth/twitter/callback"),
 
 			// DAN
-			DanClientID:    getEnv("DAN_CLIENT_ID", "f3f14ab1af2cf74fd7ade8a0-964f9d4992277df04d43aef0c80a1152"),
-			DanRedirectURL: getEnv("DAN_REDIRECT_URL", "http://dan.gerege.mn/authorized"),
-			DanScope:       getEnv("DAN_SCOPE", "W3sic2VydmljZXMiOlsiV1MxMDAxMDFfZ2V0Q2l0aXplbklEQ2FyZEluZm8iXSwid3NkbCI6Imh0dHBzOlwvXC94eXAuZ292Lm1uXC9jaXRpemVuLTEuMy4wXC93cz9XU0RMIn1d"),
+			DanClientID:    getEnv("DAN_CLIENT_ID", ""),
+			DanRedirectURL: getEnv("DAN_REDIRECT_URL", ""),
+			DanScope:       getEnv("DAN_SCOPE", ""),
 		},
 		Public: PublicConfig{
 			URL: getEnv("PUBLIC_URL", "https://sso.gerege.mn"),

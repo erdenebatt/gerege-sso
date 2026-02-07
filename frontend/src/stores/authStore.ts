@@ -44,6 +44,8 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
 
       logout: () => {
+        // Call backend to blacklist the token
+        api.auth.logout().catch(() => {})
         removeToken()
         set({ token: null, user: null, grants: [], error: null })
       },

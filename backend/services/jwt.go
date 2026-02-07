@@ -1,18 +1,23 @@
 package services
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	"gerege-sso/models"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 // JWTService handles JWT token operations
 type JWTService struct {
 	secret []byte
 	expiry time.Duration
+	redis  *redis.Client
 }
 
 // Claims represents the JWT claims structure
@@ -23,11 +28,15 @@ type Claims struct {
 }
 
 // NewJWTService creates a new JWTService
-func NewJWTService(secret string, expiry time.Duration) *JWTService {
-	return &JWTService{
+func NewJWTService(secret string, expiry time.Duration, rdb ...*redis.Client) *JWTService {
+	svc := &JWTService{
 		secret: []byte(secret),
 		expiry: expiry,
 	}
+	if len(rdb) > 0 {
+		svc.redis = rdb[0]
+	}
+	return svc
 }
 
 // GenerateToken creates a new JWT token for a user
@@ -68,8 +77,16 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 		gerege.Name = name
 	}
 
+	// Generate unique token ID for blacklisting
+	jtiBytes := make([]byte, 16)
+	if _, err := rand.Read(jtiBytes); err != nil {
+		return "", fmt.Errorf("failed to generate jti: %w", err)
+	}
+	jti := hex.EncodeToString(jtiBytes)
+
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
 			Subject:   user.GenID,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -165,6 +182,29 @@ func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string,
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.secret)
+}
+
+// BlacklistToken adds a token's jti to the Redis blacklist until it expires
+func (s *JWTService) BlacklistToken(claims *Claims) error {
+	if s.redis == nil || claims.ID == "" {
+		return nil
+	}
+	ctx := context.Background()
+	ttl := time.Until(claims.ExpiresAt.Time)
+	if ttl <= 0 {
+		return nil // already expired
+	}
+	return s.redis.Set(ctx, "jwt_blacklist:"+claims.ID, "1", ttl).Err()
+}
+
+// IsBlacklisted checks if a token's jti has been blacklisted
+func (s *JWTService) IsBlacklisted(jti string) bool {
+	if s.redis == nil || jti == "" {
+		return false
+	}
+	ctx := context.Background()
+	val, err := s.redis.Exists(ctx, "jwt_blacklist:"+jti).Result()
+	return err == nil && val > 0
 }
 
 // GetExpiry returns the token expiry duration

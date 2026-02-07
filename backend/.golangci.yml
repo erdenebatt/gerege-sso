@@ -1,0 +1,34 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gosec
+    - gocritic
+    - staticcheck
+    - unused
+    - govet
+    - ineffassign
+    - typecheck
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104 # Audit errors not checked (acceptable for audit logging)
+    severity: medium
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+    - path: mocks/
+      linters:
+        - unused

@@ -101,7 +101,7 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 	// If user has NOT yet approved, redirect to consent page
 	if approve != "true" {
 		consentURL := fmt.Sprintf(
-			"%s/consent.html?client_id=%s&redirect_uri=%s&scope=%s&state=%s&app_name=%s",
+			"%s/consent?client_id=%s&redirect_uri=%s&scope=%s&state=%s&app_name=%s",
 			h.config.Public.URL,
 			url.QueryEscape(clientID),
 			url.QueryEscape(redirectURI),
@@ -335,72 +335,33 @@ func (h *OAuthProviderHandler) RevokeGrant(c *gin.Context) {
 
 // GetStats handles GET /api/admin/stats — returns system statistics.
 func (h *OAuthProviderHandler) GetStats(c *gin.Context) {
-	var totalClients, activeClients int
-	var totalUsers, verifiedUsers int
-	var logins24h int
-
-	// Count clients
-	h.clientService.DB().QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE is_active) FROM oauth_clients`).Scan(&totalClients, &activeClients)
-
-	// Count users
-	h.clientService.DB().QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE verified) FROM users`).Scan(&totalUsers, &verifiedUsers)
-
-	// Count logins in last 24h
-	h.clientService.DB().QueryRow(`
-		SELECT COUNT(*) FROM audit_logs
-		WHERE action IN ('login_success', 'oauth_consent_granted')
-		AND created_at > NOW() - INTERVAL '24 hours'
-	`).Scan(&logins24h)
+	stats, err := h.auditService.GetStats()
+	if err != nil {
+		log.Printf("Failed to get stats: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get stats"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"clients": gin.H{
-			"total":  totalClients,
-			"active": activeClients,
+			"total":  stats.TotalClients,
+			"active": stats.ActiveClients,
 		},
 		"users": gin.H{
-			"total":    totalUsers,
-			"verified": verifiedUsers,
+			"total":    stats.TotalUsers,
+			"verified": stats.VerifiedUsers,
 		},
-		"logins_24h": logins24h,
+		"logins_24h": stats.Logins24h,
 	})
 }
 
 // GetAuditLogs handles GET /api/admin/audit-logs — returns recent audit logs.
 func (h *OAuthProviderHandler) GetAuditLogs(c *gin.Context) {
-	limit := 50
-
-	rows, err := h.clientService.DB().Query(`
-		SELECT a.id, a.user_id, COALESCE(u.email, 'unknown') as user_email,
-		       a.action, a.details, a.ip_address, a.created_at
-		FROM audit_logs a
-		LEFT JOIN users u ON u.id = a.user_id
-		ORDER BY a.created_at DESC
-		LIMIT $1
-	`, limit)
+	logs, err := h.auditService.GetRecentLogs(50)
 	if err != nil {
 		log.Printf("Failed to fetch audit logs: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch audit logs"})
 		return
-	}
-	defer rows.Close()
-
-	var logs []gin.H
-	for rows.Next() {
-		var id, userID int64
-		var userEmail, action, details, ipAddress string
-		var createdAt string
-		if err := rows.Scan(&id, &userID, &userEmail, &action, &details, &ipAddress, &createdAt); err != nil {
-			continue
-		}
-		logs = append(logs, gin.H{
-			"id":         id,
-			"user_id":    userID,
-			"user_email": userEmail,
-			"action":     action,
-			"details":    details,
-			"ip_address": ipAddress,
-			"created_at": createdAt,
-		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"logs": logs})

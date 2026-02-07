@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ToastProvider } from '@/components/ui'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import '@/styles/globals.css'
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="mn" suppressHydrationWarning>
       <body className="min-h-screen">
         <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ErrorBoundary>
+            <ToastProvider>{children}</ToastProvider>
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

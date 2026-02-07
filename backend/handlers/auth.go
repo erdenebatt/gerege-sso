@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -194,14 +195,66 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		"email":  user.Email,
 	}, c.ClientIP(), c.Request.UserAgent())
 
-	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
+	// Generate single-use exchange code instead of exposing token in URL
+	exchangeCode, exchangeErr := h.generateTokenExchangeCode(jwtToken)
+	if exchangeErr != nil {
+		log.Printf("Failed to generate exchange code: %v", exchangeErr)
+		h.redirectWithError(c, "Failed to generate login code")
+		return
+	}
+
+	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
 	c.Redirect(http.StatusSeeOther, callbackURL)
+}
+
+// generateTokenExchangeCode stores a JWT in Redis behind a single-use code (60s TTL)
+func (h *AuthHandler) generateTokenExchangeCode(jwtToken string) (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate exchange code: %w", err)
+	}
+	code := base64.URLEncoding.EncodeToString(b)
+
+	ctx := context.Background()
+	if err := h.redis.Set(ctx, "token_exchange:"+code, jwtToken, 60*time.Second).Err(); err != nil {
+		return "", fmt.Errorf("failed to store exchange code: %w", err)
+	}
+	return code, nil
+}
+
+// ExchangeToken exchanges a single-use code for a JWT token
+func (h *AuthHandler) ExchangeToken(c *gin.Context) {
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	ctx := context.Background()
+	key := "token_exchange:" + req.Code
+
+	// Atomically get and delete (single-use)
+	jwtToken, err := h.redis.GetDel(ctx, key).Result()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired code"})
+		return
+	}
+
+	// Set httpOnly cookie
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("gerege_token", jwtToken, int(h.jwtService.GetExpiry().Seconds()), "/", "", true, true)
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": jwtToken,
+	})
 }
 
 // redirectWithError redirects to the frontend with an error message
 func (h *AuthHandler) redirectWithError(c *gin.Context, message string) {
-	c.Redirect(http.StatusSeeOther, h.config.Public.URL+"/?error="+message)
+	encoded := url.QueryEscape(message)
+	c.Redirect(http.StatusSeeOther, h.config.Public.URL+"/?error="+encoded)
 }
 
 // AppleLogin initiates Apple Sign-In flow
@@ -331,29 +384,36 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	}
 
 	if user == nil {
-		// Check if user exists with same email
+		// Check if user exists with same email (different provider)
 		if appleUser.Email != "" {
 			existingUser, err := h.userService.FindByEmail(appleUser.Email)
 			if err == nil && existingUser != nil {
-				// Link Apple account to existing user
-				if err := h.userService.LinkAppleSub(existingUser.ID, appleUser.Sub); err != nil {
-					log.Printf("Failed to link Apple account: %v", err)
+				// Store pending link request and redirect to identity verification
+				pendingData := map[string]string{
+					"provider":    "apple",
+					"provider_id": appleUser.Sub,
+					"user_id":     fmt.Sprintf("%d", existingUser.ID),
+					"email":       appleUser.Email,
 				}
-				user = existingUser
+				pendingJSON, _ := json.Marshal(pendingData)
+				pendingKey := "pending_link:" + existingUser.GenID
+				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
+
+				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
+				c.Redirect(http.StatusSeeOther, verifyURL)
+				return
 			}
 		}
 
 		// Create new user if not found
-		if user == nil {
-			user, err = h.userService.CreateFromApple(appleUser)
-			if err != nil {
-				log.Printf("Failed to create user: %v", err)
-				middleware.RecordLoginAttempt(false, "apple")
-				h.redirectWithError(c, "Failed to create user")
-				return
-			}
-			log.Printf("Created new user from Apple: %s (gen_id: %s)", user.Email, user.GenID)
+		user, err = h.userService.CreateFromApple(appleUser)
+		if err != nil {
+			log.Printf("Failed to create user: %v", err)
+			middleware.RecordLoginAttempt(false, "apple")
+			h.redirectWithError(c, "Failed to create user")
+			return
 		}
+		log.Printf("Created new user from Apple: %s (gen_id: %s)", user.Email, user.GenID)
 	}
 
 	// Update last login
@@ -378,15 +438,34 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 		"email":  user.Email,
 	}, c.ClientIP(), c.Request.UserAgent())
 
-	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
+	// Generate single-use exchange code instead of exposing token in URL
+	exchangeCode, exchangeErr := h.generateTokenExchangeCode(jwtToken)
+	if exchangeErr != nil {
+		log.Printf("Failed to generate exchange code: %v", exchangeErr)
+		h.redirectWithError(c, "Failed to generate login code")
+		return
+	}
+
+	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
-// Logout handles user logout
+// Logout handles user logout by blacklisting the JWT token
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// In a stateless JWT system, logout is handled client-side
-	// We can optionally blacklist the token in Redis
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
+		return
+	}
+
+	claims := claimsVal.(*services.Claims)
+	if err := h.jwtService.BlacklistToken(claims); err != nil {
+		log.Printf("Failed to blacklist token: %v", err)
+	}
+
+	// Clear httpOnly cookie if set
+	c.SetCookie("gerege_token", "", -1, "/", "", true, true)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
@@ -611,29 +690,36 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}
 
 	if user == nil {
-		// Check if user exists with same email
+		// Check if user exists with same email (different provider)
 		if fbUser.Email != "" {
 			existingUser, err := h.userService.FindByEmail(fbUser.Email)
 			if err == nil && existingUser != nil {
-				// Link Facebook account to existing user
-				if err := h.userService.LinkFacebookID(existingUser.ID, fbUser.ID); err != nil {
-					log.Printf("Failed to link Facebook account: %v", err)
+				// Store pending link request and redirect to identity verification
+				pendingData := map[string]string{
+					"provider":    "facebook",
+					"provider_id": fbUser.ID,
+					"user_id":     fmt.Sprintf("%d", existingUser.ID),
+					"email":       fbUser.Email,
 				}
-				user = existingUser
+				pendingJSON, _ := json.Marshal(pendingData)
+				pendingKey := "pending_link:" + existingUser.GenID
+				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
+
+				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
+				c.Redirect(http.StatusSeeOther, verifyURL)
+				return
 			}
 		}
 
 		// Create new user if not found
-		if user == nil {
-			user, err = h.userService.CreateFromFacebook(fbUser)
-			if err != nil {
-				log.Printf("Failed to create user: %v", err)
-				middleware.RecordLoginAttempt(false, "facebook")
-				h.redirectWithError(c, "Failed to create user")
-				return
-			}
-			log.Printf("Created new user from Facebook: %s (gen_id: %s)", user.Email, user.GenID)
+		user, err = h.userService.CreateFromFacebook(fbUser)
+		if err != nil {
+			log.Printf("Failed to create user: %v", err)
+			middleware.RecordLoginAttempt(false, "facebook")
+			h.redirectWithError(c, "Failed to create user")
+			return
 		}
+		log.Printf("Created new user from Facebook: %s (gen_id: %s)", user.Email, user.GenID)
 	}
 
 	// Update last login
@@ -658,8 +744,15 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 		"email":  user.Email,
 	}, c.ClientIP(), c.Request.UserAgent())
 
-	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
+	// Generate single-use exchange code instead of exposing token in URL
+	exchangeCode, exchangeErr := h.generateTokenExchangeCode(jwtToken)
+	if exchangeErr != nil {
+		log.Printf("Failed to generate exchange code: %v", exchangeErr)
+		h.redirectWithError(c, "Failed to generate login code")
+		return
+	}
+
+	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -800,8 +893,15 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 		"username": twitterUser.Username,
 	}, c.ClientIP(), c.Request.UserAgent())
 
-	// Redirect to callback page with token
-	callbackURL := h.config.Public.URL + "/callback?token=" + jwtToken
+	// Generate single-use exchange code instead of exposing token in URL
+	exchangeCode, exchangeErr := h.generateTokenExchangeCode(jwtToken)
+	if exchangeErr != nil {
+		log.Printf("Failed to generate exchange code: %v", exchangeErr)
+		h.redirectWithError(c, "Failed to generate login code")
+		return
+	}
+
+	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -875,12 +975,26 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	ctx := context.Background()
 
+	// Validate JWT claims
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims := claimsVal.(*services.Claims)
+
 	var req struct {
 		GenID string `json:"gen_id" binding:"required"`
 		RegNo string `json:"reg_no" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// Verify the JWT subject matches the requested gen_id
+	if claims.Subject != req.GenID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "gen_id does not match authenticated user"})
 		return
 	}
 
@@ -947,6 +1061,12 @@ func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	case "facebook":
 		if err := h.userService.LinkFacebookID(userID, pendingData["provider_id"]); err != nil {
 			log.Printf("Failed to link Facebook account: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link account"})
+			return
+		}
+	case "twitter":
+		if err := h.userService.LinkTwitterID(userID, pendingData["provider_id"]); err != nil {
+			log.Printf("Failed to link Twitter account: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to link account"})
 			return
 		}

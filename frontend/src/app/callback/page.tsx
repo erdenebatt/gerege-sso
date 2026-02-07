@@ -27,7 +27,7 @@ function CallbackPageContent() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const urlToken = searchParams.get('token')
+      const exchangeCode = searchParams.get('code')
       const existing = searchParams.get('existing')
       const pendingLink = searchParams.get('pending_link')
       const genId = searchParams.get('gen_id')
@@ -39,16 +39,22 @@ function CallbackPageContent() {
         return
       }
 
-      // New login - store token
-      if (urlToken) {
-        setToken(urlToken)
-        // Clean URL
-        window.history.replaceState({}, document.title, '/callback')
-        const userData = await fetchUser()
-        if (userData) {
-          setView(userData.verified ? 'success' : 'verify')
-        } else {
-          setErrorMessage('Хэрэглэгчийн мэдээлэл олдсонгүй')
+      // New login - exchange code for token
+      if (exchangeCode) {
+        try {
+          const data = await api.auth.exchangeToken(exchangeCode)
+          setToken(data.token)
+          // Clean URL
+          window.history.replaceState({}, document.title, '/callback')
+          const userData = await fetchUser()
+          if (userData) {
+            setView(userData.verified ? 'success' : 'verify')
+          } else {
+            setErrorMessage('Хэрэглэгчийн мэдээлэл олдсонгүй')
+            setView('error')
+          }
+        } catch {
+          setErrorMessage('Нэвтрэлтийн код хүчингүй эсвэл хугацаа дууссан')
           setView('error')
         }
         return

@@ -37,7 +37,7 @@ func NewOAuthService(cfg *config.Config) *OAuthService {
 
 // GetAuthURL returns the Google OAuth authorization URL
 func (s *OAuthService) GetAuthURL(state string) string {
-	return s.config.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	return s.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "select_account"))
 }
 
 // Exchange exchanges the authorization code for tokens

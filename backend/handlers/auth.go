@@ -806,9 +806,14 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 		log.Printf("Created new user from Facebook: %s (gen_id: %s)", user.Email, user.GenID)
 	}
 
-	// Update last login
+	// Update last login and picture
 	if err := h.userService.UpdateLastLogin(user.ID); err != nil {
 		log.Printf("Failed to update last login: %v", err)
+	}
+	if fbUser.Picture != "" && (!user.Picture.Valid || user.Picture.String != fbUser.Picture) {
+		if err := h.userService.UpdatePicture(user.ID, fbUser.Picture); err != nil {
+			log.Printf("Failed to update picture: %v", err)
+		}
 	}
 
 	// Generate JWT
@@ -970,9 +975,14 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 		log.Printf("Created new user from Twitter: @%s (gen_id: %s)", twitterUser.Username, user.GenID)
 	}
 
-	// Update last login
+	// Update last login and picture
 	if err := h.userService.UpdateLastLogin(user.ID); err != nil {
 		log.Printf("Failed to update last login: %v", err)
+	}
+	if twitterUser.ProfileImageURL != "" && (!user.Picture.Valid || user.Picture.String != twitterUser.ProfileImageURL) {
+		if err := h.userService.UpdatePicture(user.ID, twitterUser.ProfileImageURL); err != nil {
+			log.Printf("Failed to update picture: %v", err)
+		}
 	}
 
 	// Generate JWT

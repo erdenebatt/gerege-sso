@@ -65,10 +65,15 @@ export async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): 
   if (!res.ok) {
     let message = 'Request failed'
     try {
-      const data = await res.json()
-      message = data.error || data.message || message
+      const text = await res.text()
+      try {
+        const data = JSON.parse(text)
+        message = data.error || data.message || message
+      } catch {
+        message = text || message
+      }
     } catch {
-      message = await res.text()
+      // body unreadable
     }
     throw new ApiError(res.status, message)
   }
@@ -94,10 +99,15 @@ export async function fetchWithAdminKey<T>(
   if (!res.ok) {
     let message = 'Request failed'
     try {
-      const data = await res.json()
-      message = data.error || data.message || message
+      const text = await res.text()
+      try {
+        const data = JSON.parse(text)
+        message = data.error || data.message || message
+      } catch {
+        message = text || message
+      }
     } catch {
-      message = await res.text()
+      // body unreadable
     }
     throw new ApiError(res.status, message)
   }

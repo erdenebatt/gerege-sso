@@ -560,9 +560,15 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	// Build response
 	response := models.UserResponse{
-		GenID:      user.GenID,
-		Email:      user.Email,
-		Verified:   user.Verified,
+		GenID:    user.GenID,
+		Email:    user.Email,
+		Verified: user.Verified,
+		Providers: map[string]bool{
+			"google":   user.GoogleSub.Valid,
+			"apple":    user.AppleSub.Valid,
+			"facebook": user.FacebookID.Valid,
+			"twitter":  user.TwitterID.Valid,
+		},
 		CreatedAt:  user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:  user.UpdatedAt.Format(time.RFC3339),
 		DanHistory: danHistory,
@@ -1268,5 +1274,53 @@ func (h *AuthHandler) ConfirmIdentityLink(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Account linked successfully",
 		"token":   jwtToken,
+	})
+}
+
+// LoginActivity returns the user's login history and per-provider counts
+// @Summary Get login activity
+// @Description Returns the authenticated user's login history and provider login counts
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /api/auth/login-activity [get]
+func (h *AuthHandler) LoginActivity(c *gin.Context) {
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	claims := claimsVal.(*services.Claims)
+
+	user, err := h.userService.FindByGenID(claims.Subject)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	logins, err := h.auditService.GetUserLoginActivity(user.ID)
+	if err != nil {
+		log.Printf("Failed to get login activity: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get login activity"})
+		return
+	}
+
+	// Aggregate counts by method
+	counts := make(map[string]int)
+	for _, entry := range logins {
+		var details map[string]interface{}
+		if err := json.Unmarshal([]byte(entry.Details), &details); err == nil {
+			if method, ok := details["method"].(string); ok {
+				counts[method]++
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"logins": logins,
+		"counts": counts,
 	})
 }

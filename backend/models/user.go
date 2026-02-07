@@ -130,6 +130,7 @@ type UserResponse struct {
 	Email         string               `json:"email"`
 	Picture       string               `json:"picture,omitempty"`
 	Verified      bool                 `json:"verified"`
+	Providers     map[string]bool      `json:"providers"`
 	CreatedAt     string               `json:"created_at"`
 	UpdatedAt     string               `json:"updated_at"`
 	LastLoginAt   string               `json:"last_login_at,omitempty"`

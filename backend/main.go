@@ -170,6 +170,9 @@ func main() {
 			auth.GET("/dan/authorized", authHandler.DanAuthorized)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
 
+			// Login activity
+			auth.GET("/login-activity", middleware.JWTAuth(jwtService), authHandler.LoginActivity)
+
 			// API logs
 			auth.GET("/api-logs", middleware.JWTAuth(jwtService), apiLogHandler.GetAPILogs)
 

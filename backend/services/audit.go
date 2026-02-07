@@ -91,6 +91,40 @@ type AuditLogEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// LoginEntry represents a single login event for user-facing activity
+type LoginEntry struct {
+	ID        int64     `json:"id"`
+	Action    string    `json:"action"`
+	Details   string    `json:"details"`
+	IPAddress string    `json:"ip_address"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// GetUserLoginActivity returns the user's login history (most recent 50)
+func (s *AuditService) GetUserLoginActivity(userID int64) ([]LoginEntry, error) {
+	rows, err := s.db.Query(`
+		SELECT id, action, details, ip_address, created_at
+		FROM audit_logs
+		WHERE user_id = $1 AND action = 'login'
+		ORDER BY created_at DESC
+		LIMIT 50
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch login activity: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []LoginEntry
+	for rows.Next() {
+		var e LoginEntry
+		if err := rows.Scan(&e.ID, &e.Action, &e.Details, &e.IPAddress, &e.CreatedAt); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 // GetRecentLogs returns the most recent audit log entries
 func (s *AuditService) GetRecentLogs(limit int) ([]AuditLogEntry, error) {
 	rows, err := s.db.Query(`

@@ -123,6 +123,12 @@ ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" bash -s <<REMOTE_SCRIPT
     done
     echo "[remote] Backend is healthy"
 
+    echo "[remote] Cleaning up old images and build cache..."
+    docker image prune -f 2>/dev/null || true
+    docker builder prune -f --keep-storage=500MB 2>/dev/null || true
+    DISK_USAGE=\$(df -h / | awk 'NR==2 {print \$5}')
+    echo "[remote] Disk usage after cleanup: \$DISK_USAGE"
+
     echo "[remote] Container status:"
     docker compose ps --format "table {{.Name}}\t{{.Status}}"
 REMOTE_SCRIPT

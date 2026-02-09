@@ -21,7 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Only fetch if not already present or force refresh logic
     fetchUser()
     fetchGrants()
-  }, [token, fetchUser, fetchGrants, router])
+  }, [token, pathname, fetchUser, fetchGrants, router])
 
   const getTitle = () => {
     if (pathname?.includes('/security')) return 'Нууцлал'

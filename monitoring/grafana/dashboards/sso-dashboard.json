@@ -275,7 +275,7 @@
         "footer": { "show": false, "reducer": ["sum"], "fields": "" }
       },
       "targets": [{
-        "expr": "{container_name=\"gerege-backend\"} |= \"Audit:\" | pattern `<_> Audit: user_id=<user_id> action=<action> ip=<ip>` | line_format \"{{.user_id}} | {{.action}} | {{.ip}}\"",
+        "expr": "{container=\"gerege-backend\"} |= \"Audit:\" | pattern `<_> Audit: user_id=<user_id> action=<action> ip=<ip>` | line_format \"{{.user_id}} | {{.action}} | {{.ip}}\"",
         "refId": "A",
         "maxLines": 10
       }],

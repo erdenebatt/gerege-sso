@@ -31,7 +31,7 @@ func NewClientService(db *sql.DB, redis *redis.Client) *ClientService {
 
 // CreateClient registers a new OAuth2 client. Returns the client and the
 // plain-text secret (shown only once).
-func (s *ClientService) CreateClient(name, redirectURI string, scopes []string) (*models.OAuthClient, string, error) {
+func (s *ClientService) CreateClient(name string, redirectURIs []string, scopes []string) (*models.OAuthClient, string, error) {
 	// Generate random client_id (32 bytes → 64 hex chars)
 	cidBytes := make([]byte, 32)
 	if _, err := rand.Read(cidBytes); err != nil {
@@ -58,11 +58,11 @@ func (s *ClientService) CreateClient(name, redirectURI string, scopes []string) 
 
 	client := &models.OAuthClient{}
 	err = s.db.QueryRow(`
-		INSERT INTO oauth_clients (client_id, client_secret_hash, name, redirect_uri, allowed_scopes)
+		INSERT INTO oauth_clients (client_id, client_secret_hash, name, redirect_uris, allowed_scopes)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, client_id, name, redirect_uri, allowed_scopes, is_active, created_at, updated_at
-	`, clientID, string(hash), name, redirectURI, pq.Array(scopes)).Scan(
-		&client.ID, &client.ClientID, &client.Name, &client.RedirectURI,
+		RETURNING id, client_id, name, redirect_uris, allowed_scopes, is_active, created_at, updated_at
+	`, clientID, string(hash), name, pq.Array(redirectURIs), pq.Array(scopes)).Scan(
+		&client.ID, &client.ClientID, &client.Name, pq.Array(&client.RedirectURIs),
 		pq.Array(&client.AllowedScopes), &client.IsActive, &client.CreatedAt, &client.UpdatedAt,
 	)
 	if err != nil {
@@ -96,10 +96,10 @@ func (s *ClientService) ValidateClient(clientID, clientSecret string) (*models.O
 func (s *ClientService) FindByClientID(clientID string) (*models.OAuthClient, error) {
 	client := &models.OAuthClient{}
 	err := s.db.QueryRow(`
-		SELECT id, client_id, client_secret_hash, name, redirect_uri, allowed_scopes, is_active, created_at, updated_at
+		SELECT id, client_id, client_secret_hash, name, redirect_uris, allowed_scopes, is_active, created_at, updated_at
 		FROM oauth_clients WHERE client_id = $1
 	`, clientID).Scan(
-		&client.ID, &client.ClientID, &client.ClientSecretHash, &client.Name, &client.RedirectURI,
+		&client.ID, &client.ClientID, &client.ClientSecretHash, &client.Name, pq.Array(&client.RedirectURIs),
 		pq.Array(&client.AllowedScopes), &client.IsActive, &client.CreatedAt, &client.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -114,7 +114,7 @@ func (s *ClientService) FindByClientID(clientID string) (*models.OAuthClient, er
 // ListClients returns all registered clients (secrets excluded by JSON tag).
 func (s *ClientService) ListClients() ([]*models.OAuthClient, error) {
 	rows, err := s.db.Query(`
-		SELECT id, client_id, name, redirect_uri, allowed_scopes, is_active, created_at, updated_at
+		SELECT id, client_id, name, redirect_uris, allowed_scopes, is_active, created_at, updated_at
 		FROM oauth_clients ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *ClientService) ListClients() ([]*models.OAuthClient, error) {
 	var clients []*models.OAuthClient
 	for rows.Next() {
 		c := &models.OAuthClient{}
-		if err := rows.Scan(&c.ID, &c.ClientID, &c.Name, &c.RedirectURI,
+		if err := rows.Scan(&c.ID, &c.ClientID, &c.Name, pq.Array(&c.RedirectURIs),
 			pq.Array(&c.AllowedScopes), &c.IsActive, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan client: %w", err)
 		}
@@ -148,7 +148,7 @@ func (s *ClientService) DeleteClient(id string) error {
 }
 
 // UpdateClient updates a client's details.
-func (s *ClientService) UpdateClient(id, name, redirectURI string, scopes []string, isActive *bool) error {
+func (s *ClientService) UpdateClient(id, name string, redirectURIs []string, scopes []string, isActive *bool) error {
 	// Build dynamic update query
 	query := "UPDATE oauth_clients SET updated_at = CURRENT_TIMESTAMP"
 	args := []interface{}{}
@@ -159,9 +159,9 @@ func (s *ClientService) UpdateClient(id, name, redirectURI string, scopes []stri
 		args = append(args, name)
 		argNum++
 	}
-	if redirectURI != "" {
-		query += fmt.Sprintf(", redirect_uri = $%d", argNum)
-		args = append(args, redirectURI)
+	if len(redirectURIs) > 0 {
+		query += fmt.Sprintf(", redirect_uris = $%d", argNum)
+		args = append(args, pq.Array(redirectURIs))
 		argNum++
 	}
 	if len(scopes) > 0 {

@@ -104,8 +104,8 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 		return
 	}
 
-	// Validate redirect_uri matches registered URI
-	if redirectURI != client.RedirectURI {
+	// Validate redirect_uri matches one of the registered URIs
+	if !containsURI(client.RedirectURIs, redirectURI) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "redirect_uri mismatch"})
 		return
 	}
@@ -307,16 +307,16 @@ func (h *OAuthProviderHandler) Token(c *gin.Context) {
 // @Router /api/admin/clients [post]
 func (h *OAuthProviderHandler) CreateClient(c *gin.Context) {
 	var req struct {
-		Name        string   `json:"name" binding:"required"`
-		RedirectURI string   `json:"redirect_uri" binding:"required"`
-		Scopes      []string `json:"scopes"`
+		Name         string   `json:"name" binding:"required"`
+		RedirectURIs []string `json:"redirect_uris" binding:"required"`
+		Scopes       []string `json:"scopes"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name and redirect_uri are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name and redirect_uris are required"})
 		return
 	}
 
-	client, plainSecret, err := h.clientService.CreateClient(req.Name, req.RedirectURI, req.Scopes)
+	client, plainSecret, err := h.clientService.CreateClient(req.Name, req.RedirectURIs, req.Scopes)
 	if err != nil {
 		log.Printf("Failed to create client: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client"})
@@ -484,6 +484,16 @@ func (h *OAuthProviderHandler) GetAuditLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }
 
+// containsURI checks whether uri exists in the uris slice.
+func containsURI(uris []string, uri string) bool {
+	for _, u := range uris {
+		if u == uri {
+			return true
+		}
+	}
+	return false
+}
+
 // UpdateClient handles PUT /api/admin/clients/:id — updates a client.
 // @Summary Update OAuth2 client
 // @Description Updates an existing OAuth2 client
@@ -501,17 +511,17 @@ func (h *OAuthProviderHandler) UpdateClient(c *gin.Context) {
 	id := c.Param("id")
 
 	var req struct {
-		Name        string   `json:"name"`
-		RedirectURI string   `json:"redirect_uri"`
-		Scopes      []string `json:"scopes"`
-		IsActive    *bool    `json:"is_active"`
+		Name         string   `json:"name"`
+		RedirectURIs []string `json:"redirect_uris"`
+		Scopes       []string `json:"scopes"`
+		IsActive     *bool    `json:"is_active"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
-	if err := h.clientService.UpdateClient(id, req.Name, req.RedirectURI, req.Scopes, req.IsActive); err != nil {
+	if err := h.clientService.UpdateClient(id, req.Name, req.RedirectURIs, req.Scopes, req.IsActive); err != nil {
 		log.Printf("Failed to update client: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

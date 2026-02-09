@@ -14,7 +14,7 @@ interface ClientModalProps {
 
 export function ClientModal({ isOpen, onClose, client, onSubmit }: ClientModalProps) {
   const [name, setName] = useState('')
-  const [redirectUri, setRedirectUri] = useState('')
+  const [redirectUris, setRedirectUris] = useState('')
   const [scopes, setScopes] = useState('openid, profile')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [secret, setSecret] = useState<string | null>(null)
@@ -25,11 +25,11 @@ export function ClientModal({ isOpen, onClose, client, onSubmit }: ClientModalPr
   useEffect(() => {
     if (client) {
       setName(client.name)
-      setRedirectUri(client.redirect_uri)
+      setRedirectUris(client.redirect_uris?.join('\n') || '')
       setScopes(client.allowed_scopes?.join(', ') || 'openid, profile')
     } else {
       setName('')
-      setRedirectUri('')
+      setRedirectUris('')
       setScopes('openid, profile')
     }
     setSecret(null)
@@ -39,6 +39,11 @@ export function ClientModal({ isOpen, onClose, client, onSubmit }: ClientModalPr
     e.preventDefault()
     setIsSubmitting(true)
 
+    const redirectUrisArray = redirectUris
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)
+
     const scopesArray = scopes
       .split(',')
       .map((s) => s.trim())
@@ -46,7 +51,7 @@ export function ClientModal({ isOpen, onClose, client, onSubmit }: ClientModalPr
 
     const result = await onSubmit({
       name,
-      redirect_uri: redirectUri,
+      redirect_uris: redirectUrisArray,
       scopes: scopesArray,
     })
 
@@ -83,15 +88,20 @@ export function ClientModal({ isOpen, onClose, client, onSubmit }: ClientModalPr
             disabled={!!secret}
           />
 
-          <Input
-            label="Redirect URI"
-            type="url"
-            placeholder="https://yourapp.com/callback"
-            value={redirectUri}
-            onChange={(e) => setRedirectUri(e.target.value)}
-            required
-            disabled={!!secret}
-          />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Redirect URIs (мөр бүрт нэг)
+            </label>
+            <textarea
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+              rows={3}
+              placeholder={'https://yourapp.com/callback\nhttps://staging.yourapp.com/callback'}
+              value={redirectUris}
+              onChange={(e) => setRedirectUris(e.target.value)}
+              required
+              disabled={!!secret}
+            />
+          </div>
 
           <Input
             label="Scopes (таслалаар тусгаарлах)"

@@ -8,7 +8,7 @@ type OAuthClient struct {
 	ClientID         string    `json:"client_id"`
 	ClientSecretHash string    `json:"-"`
 	Name             string    `json:"name"`
-	RedirectURI      string    `json:"redirect_uri"`
+	RedirectURIs     []string  `json:"redirect_uris"`
 	AllowedScopes    []string  `json:"allowed_scopes"`
 	IsActive         bool      `json:"is_active"`
 	CreatedAt        time.Time `json:"created_at"`

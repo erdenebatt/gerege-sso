@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     client_id VARCHAR(64) UNIQUE NOT NULL,
     client_secret_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    redirect_uri TEXT NOT NULL,
+    redirect_uris TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     allowed_scopes TEXT[] DEFAULT ARRAY['openid','profile'],
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

@@ -2,7 +2,7 @@ export interface OAuthClient {
   id: string
   client_id: string
   name: string
-  redirect_uri: string
+  redirect_uris: string[]
   allowed_scopes: string[]
   is_active: boolean
   created_at: string
@@ -11,13 +11,13 @@ export interface OAuthClient {
 
 export interface CreateClientDTO {
   name: string
-  redirect_uri: string
+  redirect_uris: string[]
   scopes?: string[]
 }
 
 export interface UpdateClientDTO {
   name?: string
-  redirect_uri?: string
+  redirect_uris?: string[]
   scopes?: string[]
   is_active?: boolean
 }

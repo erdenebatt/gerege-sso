@@ -44,7 +44,7 @@ export function ClientsTable({ clients, isLoading, onEdit, onDelete }: ClientsTa
               Client ID
             </th>
             <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
-              Redirect URI
+              Redirect URIs
             </th>
             <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
               Статус
@@ -104,7 +104,7 @@ export function ClientsTable({ clients, isLoading, onEdit, onDelete }: ClientsTa
                 </div>
               </td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-sm">
-                {truncate(client.redirect_uri, 40)}
+                {truncate(client.redirect_uris?.join(', ') || '', 40)}
               </td>
               <td className="px-4 py-3">
                 <Badge variant={client.is_active ? 'success' : 'danger'}>

@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { Badge, Button, SkeletonTable } from '@/components/ui'
-import { truncate } from '@/lib/utils'
+import { truncate, copyToClipboard } from '@/lib/utils'
 import type { OAuthClient } from '@/types'
 
 interface ClientsTableProps {
@@ -11,12 +12,14 @@ interface ClientsTableProps {
   onDelete: (clientId: string, clientName: string) => void
 }
 
-export function ClientsTable({
-  clients,
-  isLoading,
-  onEdit,
-  onDelete,
-}: ClientsTableProps) {
+export function ClientsTable({ clients, isLoading, onEdit, onDelete }: ClientsTableProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleCopy = async (clientId: string) => {
+    await copyToClipboard(clientId)
+    setCopiedId(clientId)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
   if (isLoading) {
     return <SkeletonTable rows={3} />
   }
@@ -58,9 +61,47 @@ export function ClientsTable({
                 <span className="font-medium text-slate-900 dark:text-white">{client.name}</span>
               </td>
               <td className="px-4 py-3">
-                <code className="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded text-xs font-mono">
-                  {truncate(client.client_id, 20)}
-                </code>
+                <div className="flex items-center gap-2">
+                  <code className="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded text-xs font-mono">
+                    {truncate(client.client_id, 20)}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(client.client_id)}
+                    className="text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                    title="Client ID хуулах"
+                  >
+                    {copiedId === client.client_id ? (
+                      <svg
+                        className="w-4 h-4 text-green-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </td>
               <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-sm">
                 {truncate(client.redirect_uri, 40)}
@@ -72,11 +113,7 @@ export function ClientsTable({
               </td>
               <td className="px-4 py-3">
                 <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(client)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => onEdit(client)}>
                     Засах
                   </Button>
                   <Button

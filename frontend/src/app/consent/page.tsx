@@ -67,9 +67,17 @@ function ConsentPageContent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-5 bg-slate-50 dark:bg-slate-900">
       <div className="glass rounded-2xl p-10 w-full max-w-[460px] text-center">
-        <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center mx-auto mb-5">
-          <span className="text-3xl">🛡️</span>
-        </div>
+        {user?.picture ? (
+          <img
+            src={user.picture}
+            alt=""
+            className="w-16 h-16 rounded-full object-cover mx-auto mb-5 ring-2 ring-indigo-200 dark:ring-indigo-500/30"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center mx-auto mb-5">
+            <span className="text-3xl">🛡️</span>
+          </div>
+        )}
 
         <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
           Мэдээлэл хуваалцах

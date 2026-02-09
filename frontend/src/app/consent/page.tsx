@@ -1,13 +1,22 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { api } from '@/lib/api'
+import type { User } from '@/types'
 
 function ConsentPageContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    api.auth
+      .me()
+      .then(setUser)
+      .catch(() => {})
+  }, [])
 
   const clientId = searchParams.get('client_id') || ''
   const redirectUri = searchParams.get('redirect_uri') || ''
@@ -45,13 +54,14 @@ function ConsentPageContent() {
     window.location.href = denyUrl
   }
 
+  const g = user?.gerege
   const scopeItems = [
-    { icon: '✉️', label: 'Имэйл хаяг (Email)' },
-    { icon: '👤', label: 'Ургийн овог (Family name)' },
-    { icon: '👤', label: 'Овог (Last name)' },
-    { icon: '👤', label: 'Нэр (First name)' },
-    { icon: '📅', label: 'Төрсөн огноо (Birth date)' },
-    { icon: '⚥', label: 'Хүйс (Gender)' },
+    { icon: '✉️', label: 'Имэйл хаяг', value: user?.email },
+    { icon: '👤', label: 'Ургийн овог', value: g?.family_name },
+    { icon: '👤', label: 'Овог', value: g?.last_name },
+    { icon: '👤', label: 'Нэр', value: g?.first_name },
+    { icon: '📅', label: 'Төрсөн огноо', value: g?.birth_date },
+    { icon: '⚥', label: 'Хүйс', value: g?.gender },
   ]
 
   return (
@@ -61,7 +71,9 @@ function ConsentPageContent() {
           <span className="text-3xl">🛡️</span>
         </div>
 
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Мэдээлэл хуваалцах</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">
+          Мэдээлэл хуваалцах
+        </h2>
 
         <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6">
           <span className="text-indigo-600 dark:text-indigo-400 font-semibold">{appName}</span>{' '}
@@ -76,36 +88,31 @@ function ConsentPageContent() {
             {scopeItems.map((item, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-0 text-sm text-slate-700 dark:text-slate-300"
+                className="flex items-center justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-0 text-sm"
               >
-                <span className="text-indigo-500">{item.icon}</span>
-                {item.label}
+                <span className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                  <span className="text-indigo-500">{item.icon}</span>
+                  {item.label}
+                </span>
+                <span className="text-slate-900 dark:text-white font-medium truncate max-w-[200px]">
+                  {item.value || '—'}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="flex gap-3">
-          <Button
-            variant="danger"
-            className="flex-1"
-            onClick={handleDeny}
-          >
+          <Button variant="danger" className="flex-1" onClick={handleDeny}>
             Татгалзах
           </Button>
-          <Button
-            variant="primary"
-            className="flex-1"
-            onClick={handleAllow}
-            isLoading={isLoading}
-          >
+          <Button variant="primary" className="flex-1" onClick={handleAllow} isLoading={isLoading}>
             Зөвшөөрөх
           </Button>
         </div>
 
         <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-5 leading-relaxed">
-          Таны регистрийн дугаар болон иргэний дугаар хэзээ ч гуравдагч талд
-          дамжуулагдахгүй.
+          Таны регистрийн дугаар болон иргэний дугаар хэзээ ч гуравдагч талд дамжуулагдахгүй.
         </p>
       </div>
 

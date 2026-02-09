@@ -23,10 +23,13 @@ export function isAuthenticated(): boolean {
 
 export function logout(): void {
   removeToken()
-  window.location.href = '/'
+  if (typeof window !== 'undefined') {
+    window.location.href = '/'
+  }
 }
 
 export function redirectToLogin(redirect?: string): void {
+  if (typeof window === 'undefined') return
   const url = redirect ? `/?redirect=${encodeURIComponent(redirect)}` : '/'
   window.location.href = url
 }
@@ -52,5 +55,7 @@ export function isAdminAuthenticated(): boolean {
 
 export function adminLogout(): void {
   removeAdminKey()
-  window.location.href = '/admin'
+  if (typeof window !== 'undefined') {
+    window.location.href = '/admin'
+  }
 }

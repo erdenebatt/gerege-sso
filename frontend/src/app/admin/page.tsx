@@ -9,17 +9,20 @@ import { useAdminStore } from '@/stores/adminStore'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const { apiKey, setApiKey, fetchStats } = useAdminStore()
+  const { apiKey, _hydrated, hydrate, setApiKey, fetchStats } = useAdminStore()
   const [inputKey, setInputKey] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    // Check if already logged in
-    if (apiKey) {
+    hydrate()
+  }, [hydrate])
+
+  useEffect(() => {
+    if (_hydrated && apiKey) {
       router.replace('/admin/dashboard')
     }
-  }, [apiKey, router])
+  }, [apiKey, _hydrated, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,12 +89,7 @@ export default function AdminLoginPage() {
             />
           </div>
 
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full"
-            isLoading={isLoading}
-          >
+          <Button type="submit" variant="primary" className="w-full" isLoading={isLoading}>
             Нэвтрэх
           </Button>
         </form>

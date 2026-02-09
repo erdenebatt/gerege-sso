@@ -29,6 +29,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'gerege-settings',
+      skipHydration: true,
     }
   )
 )
@@ -49,7 +50,8 @@ export const translations = {
     loginWithFacebook: 'Facebook-ээр нэвтрэх',
     loginWithX: 'X-ээр нэвтрэх',
     or: 'эсвэл',
-    loginDescription: 'Google, Apple эсвэл Facebook бүртгэлээр нэвтэрч, регистрийн дугаараараа баталгаажуулна уу.',
+    loginDescription:
+      'Google, Apple эсвэл Facebook бүртгэлээр нэвтэрч, регистрийн дугаараараа баталгаажуулна уу.',
     copyright: '© 2024 Gerege SSO. Бүх эрх хуулиар хамгаалагдсан.',
     checking: 'Шалгаж байна...',
   },
@@ -67,7 +69,8 @@ export const translations = {
     loginWithFacebook: 'Sign in with Facebook',
     loginWithX: 'Sign in with X',
     or: 'or',
-    loginDescription: 'Sign in with Google, Apple or Facebook and verify with your registration number.',
+    loginDescription:
+      'Sign in with Google, Apple or Facebook and verify with your registration number.',
     copyright: '© 2024 Gerege SSO. All rights reserved.',
     checking: 'Checking...',
   },

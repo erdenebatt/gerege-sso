@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ToastProvider } from '@/components/ui'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { StoreHydration } from '@/components/StoreHydration'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import '@/styles/globals.css'
 
@@ -12,15 +13,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="mn" suppressHydrationWarning>
       <body className="min-h-screen">
         <ThemeProvider>
+          <StoreHydration />
           <ErrorBoundary>
             <ToastProvider>{children}</ToastProvider>
           </ErrorBoundary>

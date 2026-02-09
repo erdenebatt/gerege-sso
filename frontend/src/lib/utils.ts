@@ -33,6 +33,12 @@ export function truncate(str: string | undefined, len: number): string {
 
 export function escapeHtml(text: string | undefined): string {
   if (!text) return ''
+  if (typeof document === 'undefined') {
+    return text.replace(
+      /[&<>"']/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c
+    )
+  }
   const div = document.createElement('div')
   div.textContent = text
   return div.innerHTML

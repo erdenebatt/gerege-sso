@@ -15,6 +15,8 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const {
     apiKey,
+    _hydrated,
+    hydrate,
     stats,
     clients,
     auditLogs,
@@ -34,6 +36,11 @@ export default function AdminDashboardPage() {
   const [editClient, setEditClient] = useState<OAuthClient | null>(null)
 
   useEffect(() => {
+    hydrate()
+  }, [hydrate])
+
+  useEffect(() => {
+    if (!_hydrated) return
     if (!apiKey) {
       router.replace('/admin')
       return
@@ -41,7 +48,7 @@ export default function AdminDashboardPage() {
 
     fetchStats()
     fetchClients()
-  }, [apiKey, fetchStats, fetchClients, router])
+  }, [apiKey, _hydrated, fetchStats, fetchClients, router])
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
@@ -66,11 +73,7 @@ export default function AdminDashboardPage() {
   }
 
   const handleDelete = async (clientId: string, clientName: string) => {
-    if (
-      !confirm(
-        `"${clientName}" клиентийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`
-      )
-    ) {
+    if (!confirm(`"${clientName}" клиентийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) {
       return
     }
 
@@ -105,7 +108,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  if (!apiKey) {
+  if (!_hydrated || !apiKey) {
     return null
   }
 
@@ -114,7 +117,13 @@ export default function AdminDashboardPage() {
       {/* Header */}
       <header className="flex items-center justify-between mb-8 pb-5 border-b border-slate-200 dark:border-slate-800">
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white flex items-center gap-3">
-          <Image src="/assets/logo.png" alt="Gerege" width={32} height={32} className="rounded-lg" />
+          <Image
+            src="/assets/logo.png"
+            alt="Gerege"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
           Admin Dashboard
         </h1>
         <Button variant="danger" size="sm" onClick={handleLogout}>
@@ -158,7 +167,9 @@ export default function AdminDashboardPage() {
         {activeTab === 'clients' && (
           <>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">OAuth2 Клиентүүд</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                OAuth2 Клиентүүд
+              </h2>
               <Button variant="primary" size="sm" onClick={handleOpenCreate}>
                 + Шинэ клиент
               </Button>
@@ -175,7 +186,9 @@ export default function AdminDashboardPage() {
         {activeTab === 'logs' && (
           <>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Сүүлийн үйлдлүүд</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                Сүүлийн үйлдлүүд
+              </h2>
               <Button variant="ghost" size="sm" onClick={fetchAuditLogs}>
                 Шинэчлэх
               </Button>

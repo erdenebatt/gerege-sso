@@ -6,35 +6,47 @@ import { api, ApiError } from '@/lib/api'
 
 interface AdminState {
   apiKey: string | null
+  _hydrated: boolean
   stats: AdminStats | null
   clients: OAuthClient[]
   auditLogs: AuditLog[]
   isLoading: boolean
   error: string | null
 
+  hydrate: () => void
   setApiKey: (key: string) => void
   logout: () => void
   fetchStats: () => Promise<void>
   fetchClients: () => Promise<void>
   fetchAuditLogs: () => Promise<void>
-  createClient: (data: CreateClientDTO) => Promise<{ clientId: string; clientSecret: string } | null>
+  createClient: (
+    data: CreateClientDTO
+  ) => Promise<{ clientId: string; clientSecret: string } | null>
   updateClient: (id: string, data: UpdateClientDTO) => Promise<boolean>
   deleteClient: (id: string) => Promise<boolean>
 }
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
-  apiKey: typeof window !== 'undefined' ? sessionStorage.getItem('admin_key') : null,
+  apiKey: null,
+  _hydrated: false,
   stats: null,
   clients: [],
   auditLogs: [],
   isLoading: false,
   error: null,
 
+  hydrate: () => {
+    if (typeof window !== 'undefined' && !get()._hydrated) {
+      const key = sessionStorage.getItem('admin_key')
+      set({ apiKey: key, _hydrated: true })
+    }
+  },
+
   setApiKey: (key) => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('admin_key', key)
     }
-    set({ apiKey: key, error: null })
+    set({ apiKey: key, _hydrated: true, error: null })
   },
 
   logout: () => {

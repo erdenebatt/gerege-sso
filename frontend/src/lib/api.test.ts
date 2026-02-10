@@ -15,7 +15,7 @@ describe('fetchAPI', () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
-      json: () => Promise.resolve({ error: 'Unauthorized' }),
+      text: () => Promise.resolve(JSON.stringify({ error: 'Unauthorized' })),
     })
 
     await expect(fetchAPI('/api/test')).rejects.toThrow(ApiError)
@@ -81,7 +81,7 @@ describe('fetchAPI', () => {
         return Promise.resolve({
           ok: false,
           status: 500,
-          json: () => Promise.resolve({ error: 'Server error' }),
+          text: () => Promise.resolve(JSON.stringify({ error: 'Server error' })),
         })
       }
       return Promise.resolve({

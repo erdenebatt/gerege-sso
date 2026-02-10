@@ -3,20 +3,14 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import type { User } from '@/types'
 
 function ConsentPageContent() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState<User | null>(null)
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => {})
-  }, [])
+  const [userLoading, setUserLoading] = useState(true)
 
   const clientId = searchParams.get('client_id') || ''
   const redirectUri = searchParams.get('redirect_uri') || ''
@@ -25,6 +19,31 @@ function ConsentPageContent() {
   const appName = searchParams.get('app_name') || 'Unknown App'
   const codeChallenge = searchParams.get('code_challenge') || ''
   const codeChallengeMethod = searchParams.get('code_challenge_method') || ''
+
+  useEffect(() => {
+    api.auth
+      .me()
+      .then(setUser)
+      .catch((err) => {
+        console.error('Failed to fetch user info:', err)
+        // If unauthorized, redirect to authorize endpoint which will handle login
+        if (err instanceof ApiError && err.status === 401) {
+          const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope,
+            state,
+          })
+          if (codeChallenge) {
+            params.set('code_challenge', codeChallenge)
+            params.set('code_challenge_method', codeChallengeMethod || 'plain')
+          }
+          window.location.href = `/api/oauth/authorize?${params.toString()}`
+        }
+      })
+      .finally(() => setUserLoading(false))
+  }, [clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod])
 
   const handleAllow = () => {
     setIsLoading(true)
@@ -92,22 +111,28 @@ function ConsentPageContent() {
           <h3 className="text-sm text-slate-500 dark:text-slate-400 mb-3 font-medium">
             Хуваалцах мэдээлэл:
           </h3>
-          <div className="space-y-2">
-            {scopeItems.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-0 text-sm"
-              >
-                <span className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-                  <span className="text-indigo-500">{item.icon}</span>
-                  {item.label}
-                </span>
-                <span className="text-slate-900 dark:text-white font-medium truncate max-w-[200px]">
-                  {item.value || '—'}
-                </span>
-              </div>
-            ))}
-          </div>
+          {userLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="w-6 h-6 border-2 border-slate-200 dark:border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {scopeItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-0 text-sm"
+                >
+                  <span className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
+                    <span className="text-indigo-500">{item.icon}</span>
+                    {item.label}
+                  </span>
+                  <span className="text-slate-900 dark:text-white font-medium truncate max-w-[200px]">
+                    {item.value || '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3">

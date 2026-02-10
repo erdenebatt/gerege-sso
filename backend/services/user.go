@@ -342,21 +342,28 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 }
 
 // insertCitizenFromCore inserts a citizen record from Core API response within a transaction.
-// Uses ON CONFLICT to handle race conditions where another request may have inserted the same citizen.
+// Column names match the production DB schema (sex, phone_primary, current_province, current_district).
 func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenResponse) (*models.Citizen, error) {
+	// Convert gender int to string for the sex column
+	gender := ""
+	if resp.Gender == 1 {
+		gender = "M"
+	} else if resp.Gender == 2 {
+		gender = "F"
+	}
+
+	// Extract date part from birth_date (e.g. "1994-06-26T00:00:00Z" → "1994-06-26")
+	birthDate := resp.BirthDate
+	if len(birthDate) >= 10 {
+		birthDate = birthDate[:10]
+	}
+
 	var citizenID int64
 	err := tx.QueryRow(`
 		INSERT INTO citizens (
-			id, civil_id, reg_no, family_name, last_name, first_name,
-			gender, birth_date, phone_no, email,
-			is_foreign, country_code, hash,
-			parent_address_id, parent_address_name,
-			aimag_id, aimag_code, aimag_name,
-			sum_id, sum_code, sum_name,
-			bag_id, bag_code, bag_name,
-			address_detail, address_type, address_type_name,
-			nationality, country_name, country_name_en,
-			profile_img_url,
+			civil_id, reg_no, family_name, last_name, first_name,
+			sex, birth_date, phone_primary, email,
+			nationality, current_province, current_district,
 			residential_parent_address_id, residential_parent_address_name,
 			residential_aimag_id, residential_aimag_code, residential_aimag_name,
 			residential_sum_id, residential_sum_code, residential_sum_name,
@@ -364,79 +371,21 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 			residential_address_detail,
 			ebarimt_tin
 		) VALUES (
-			$1, $2, $3, $4, $5, $6,
-			$7, $8, $9, $10,
-			$11, $12, $13,
-			$14, $15,
-			$16, $17, $18,
-			$19, $20, $21,
-			$22, $23, $24,
-			$25, $26, $27,
-			$28, $29, $30,
-			$31,
-			$32, $33,
-			$34, $35, $36,
-			$37, $38, $39,
-			$40, $41, $42,
-			$43,
-			$44
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9,
+			$10, $11, $12,
+			$13, $14,
+			$15, $16, $17,
+			$18, $19, $20,
+			$21, $22, $23,
+			$24,
+			$25
 		)
-		ON CONFLICT (id) DO UPDATE SET
-			civil_id = EXCLUDED.civil_id,
-			reg_no = EXCLUDED.reg_no,
-			family_name = EXCLUDED.family_name,
-			last_name = EXCLUDED.last_name,
-			first_name = EXCLUDED.first_name,
-			gender = EXCLUDED.gender,
-			birth_date = EXCLUDED.birth_date,
-			phone_no = EXCLUDED.phone_no,
-			email = EXCLUDED.email,
-			is_foreign = EXCLUDED.is_foreign,
-			country_code = EXCLUDED.country_code,
-			hash = EXCLUDED.hash,
-			parent_address_id = EXCLUDED.parent_address_id,
-			parent_address_name = EXCLUDED.parent_address_name,
-			aimag_id = EXCLUDED.aimag_id,
-			aimag_code = EXCLUDED.aimag_code,
-			aimag_name = EXCLUDED.aimag_name,
-			sum_id = EXCLUDED.sum_id,
-			sum_code = EXCLUDED.sum_code,
-			sum_name = EXCLUDED.sum_name,
-			bag_id = EXCLUDED.bag_id,
-			bag_code = EXCLUDED.bag_code,
-			bag_name = EXCLUDED.bag_name,
-			address_detail = EXCLUDED.address_detail,
-			address_type = EXCLUDED.address_type,
-			address_type_name = EXCLUDED.address_type_name,
-			nationality = EXCLUDED.nationality,
-			country_name = EXCLUDED.country_name,
-			country_name_en = EXCLUDED.country_name_en,
-			profile_img_url = EXCLUDED.profile_img_url,
-			residential_parent_address_id = EXCLUDED.residential_parent_address_id,
-			residential_parent_address_name = EXCLUDED.residential_parent_address_name,
-			residential_aimag_id = EXCLUDED.residential_aimag_id,
-			residential_aimag_code = EXCLUDED.residential_aimag_code,
-			residential_aimag_name = EXCLUDED.residential_aimag_name,
-			residential_sum_id = EXCLUDED.residential_sum_id,
-			residential_sum_code = EXCLUDED.residential_sum_code,
-			residential_sum_name = EXCLUDED.residential_sum_name,
-			residential_bag_id = EXCLUDED.residential_bag_id,
-			residential_bag_code = EXCLUDED.residential_bag_code,
-			residential_bag_name = EXCLUDED.residential_bag_name,
-			residential_address_detail = EXCLUDED.residential_address_detail,
-			ebarimt_tin = EXCLUDED.ebarimt_tin
 		RETURNING id
 	`,
-		resp.ID, resp.CivilID, resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
-		resp.Gender, resp.BirthDate, resp.PhoneNo, resp.Email,
-		resp.IsForeign, resp.CountryCode, resp.Hash,
-		resp.ParentAddressID, resp.ParentAddressName,
-		resp.AimagID, resp.AimagCode, resp.AimagName,
-		resp.SumID, resp.SumCode, resp.SumName,
-		resp.BagID, resp.BagCode, resp.BagName,
-		resp.AddressDetail, resp.AddressType, resp.AddressTypeName,
-		resp.Nationality, resp.CountryName, resp.CountryNameEn,
-		resp.ProfileImgURL,
+		fmt.Sprintf("%d", resp.CivilID), resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
+		gender, birthDate, resp.PhoneNo, resp.Email,
+		resp.Nationality, resp.AimagName, resp.SumName,
 		resp.ResidentialParentAddressID, resp.ResidentialParentAddressName,
 		resp.ResidentialAimagID, resp.ResidentialAimagCode, resp.ResidentialAimagName,
 		resp.ResidentialSumID, resp.ResidentialSumCode, resp.ResidentialSumName,

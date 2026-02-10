@@ -59,3 +59,10 @@ certbot/
 config/certs/
 *.pem
 *.key
+
+# Documents
+*.docx
+
+# Test reports
+frontend/playwright-report/
+frontend/test-results/

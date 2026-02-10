@@ -24,15 +24,17 @@ const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id,
 
 // UserService handles user-related operations
 type UserService struct {
-	db           *sql.DB
-	genIDService *GenIDService
+	db               *sql.DB
+	genIDService     *GenIDService
+	geregeCoreService *GeregeCoreService
 }
 
 // NewUserService creates a new UserService
-func NewUserService(db *sql.DB, genIDService *GenIDService) *UserService {
+func NewUserService(db *sql.DB, genIDService *GenIDService, geregeCoreService *GeregeCoreService) *UserService {
 	return &UserService{
-		db:           db,
-		genIDService: genIDService,
+		db:               db,
+		genIDService:     genIDService,
+		geregeCoreService: geregeCoreService,
 	}
 }
 
@@ -262,6 +264,7 @@ func latinToCyrillic(s string) string {
 }
 
 // LinkCitizen links a user to a citizen record by reg_no.
+// If the citizen is not found locally, it fetches from Gerege Core API and inserts.
 // Uses a transaction with row-level locking to ensure atomic
 // citizen lookup, optional gen_id generation, and user update.
 func (s *UserService) LinkCitizen(userID int64, regNo string) error {
@@ -281,7 +284,25 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	).Scan(&citizenID)
 
 	if err == sql.ErrNoRows {
-		return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
+		// Not found locally — try Gerege Core API
+		if s.geregeCoreService == nil {
+			return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
+		}
+
+		coreResp, coreErr := s.geregeCoreService.FindCitizen(normalizedRegNo)
+		if coreErr != nil {
+			return fmt.Errorf("failed to fetch citizen from core API: %w", coreErr)
+		}
+		if coreResp == nil {
+			return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
+		}
+
+		// Insert citizen from Core API response
+		inserted, insertErr := s.insertCitizenFromCore(tx, coreResp)
+		if insertErr != nil {
+			return fmt.Errorf("failed to insert citizen from core API: %w", insertErr)
+		}
+		citizenID = inserted.ID
 	} else if err != nil {
 		return fmt.Errorf("failed to find citizen: %w", err)
 	}
@@ -320,51 +341,159 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	return tx.Commit()
 }
 
-// FindCitizenByID finds a citizen by ID
-func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
+// insertCitizenFromCore inserts a citizen record from Core API response within a transaction.
+// Uses ON CONFLICT to handle race conditions where another request may have inserted the same citizen.
+func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenResponse) (*models.Citizen, error) {
+	var citizenID int64
+	err := tx.QueryRow(`
+		INSERT INTO citizens (
+			id, civil_id, reg_no, family_name, last_name, first_name,
+			gender, birth_date, phone_no, email,
+			is_foreign, country_code, hash,
+			parent_address_id, parent_address_name,
+			aimag_id, aimag_code, aimag_name,
+			sum_id, sum_code, sum_name,
+			bag_id, bag_code, bag_name,
+			address_detail, address_type, address_type_name,
+			nationality, country_name, country_name_en,
+			profile_img_url,
+			residential_parent_address_id, residential_parent_address_name,
+			residential_aimag_id, residential_aimag_code, residential_aimag_name,
+			residential_sum_id, residential_sum_code, residential_sum_name,
+			residential_bag_id, residential_bag_code, residential_bag_name,
+			residential_address_detail,
+			ebarimt_tin
+		) VALUES (
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10,
+			$11, $12, $13,
+			$14, $15,
+			$16, $17, $18,
+			$19, $20, $21,
+			$22, $23, $24,
+			$25, $26, $27,
+			$28, $29, $30,
+			$31,
+			$32, $33,
+			$34, $35, $36,
+			$37, $38, $39,
+			$40, $41, $42,
+			$43,
+			$44
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			civil_id = EXCLUDED.civil_id,
+			reg_no = EXCLUDED.reg_no,
+			family_name = EXCLUDED.family_name,
+			last_name = EXCLUDED.last_name,
+			first_name = EXCLUDED.first_name,
+			gender = EXCLUDED.gender,
+			birth_date = EXCLUDED.birth_date,
+			phone_no = EXCLUDED.phone_no,
+			email = EXCLUDED.email,
+			is_foreign = EXCLUDED.is_foreign,
+			country_code = EXCLUDED.country_code,
+			hash = EXCLUDED.hash,
+			parent_address_id = EXCLUDED.parent_address_id,
+			parent_address_name = EXCLUDED.parent_address_name,
+			aimag_id = EXCLUDED.aimag_id,
+			aimag_code = EXCLUDED.aimag_code,
+			aimag_name = EXCLUDED.aimag_name,
+			sum_id = EXCLUDED.sum_id,
+			sum_code = EXCLUDED.sum_code,
+			sum_name = EXCLUDED.sum_name,
+			bag_id = EXCLUDED.bag_id,
+			bag_code = EXCLUDED.bag_code,
+			bag_name = EXCLUDED.bag_name,
+			address_detail = EXCLUDED.address_detail,
+			address_type = EXCLUDED.address_type,
+			address_type_name = EXCLUDED.address_type_name,
+			nationality = EXCLUDED.nationality,
+			country_name = EXCLUDED.country_name,
+			country_name_en = EXCLUDED.country_name_en,
+			profile_img_url = EXCLUDED.profile_img_url,
+			residential_parent_address_id = EXCLUDED.residential_parent_address_id,
+			residential_parent_address_name = EXCLUDED.residential_parent_address_name,
+			residential_aimag_id = EXCLUDED.residential_aimag_id,
+			residential_aimag_code = EXCLUDED.residential_aimag_code,
+			residential_aimag_name = EXCLUDED.residential_aimag_name,
+			residential_sum_id = EXCLUDED.residential_sum_id,
+			residential_sum_code = EXCLUDED.residential_sum_code,
+			residential_sum_name = EXCLUDED.residential_sum_name,
+			residential_bag_id = EXCLUDED.residential_bag_id,
+			residential_bag_code = EXCLUDED.residential_bag_code,
+			residential_bag_name = EXCLUDED.residential_bag_name,
+			residential_address_detail = EXCLUDED.residential_address_detail,
+			ebarimt_tin = EXCLUDED.ebarimt_tin
+		RETURNING id
+	`,
+		resp.ID, resp.CivilID, resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
+		resp.Gender, resp.BirthDate, resp.PhoneNo, resp.Email,
+		resp.IsForeign, resp.CountryCode, resp.Hash,
+		resp.ParentAddressID, resp.ParentAddressName,
+		resp.AimagID, resp.AimagCode, resp.AimagName,
+		resp.SumID, resp.SumCode, resp.SumName,
+		resp.BagID, resp.BagCode, resp.BagName,
+		resp.AddressDetail, resp.AddressType, resp.AddressTypeName,
+		resp.Nationality, resp.CountryName, resp.CountryNameEn,
+		resp.ProfileImgURL,
+		resp.ResidentialParentAddressID, resp.ResidentialParentAddressName,
+		resp.ResidentialAimagID, resp.ResidentialAimagCode, resp.ResidentialAimagName,
+		resp.ResidentialSumID, resp.ResidentialSumCode, resp.ResidentialSumName,
+		resp.ResidentialBagID, resp.ResidentialBagCode, resp.ResidentialBagName,
+		resp.ResidentialAddressDetail,
+		resp.EbarimtTIN,
+	).Scan(&citizenID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert citizen: %w", err)
+	}
+
+	return &models.Citizen{ID: citizenID}, nil
+}
+
+// citizenColumns is the standard set of columns selected for citizen queries
+const citizenColumns = `id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
+	phone_primary, email, current_province, current_district,
+	residential_parent_address_id, residential_parent_address_name,
+	residential_aimag_id, residential_aimag_code, residential_aimag_name,
+	residential_sum_id, residential_sum_code, residential_sum_name,
+	residential_bag_id, residential_bag_code, residential_bag_name,
+	residential_address_detail, ebarimt_tin`
+
+// scanCitizen scans a citizen row into a Citizen struct
+func scanCitizen(row scannable) (*models.Citizen, error) {
 	citizen := &models.Citizen{}
-	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
-		       phone_primary, email, current_province, current_district
-		FROM citizens WHERE id = $1
-	`, id).Scan(
+	err := row.Scan(
 		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
 		&citizen.FirstName, &citizen.Gender, &citizen.BirthDate,
 		&citizen.PhoneNo, &citizen.Email, &citizen.AimagName, &citizen.SumName,
+		&citizen.ResidentialParentAddressID, &citizen.ResidentialParentAddressName,
+		&citizen.ResidentialAimagID, &citizen.ResidentialAimagCode, &citizen.ResidentialAimagName,
+		&citizen.ResidentialSumID, &citizen.ResidentialSumCode, &citizen.ResidentialSumName,
+		&citizen.ResidentialBagID, &citizen.ResidentialBagCode, &citizen.ResidentialBagName,
+		&citizen.ResidentialAddressDetail, &citizen.EbarimtTIN,
 	)
-
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to find citizen: %w", err)
+		return nil, fmt.Errorf("failed to scan citizen: %w", err)
 	}
-
 	return citizen, nil
+}
+
+// FindCitizenByID finds a citizen by ID
+func (s *UserService) FindCitizenByID(id int64) (*models.Citizen, error) {
+	query := fmt.Sprintf("SELECT %s FROM citizens WHERE id = $1", citizenColumns)
+	return scanCitizen(s.db.QueryRow(query, id))
 }
 
 // FindCitizenByRegNo finds a citizen by registration number (case-insensitive, Latin-to-Cyrillic aware)
 func (s *UserService) FindCitizenByRegNo(regNo string) (*models.Citizen, error) {
 	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
-	citizen := &models.Citizen{}
-	err := s.db.QueryRow(`
-		SELECT id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
-		       phone_primary, email, current_province, current_district
-		FROM citizens WHERE UPPER(reg_no) = $1
-	`, normalizedRegNo).Scan(
-		&citizen.ID, &citizen.CivilID, &citizen.RegNo, &citizen.FamilyName, &citizen.LastName,
-		&citizen.FirstName, &citizen.Gender, &citizen.BirthDate,
-		&citizen.PhoneNo, &citizen.Email, &citizen.AimagName, &citizen.SumName,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find citizen: %w", err)
-	}
-
-	return citizen, nil
+	query := fmt.Sprintf("SELECT %s FROM citizens WHERE UPPER(reg_no) = $1", citizenColumns)
+	return scanCitizen(s.db.QueryRow(query, normalizedRegNo))
 }
 
 // LogAudit logs an audit event

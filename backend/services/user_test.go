@@ -114,7 +114,7 @@ func TestLinkCitizen_Success(t *testing.T) {
 	defer db.Close()
 
 	genIDService := &GenIDService{db: db}
-	userService := NewUserService(db, genIDService)
+	userService := NewUserService(db, genIDService, nil)
 
 	mock.ExpectBegin()
 
@@ -154,7 +154,7 @@ func TestLinkCitizen_CitizenNotFound(t *testing.T) {
 	defer db.Close()
 
 	genIDService := &GenIDService{db: db}
-	userService := NewUserService(db, genIDService)
+	userService := NewUserService(db, genIDService, nil)
 
 	mock.ExpectBegin()
 
@@ -183,7 +183,7 @@ func TestLinkCitizen_UserNotFound(t *testing.T) {
 	defer db.Close()
 
 	genIDService := &GenIDService{db: db}
-	userService := NewUserService(db, genIDService)
+	userService := NewUserService(db, genIDService, nil)
 
 	mock.ExpectBegin()
 
@@ -217,7 +217,7 @@ func TestLinkCitizen_UpdateFails_Rollback(t *testing.T) {
 	defer db.Close()
 
 	genIDService := &GenIDService{db: db}
-	userService := NewUserService(db, genIDService)
+	userService := NewUserService(db, genIDService, nil)
 
 	mock.ExpectBegin()
 
@@ -256,7 +256,7 @@ func TestLinkCitizen_GeneratesGenID_WhenMissing(t *testing.T) {
 	defer db.Close()
 
 	genIDService := &GenIDService{db: db}
-	userService := NewUserService(db, genIDService)
+	userService := NewUserService(db, genIDService, nil)
 
 	mock.ExpectBegin()
 

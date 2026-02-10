@@ -19,6 +19,23 @@ type Citizen struct {
 	Email      sql.NullString `json:"email"`
 	AimagName  sql.NullString `json:"aimag_name"`
 	SumName    sql.NullString `json:"sum_name"`
+
+	// Оршин суугаа хаяг (residential address)
+	ResidentialParentAddressID   sql.NullInt64  `json:"residential_parent_address_id"`
+	ResidentialParentAddressName sql.NullString `json:"residential_parent_address_name"`
+	ResidentialAimagID           sql.NullInt64  `json:"residential_aimag_id"`
+	ResidentialAimagCode         sql.NullString `json:"residential_aimag_code"`
+	ResidentialAimagName         sql.NullString `json:"residential_aimag_name"`
+	ResidentialSumID             sql.NullInt64  `json:"residential_sum_id"`
+	ResidentialSumCode           sql.NullString `json:"residential_sum_code"`
+	ResidentialSumName           sql.NullString `json:"residential_sum_name"`
+	ResidentialBagID             sql.NullInt64  `json:"residential_bag_id"`
+	ResidentialBagCode           sql.NullString `json:"residential_bag_code"`
+	ResidentialBagName           sql.NullString `json:"residential_bag_name"`
+	ResidentialAddressDetail     sql.NullString `json:"residential_address_detail"`
+
+	// Е-баримт ТИН
+	EbarimtTIN sql.NullString `json:"ebarimt_tin"`
 }
 
 // User represents the users table (SSO users)

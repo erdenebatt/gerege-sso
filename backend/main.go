@@ -75,7 +75,15 @@ func main() {
 	genIDService := services.NewGenIDService(db)
 	oauthService := services.NewOAuthService(cfg)
 	jwtService := services.NewJWTService(cfg.JWT.Secret, cfg.JWT.Expiry, rdb)
-	userService := services.NewUserService(db, genIDService)
+
+	// Initialize Gerege Core API service (optional)
+	var geregeCoreService *services.GeregeCoreService
+	if cfg.Auth.GeregeCoreURL != "" && cfg.Auth.GeregeCoreToken != "" {
+		geregeCoreService = services.NewGeregeCoreService(cfg.Auth.GeregeCoreURL, cfg.Auth.GeregeCoreToken)
+		log.Println("Gerege Core API enabled")
+	}
+
+	userService := services.NewUserService(db, genIDService, geregeCoreService)
 	auditService := services.NewAuditService(db)
 	apiLogService := services.NewAPILogService(db)
 

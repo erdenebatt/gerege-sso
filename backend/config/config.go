@@ -69,6 +69,10 @@ type AuthConfig struct {
 	DanClientID    string
 	DanRedirectURL string
 	DanScope       string
+
+	// Gerege Core API
+	GeregeCoreURL   string
+	GeregeCoreToken string
 }
 
 type PublicConfig struct {
@@ -131,6 +135,10 @@ func Load() *Config {
 			DanClientID:    getEnv("DAN_CLIENT_ID", ""),
 			DanRedirectURL: getEnv("DAN_REDIRECT_URL", ""),
 			DanScope:       getEnv("DAN_SCOPE", ""),
+
+			// Gerege Core API
+			GeregeCoreURL:   getEnv("GEREGE_CORE_URL", ""),
+			GeregeCoreToken: getEnv("GEREGE_CORE_TOKEN", ""),
 		},
 		Public: PublicConfig{
 			URL: getEnv("PUBLIC_URL", "https://sso.gerege.mn"),

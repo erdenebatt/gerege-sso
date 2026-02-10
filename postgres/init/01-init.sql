@@ -66,6 +66,23 @@ CREATE TABLE IF NOT EXISTS citizens (
 
     profile_img_url      VARCHAR(255),
 
+    -- Оршин суугаа хаяг (residential address)
+    residential_parent_address_id   BIGINT,
+    residential_parent_address_name VARCHAR(20),
+    residential_aimag_id            BIGINT,
+    residential_aimag_code          VARCHAR(3),
+    residential_aimag_name          VARCHAR(255),
+    residential_sum_id              BIGINT,
+    residential_sum_code            VARCHAR(3),
+    residential_sum_name            VARCHAR(255),
+    residential_bag_id              BIGINT,
+    residential_bag_code            VARCHAR(3),
+    residential_bag_name            VARCHAR(255),
+    residential_address_detail      VARCHAR(255),
+
+    -- Е-баримт ТИН
+    ebarimt_tin                     VARCHAR(20),
+
     created_date         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     created_user_id      BIGINT       NOT NULL DEFAULT 0,
     created_org_id       BIGINT       NOT NULL DEFAULT 0,

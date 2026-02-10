@@ -15,6 +15,8 @@ type UserRepository interface {
 	FindCitizenByRegNo(regNo string) (*models.Citizen, error)
 	LogDanVerification(userID int64, regNo string, method string) error
 	GetDanVerificationLogs(userID int64) ([]models.DanVerificationLog, error)
+	LogRegistryVerification(userID int64, regNo string) error
+	GetRegistryVerifyLogs(userID int64) ([]models.RegistryVerifyLog, error)
 }
 
 // AuditRepository defines the interface for audit log data access

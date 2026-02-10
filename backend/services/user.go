@@ -455,7 +455,7 @@ func (s *UserService) LogAudit(userID int64, action string, details map[string]i
 	return err
 }
 
-// LogDanVerification logs a DAN verification event
+// LogDanVerification logs a DAN SSO verification event
 func (s *UserService) LogDanVerification(userID int64, regNo string, method string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO dan_verification_logs (user_id, reg_no, method)
@@ -464,7 +464,7 @@ func (s *UserService) LogDanVerification(userID int64, regNo string, method stri
 	return err
 }
 
-// GetDanVerificationLogs retrieves the last 10 verification logs for a user
+// GetDanVerificationLogs retrieves the last 10 DAN verification logs for a user
 func (s *UserService) GetDanVerificationLogs(userID int64) ([]models.DanVerificationLog, error) {
 	rows, err := s.db.Query(`
 		SELECT id, user_id, reg_no, method, created_at
@@ -483,6 +483,40 @@ func (s *UserService) GetDanVerificationLogs(userID int64) ([]models.DanVerifica
 		var l models.DanVerificationLog
 		if err := rows.Scan(&l.ID, &l.UserID, &l.RegNo, &l.Method, &l.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan log: %w", err)
+		}
+		logs = append(logs, l)
+	}
+	return logs, nil
+}
+
+// LogRegistryVerification logs a reg_no verification event
+func (s *UserService) LogRegistryVerification(userID int64, regNo string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO registry_verify_logs (user_id, reg_no)
+		VALUES ($1, $2)
+	`, userID, regNo)
+	return err
+}
+
+// GetRegistryVerifyLogs retrieves the last 10 registry verification logs for a user
+func (s *UserService) GetRegistryVerifyLogs(userID int64) ([]models.RegistryVerifyLog, error) {
+	rows, err := s.db.Query(`
+		SELECT id, user_id, reg_no, created_at
+		FROM registry_verify_logs
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT 10
+	`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query registry logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []models.RegistryVerifyLog
+	for rows.Next() {
+		var l models.RegistryVerifyLog
+		if err := rows.Scan(&l.ID, &l.UserID, &l.RegNo, &l.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan registry log: %w", err)
 		}
 		logs = append(logs, l)
 	}

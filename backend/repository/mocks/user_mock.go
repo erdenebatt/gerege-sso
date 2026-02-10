@@ -109,6 +109,14 @@ func (m *MockUserRepository) GetDanVerificationLogs(userID int64) ([]models.DanV
 	return nil, nil
 }
 
+func (m *MockUserRepository) LogRegistryVerification(userID int64, regNo string) error {
+	return nil
+}
+
+func (m *MockUserRepository) GetRegistryVerifyLogs(userID int64) ([]models.RegistryVerifyLog, error) {
+	return nil, nil
+}
+
 // AddUser adds a test user to the mock
 func (m *MockUserRepository) AddUser(user *models.User) {
 	m.mu.Lock()

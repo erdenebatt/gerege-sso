@@ -555,8 +555,9 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		return
 	}
 
-	// Fetch DAN verification history
+	// Fetch verification histories
 	danHistory, _ := h.userService.GetDanVerificationLogs(user.ID)
+	registryHistory, _ := h.userService.GetRegistryVerifyLogs(user.ID)
 
 	// Build response
 	response := models.UserResponse{
@@ -569,9 +570,10 @@ func (h *AuthHandler) Me(c *gin.Context) {
 			"facebook": user.FacebookID.Valid,
 			"twitter":  user.TwitterID.Valid,
 		},
-		CreatedAt:  user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  user.UpdatedAt.Format(time.RFC3339),
-		DanHistory: danHistory,
+		CreatedAt:       user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       user.UpdatedAt.Format(time.RFC3339),
+		DanHistory:      danHistory,
+		RegistryHistory: registryHistory,
 		Gerege: models.GeregeInfo{
 			Verified: user.Verified,
 		},
@@ -662,9 +664,9 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 
 	middleware.RecordIdentityVerification(true)
 
-	// Log DAN verification
-	if err := h.userService.LogDanVerification(user.ID, req.RegNo, "reg_no"); err != nil {
-		log.Printf("Failed to log DAN verification: %v", err)
+	// Log registry verification
+	if err := h.userService.LogRegistryVerification(user.ID, req.RegNo); err != nil {
+		log.Printf("Failed to log registry verification: %v", err)
 	}
 
 	// Log audit

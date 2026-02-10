@@ -132,7 +132,7 @@ type TwitterUserInfo struct {
 	ProfileImageURL string `json:"profile_image_url"`
 }
 
-// DanVerificationLog represents a record of DAN verification
+// DanVerificationLog represents a record of DAN SSO verification
 type DanVerificationLog struct {
 	ID        int64     `json:"id"`
 	UserID    int64     `json:"user_id"`
@@ -141,17 +141,26 @@ type DanVerificationLog struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// RegistryVerifyLog represents a record of reg_no verification
+type RegistryVerifyLog struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	RegNo     string    `json:"reg_no"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // UserResponse represents the API response for user info
 type UserResponse struct {
-	GenID         string               `json:"gen_id"`
-	Email         string               `json:"email"`
-	Picture       string               `json:"picture,omitempty"`
-	Verified      bool                 `json:"verified"`
-	Providers     map[string]bool      `json:"providers"`
-	CreatedAt     string               `json:"created_at"`
-	UpdatedAt     string               `json:"updated_at"`
-	LastLoginAt   string               `json:"last_login_at,omitempty"`
-	DanVerifiedAt string               `json:"dan_verified_at,omitempty"`
-	DanHistory    []DanVerificationLog `json:"dan_history,omitempty"`
-	Gerege        GeregeInfo           `json:"gerege"`
+	GenID           string               `json:"gen_id"`
+	Email           string               `json:"email"`
+	Picture         string               `json:"picture,omitempty"`
+	Verified        bool                 `json:"verified"`
+	Providers       map[string]bool      `json:"providers"`
+	CreatedAt       string               `json:"created_at"`
+	UpdatedAt       string               `json:"updated_at"`
+	LastLoginAt     string               `json:"last_login_at,omitempty"`
+	DanVerifiedAt   string               `json:"dan_verified_at,omitempty"`
+	DanHistory      []DanVerificationLog `json:"dan_history,omitempty"`
+	RegistryHistory []RegistryVerifyLog  `json:"registry_history,omitempty"`
+	Gerege          GeregeInfo           `json:"gerege"`
 }

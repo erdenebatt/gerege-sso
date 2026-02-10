@@ -361,7 +361,7 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 	var citizenID int64
 	err := tx.QueryRow(`
 		INSERT INTO citizens (
-			civil_id, reg_no, family_name, last_name, first_name,
+			gerege_id, civil_id, reg_no, family_name, last_name, first_name,
 			sex, birth_date, phone_primary, email,
 			nationality, current_province, current_district,
 			residential_parent_address_id, residential_parent_address_name,
@@ -371,19 +371,19 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 			residential_address_detail,
 			ebarimt_tin
 		) VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9,
-			$10, $11, $12,
-			$13, $14,
-			$15, $16, $17,
-			$18, $19, $20,
-			$21, $22, $23,
-			$24,
-			$25
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10,
+			$11, $12, $13,
+			$14, $15,
+			$16, $17, $18,
+			$19, $20, $21,
+			$22, $23, $24,
+			$25,
+			$26
 		)
 		RETURNING id
 	`,
-		fmt.Sprintf("%d", resp.CivilID), resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
+		resp.ID, fmt.Sprintf("%d", resp.CivilID), resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
 		gender, birthDate, resp.PhoneNo, resp.Email,
 		resp.Nationality, resp.AimagName, resp.SumName,
 		resp.ResidentialParentAddressID, resp.ResidentialParentAddressName,

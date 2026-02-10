@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -1337,4 +1339,188 @@ func (h *AuthHandler) LoginActivity(c *gin.Context) {
 		"logins": logins,
 		"counts": counts,
 	})
+}
+
+// generateOTP generates a cryptographically random 6-digit OTP code
+func generateOTP() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+// maskPhone masks a phone number showing first 2 and last 2 digits (e.g. "99****12")
+func maskPhone(phone string) string {
+	if len(phone) < 4 {
+		return "****"
+	}
+	return phone[:2] + strings.Repeat("*", len(phone)-4) + phone[len(phone)-2:]
+}
+
+// SendPhoneOTP generates and stores an OTP for phone verification
+// @Summary Send phone OTP
+// @Description Sends a 6-digit OTP to the user's registered phone number for verification
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 429 {object} map[string]interface{}
+// @Router /api/auth/phone/send-otp [post]
+func (h *AuthHandler) SendPhoneOTP(c *gin.Context) {
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims := claimsVal.(*services.Claims)
+
+	// Find user with citizen data
+	user, err := h.userService.FindByGenID(claims.Subject)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Check phone number exists on citizen record
+	if user.Citizen == nil || !user.Citizen.PhoneNo.Valid || user.Citizen.PhoneNo.String == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Утасны дугаар олдсонгүй. Иргэний бүртгэлээ шалгана уу"})
+		return
+	}
+	phone := user.Citizen.PhoneNo.String
+
+	ctx := context.Background()
+	userIDStr := fmt.Sprintf("%d", user.ID)
+
+	// Check cooldown (60 seconds between requests)
+	cooldownKey := "phone_otp_cooldown:" + userIDStr
+	if _, err := h.redis.Get(ctx, cooldownKey).Result(); err == nil {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "60 секунд хүлээнэ үү"})
+		return
+	}
+
+	// Generate 6-digit OTP
+	otp, err := generateOTP()
+	if err != nil {
+		log.Printf("Failed to generate OTP: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OTP"})
+		return
+	}
+
+	// Store OTP in Redis: phone_otp:{user_id} → "{otp}:0" (0 attempts), TTL 5 minutes
+	otpKey := "phone_otp:" + userIDStr
+	h.redis.Set(ctx, otpKey, otp+":0", 5*time.Minute)
+
+	// Set cooldown: 60 seconds
+	h.redis.Set(ctx, cooldownKey, "1", 60*time.Second)
+
+	// TODO: Send SMS via provider here
+	// For dev mode, return OTP in response
+	response := gin.H{
+		"message": "OTP sent",
+		"phone":   maskPhone(phone),
+	}
+
+	// In dev mode, include OTP in response for testing
+	if os.Getenv("GIN_MODE") != "release" {
+		response["otp"] = otp
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// VerifyPhoneOTP verifies the OTP and updates verification level to 3
+// @Summary Verify phone OTP
+// @Description Verifies the 6-digit OTP code and sets verification_level to 3 (phone verified)
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body object true "OTP verification request" example({"otp":"123456"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /api/auth/phone/verify-otp [post]
+func (h *AuthHandler) VerifyPhoneOTP(c *gin.Context) {
+	claimsVal, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	claims := claimsVal.(*services.Claims)
+
+	var req struct {
+		OTP string `json:"otp" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	user, err := h.userService.FindByGenID(claims.Subject)
+	if err != nil || user == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	ctx := context.Background()
+	userIDStr := fmt.Sprintf("%d", user.ID)
+	otpKey := "phone_otp:" + userIDStr
+
+	// Get stored OTP
+	stored, err := h.redis.Get(ctx, otpKey).Result()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP хугацаа дууссан эсвэл илгээгээгүй байна"})
+		return
+	}
+
+	// Parse stored value: "{otp}:{attempts}"
+	parts := strings.SplitN(stored, ":", 2)
+	if len(parts) != 2 {
+		h.redis.Del(ctx, otpKey)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OTP data"})
+		return
+	}
+	storedOTP := parts[0]
+	attempts, _ := strconv.Atoi(parts[1])
+
+	// Check if OTP matches
+	if req.OTP != storedOTP {
+		attempts++
+		if attempts >= 5 {
+			// Max attempts reached, delete OTP
+			h.redis.Del(ctx, otpKey)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "OTP оролдлого хэтэрсэн. Дахин илгээнэ үү"})
+			return
+		}
+		// Update attempt count, preserve TTL
+		ttl, _ := h.redis.TTL(ctx, otpKey).Result()
+		if ttl > 0 {
+			h.redis.Set(ctx, otpKey, fmt.Sprintf("%s:%d", storedOTP, attempts), ttl)
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":           "OTP буруу байна",
+			"attempts_left":   5 - attempts,
+		})
+		return
+	}
+
+	// OTP correct — update verification level to 3
+	if err := h.userService.UpdateVerificationLevel(user.ID, 3); err != nil {
+		log.Printf("Failed to update verification level: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update verification"})
+		return
+	}
+
+	// Delete OTP from Redis
+	h.redis.Del(ctx, otpKey)
+
+	// Audit log
+	h.auditService.AddLog(user.ID, "phone_verified", map[string]interface{}{
+		"method": "otp",
+	}, c.ClientIP(), c.Request.UserAgent())
+
+	c.JSON(http.StatusOK, gin.H{"message": "Утасны баталгаажуулалт амжилттай"})
 }

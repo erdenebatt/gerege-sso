@@ -144,6 +144,17 @@ export const api = {
         method: 'DELETE',
       }),
 
+    sendPhoneOTP: () =>
+      fetchAPI<{ message: string; phone: string; otp?: string }>('/api/auth/phone/send-otp', {
+        method: 'POST',
+      }),
+
+    verifyPhoneOTP: (otp: string) =>
+      fetchAPI<{ message: string }>('/api/auth/phone/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ otp }),
+      }),
+
     danCallback: (regNo: string) =>
       fetchAPI<{ message: string; reg_no: string }>(
         `/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`

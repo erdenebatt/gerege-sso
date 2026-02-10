@@ -178,6 +178,10 @@ func main() {
 			auth.GET("/dan/authorized", authHandler.DanAuthorized)
 			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
 
+			// Phone verification
+			auth.POST("/phone/send-otp", middleware.JWTAuth(jwtService), authHandler.SendPhoneOTP)
+			auth.POST("/phone/verify-otp", middleware.JWTAuth(jwtService), authHandler.VerifyPhoneOTP)
+
 			// Login activity
 			auth.GET("/login-activity", middleware.JWTAuth(jwtService), authHandler.LoginActivity)
 

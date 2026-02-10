@@ -10,6 +10,7 @@ import {
   SecurityCard,
   GrantCard,
   FaceVerifyModal,
+  PhoneVerifyModal,
 } from '@/components/dashboard'
 import { api } from '@/lib/api'
 import { formatDateTime } from '@/lib/utils'
@@ -76,10 +77,11 @@ function getMethodFromDetails(details: string): string {
 }
 
 export default function DashboardPage() {
-  const { user, grants, revokeGrant } = useAuthStore()
+  const { user, grants, revokeGrant, fetchUser } = useAuthStore()
   const { showToast } = useToast()
 
   const [faceModalOpen, setFaceModalOpen] = useState(false)
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [revokeModalOpen, setRevokeModalOpen] = useState(false)
   const [revokeTarget, setRevokeTarget] = useState<{
     id: string
@@ -114,7 +116,7 @@ export default function DashboardPage() {
   const verificationLevel = getVerificationLevel(user)
 
   const handleVerifyPhone = () => {
-    showToast('Утасны баталгаажуулалт удахгүй...', 'info')
+    setPhoneModalOpen(true)
   }
 
   // Handle DAN verification navigation if needed, or just let Link handle it?
@@ -151,6 +153,11 @@ export default function DashboardPage() {
 
   const handleCopy = () => {
     showToast('Хуулагдлаа', 'success')
+  }
+
+  const handlePhoneSuccess = () => {
+    fetchUser()
+    showToast('Утасны баталгаажуулалт амжилттай', 'success')
   }
 
   const handleFaceSuccess = () => {
@@ -440,6 +447,13 @@ export default function DashboardPage() {
           </div>
         )}
       </Card>
+
+      {/* Phone Verify Modal */}
+      <PhoneVerifyModal
+        isOpen={phoneModalOpen}
+        onClose={() => setPhoneModalOpen(false)}
+        onSuccess={handlePhoneSuccess}
+      />
 
       {/* Face Verify Modal */}
       <FaceVerifyModal

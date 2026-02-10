@@ -10,6 +10,7 @@ type UserRepository interface {
 	CreateFromProvider(provider string, info *models.ProviderUserInfo, genID string) (*models.User, error)
 	LinkProviderID(userID int64, provider, providerID string) error
 	UpdateLastLogin(userID int64) error
+	UpdateVerificationLevel(userID int64, level int) error
 	LinkCitizen(userID int64, regNo string) error
 	FindCitizenByID(id int64) (*models.Citizen, error)
 	FindCitizenByRegNo(regNo string) (*models.Citizen, error)

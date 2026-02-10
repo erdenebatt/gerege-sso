@@ -50,8 +50,9 @@ type User struct {
 	EmailVerified bool           `json:"email_verified"`
 	Picture       sql.NullString `json:"picture"`
 	CitizenID     sql.NullInt64  `json:"citizen_id"`
-	Verified      bool           `json:"verified"`
-	CreatedAt     time.Time      `json:"created_at"`
+	Verified          bool           `json:"verified"`
+	VerificationLevel int            `json:"verification_level"`
+	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	LastLoginAt   sql.NullTime   `json:"last_login_at"`
 	Citizen       *Citizen       `json:"citizen,omitempty"`
@@ -77,7 +78,8 @@ type GeregeInfo struct {
 	Name       string `json:"name,omitempty"`
 	BirthDate  string `json:"birth_date,omitempty"`
 	Gender     string `json:"gender,omitempty"`
-	Verified   bool   `json:"verified"`
+	Verified          bool `json:"verified"`
+	VerificationLevel int  `json:"verification_level"`
 }
 
 // JWTClaims represents the JWT payload
@@ -154,8 +156,9 @@ type UserResponse struct {
 	GenID           string               `json:"gen_id"`
 	Email           string               `json:"email"`
 	Picture         string               `json:"picture,omitempty"`
-	Verified        bool                 `json:"verified"`
-	Providers       map[string]bool      `json:"providers"`
+	Verified          bool                 `json:"verified"`
+	VerificationLevel int                  `json:"verification_level"`
+	Providers         map[string]bool      `json:"providers"`
 	CreatedAt       string               `json:"created_at"`
 	UpdatedAt       string               `json:"updated_at"`
 	LastLoginAt     string               `json:"last_login_at,omitempty"`

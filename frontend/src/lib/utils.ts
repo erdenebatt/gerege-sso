@@ -62,13 +62,6 @@ export function getInitials(name: string | undefined): string {
     .slice(0, 2)
 }
 
-export function getVerificationLevel(user: {
-  verified: boolean
-  gerege?: { reg_no?: string }
-}): number {
-  let level = 1 // Email always verified via OAuth
-  if (user.verified && user.gerege?.reg_no) {
-    level = 3 // DAN verified
-  }
-  return level
+export function getVerificationLevel(user: { verification_level?: number }): number {
+  return user.verification_level || 1
 }

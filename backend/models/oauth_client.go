@@ -18,10 +18,11 @@ type OAuthClient struct {
 // ThirdPartyGeregeInfo is the enriched gerege claim for third-party tokens.
 // It intentionally excludes civil_id and reg_no.
 type ThirdPartyGeregeInfo struct {
-	GenID      string `json:"gen_id"`
-	FamilyName string `json:"family_name,omitempty"`
-	LastName   string `json:"last_name,omitempty"`
-	FirstName  string `json:"first_name,omitempty"`
-	BirthDate  string `json:"birth_date,omitempty"`
-	Gender     string `json:"gender,omitempty"`
+	GenID             string `json:"gen_id"`
+	FamilyName        string `json:"family_name,omitempty"`
+	LastName          string `json:"last_name,omitempty"`
+	FirstName         string `json:"first_name,omitempty"`
+	BirthDate         string `json:"birth_date,omitempty"`
+	Gender            string `json:"gender,omitempty"`
+	VerificationLevel int    `json:"verification_level"`
 }

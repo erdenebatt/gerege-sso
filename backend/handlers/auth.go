@@ -561,9 +561,10 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	// Build response
 	response := models.UserResponse{
-		GenID:    user.GenID,
-		Email:    user.Email,
-		Verified: user.Verified,
+		GenID:             user.GenID,
+		Email:             user.Email,
+		Verified:          user.Verified,
+		VerificationLevel: user.VerificationLevel,
 		Providers: map[string]bool{
 			"google":   user.GoogleSub.Valid,
 			"apple":    user.AppleSub.Valid,
@@ -575,7 +576,8 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		DanHistory:      danHistory,
 		RegistryHistory: registryHistory,
 		Gerege: models.GeregeInfo{
-			Verified: user.Verified,
+			Verified:          user.Verified,
+			VerificationLevel: user.VerificationLevel,
 		},
 	}
 
@@ -663,6 +665,11 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 	}
 
 	middleware.RecordIdentityVerification(true)
+
+	// Update verification level to 2 (registry verified)
+	if err := h.userService.UpdateVerificationLevel(user.ID, 2); err != nil {
+		log.Printf("Failed to update verification level: %v", err)
+	}
 
 	// Log registry verification
 	if err := h.userService.LogRegistryVerification(user.ID, req.RegNo); err != nil {
@@ -1144,6 +1151,11 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 		log.Printf("Failed to link citizen: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Update verification level to 4 (DAN verified)
+	if err := h.userService.UpdateVerificationLevel(user.ID, 4); err != nil {
+		log.Printf("Failed to update verification level: %v", err)
 	}
 
 	// Log DAN verification

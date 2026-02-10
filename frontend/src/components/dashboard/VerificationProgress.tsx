@@ -5,16 +5,18 @@ import { cn } from '@/lib/utils'
 
 interface VerificationProgressProps {
   level: number
+  onVerifyRegistry?: () => void
   onVerifyPhone?: () => void
   onVerifyDan?: () => void
-  onVerifyFace?: () => void
+  onVerifyEsign?: () => void
 }
 
 export function VerificationProgress({
   level,
+  onVerifyRegistry,
   onVerifyPhone,
   onVerifyDan,
-  onVerifyFace,
+  onVerifyEsign,
 }: VerificationProgressProps) {
   const steps = [
     {
@@ -22,16 +24,41 @@ export function VerificationProgress({
       label: 'Имэйл',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          />
         </svg>
       ),
+    },
+    {
+      id: 'registry',
+      label: 'Регистр',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      ),
+      action: onVerifyRegistry,
     },
     {
       id: 'phone',
       label: 'Утас',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+          />
         </svg>
       ),
       action: onVerifyPhone,
@@ -41,29 +68,41 @@ export function VerificationProgress({
       label: 'ДАН',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+          />
         </svg>
       ),
       action: onVerifyDan,
     },
     {
-      id: 'face',
-      label: 'Царай',
+      id: 'esign',
+      label: 'eSign',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+          />
         </svg>
       ),
-      action: onVerifyFace,
+      action: onVerifyEsign,
     },
   ]
 
-  const percentage = (level / 4) * 100
+  const percentage = (level / 5) * 100
 
   return (
     <Card hover>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Баталгаажуулалтын түвшин</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+          Баталгаажуулалтын түвшин
+        </h2>
         <Badge variant="success">Түвшин {level}</Badge>
       </div>
 
@@ -78,7 +117,7 @@ export function VerificationProgress({
       </div>
 
       {/* Steps */}
-      <div className="grid grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-5 gap-2 sm:gap-4">
         {steps.map((step, idx) => {
           const isCompleted = idx < level
           const isCurrent = idx === level
@@ -104,15 +143,15 @@ export function VerificationProgress({
               <span
                 className={cn(
                   'text-xs sm:text-sm',
-                  isCompleted ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'
+                  isCompleted
+                    ? 'text-slate-700 dark:text-slate-300'
+                    : 'text-slate-400 dark:text-slate-500'
                 )}
               >
                 {step.label}
               </span>
               {isCompleted ? (
-                <div className="text-xs text-indigo-500 mt-1">
-                  ✓ Баталгаажсан
-                </div>
+                <div className="text-xs text-indigo-500 mt-1">✓ Баталгаажсан</div>
               ) : step.action ? (
                 <button
                   onClick={step.action}

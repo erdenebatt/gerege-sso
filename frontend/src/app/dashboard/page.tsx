@@ -176,7 +176,6 @@ export default function DashboardPage() {
           level={verificationLevel}
           onVerifyPhone={handleVerifyPhone}
           onVerifyDan={handleVerifyDan}
-          onVerifyFace={() => setFaceModalOpen(true)}
         />
       </div>
 

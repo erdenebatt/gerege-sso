@@ -89,6 +89,10 @@ func (m *MockUserRepository) UpdateLastLogin(userID int64) error {
 	return nil
 }
 
+func (m *MockUserRepository) UpdateVerificationLevel(userID int64, level int) error {
+	return nil
+}
+
 func (m *MockUserRepository) LinkCitizen(userID int64, regNo string) error {
 	return nil
 }

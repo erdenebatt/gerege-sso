@@ -13,6 +13,7 @@ export interface User {
   email: string
   picture?: string
   verified: boolean
+  verification_level: number
   providers: Record<string, boolean>
   gerege: GeregeInfo
   created_at?: string
@@ -55,7 +56,8 @@ export interface LoginActivityResponse {
 export interface VerificationLevel {
   level: number
   email: boolean
+  registry: boolean
   phone: boolean
   dan: boolean
-  face: boolean
+  esign: boolean
 }

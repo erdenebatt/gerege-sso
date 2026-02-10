@@ -20,7 +20,7 @@ var providerColumns = map[string]string{
 }
 
 // userColumns is the standard set of columns selected for user queries
-const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, created_at, updated_at, last_login_at`
+const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, verification_level, created_at, updated_at, last_login_at`
 
 // UserService handles user-related operations
 type UserService struct {
@@ -49,7 +49,7 @@ func scanUser(row scannable) (*models.User, error) {
 	err := row.Scan(
 		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub,
 		&user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
-		&user.Picture, &user.CitizenID, &user.Verified,
+		&user.Picture, &user.CitizenID, &user.Verified, &user.VerificationLevel,
 		&user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
 	)
 	if err == sql.ErrNoRows {
@@ -105,8 +105,8 @@ func (s *UserService) CreateFromProvider(provider string, info *models.ProviderU
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO users (gen_id, %s, email, email_verified, picture, verified)
-		VALUES ($1, $2, $3, $4, $5, false)
+		INSERT INTO users (gen_id, %s, email, email_verified, picture, verified, verification_level)
+		VALUES ($1, $2, $3, $4, $5, false, 1)
 		RETURNING %s
 	`, col, userColumns)
 
@@ -233,6 +233,15 @@ func (s *UserService) UpdateLastLogin(userID int64) error {
 	_, err := s.db.Exec(`
 		UPDATE users SET last_login_at = $1 WHERE id = $2
 	`, time.Now(), userID)
+	return err
+}
+
+// UpdateVerificationLevel updates a user's verification level (only increases, never decreases)
+func (s *UserService) UpdateVerificationLevel(userID int64, level int) error {
+	_, err := s.db.Exec(
+		`UPDATE users SET verification_level = $1 WHERE id = $2 AND verification_level < $1`,
+		level, userID,
+	)
 	return err
 }
 

@@ -46,7 +46,8 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 
 	// Build gerege claim
 	gerege := models.GeregeInfo{
-		Verified: user.Verified,
+		Verified:          user.Verified,
+		VerificationLevel: user.VerificationLevel,
 	}
 
 	// If user has associated citizen data
@@ -133,7 +134,8 @@ func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string,
 	expiresAt := now.Add(1 * time.Hour) // 1h for third-party (vs 24h first-party)
 
 	gerege := models.ThirdPartyGeregeInfo{
-		GenID: user.GenID,
+		GenID:             user.GenID,
+		VerificationLevel: user.VerificationLevel,
 	}
 
 	// Enrich with citizen data only if user is verified

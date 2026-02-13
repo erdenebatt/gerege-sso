@@ -1,154 +1,149 @@
-# Gerege SSO — Гуравдагч талын апп холболтын гарын авлага
+# Gerege SSO — 3rd Party App Integration Guide
 
-## Тойм
+## Overview
 
-Gerege SSO нь OAuth 2.0 зөвшөөрлийн сервер бөгөөд гуравдагч талын аппликейшнүүдэд хэрэглэгчдийг Gerege бүртгэлээр нь нэвтрүүлэх боломж олгодог. Энэ баримт бичигт таны аппликейшнийг Gerege SSO-тэй холбох бүрэн гарын авлагыг багтаасан болно.
+Gerege SSO is an OAuth 2.0 Authorization Server that allows third-party applications to authenticate users via their Gerege identity. This document provides a complete guide for integrating your application with Gerege SSO.
 
-**Суурь URL:** `https://sso.gerege.mn`
-
----
-
-## Агуулга
-
-1. [Хэрхэн ажилладаг вэ](#хэрхэн-ажилладаг-вэ)
-2. [Урьдчилсан нөхцөл](#урьдчилсан-нөхцөл)
-3. [Алхам 1: Аппликейшнээ бүртгүүлэх](#алхам-1-аппликейшнээ-бүртгүүлэх)
-4. [Алхам 2: Хэрэглэгчийг зөвшөөрөл рүү чиглүүлэх](#алхам-2-хэрэглэгчийг-зөвшөөрөл-рүү-чиглүүлэх)
-5. [Алхам 3: Callback боловсруулах](#алхам-3-callback-боловсруулах)
-6. [Алхам 4: Кодыг Access Token-оор солих](#алхам-4-кодыг-access-token-оор-солих)
-7. [Алхам 5: Access Token ашиглах](#алхам-5-access-token-ашиглах)
-8. [PKCE дэмжлэг (Мобайл / SPA)](#pkce-дэмжлэг-мобайл--spa)
-9. [Token-ий бүтэц](#token-ий-бүтэц)
-10. [Хамрах хүрээ (Scopes)](#хамрах-хүрээ-scopes)
-11. [Баталгаажуулалтын түвшин](#баталгаажуулалтын-түвшин)
-12. [Хэрэглэгчийн зөвшөөрлийн удирдлага](#хэрэглэгчийн-зөвшөөрлийн-удирдлага)
-13. [Аюулгүй байдлын зөвлөмж](#аюулгүй-байдлын-зөвлөмж)
-14. [Алдааны боловсруулалт](#алдааны-боловсруулалт)
-15. [Бүрэн жишээнүүд](#бүрэн-жишээнүүд)
+**Base URL:** `https://sso.gerege.mn`
 
 ---
 
-## Хэрхэн ажилладаг вэ
+## Table of Contents
 
-Gerege SSO нь **OAuth 2.0 Authorization Code Flow** хэрэгжүүлдэг. Ерөнхий дараалал:
+1. [How It Works](#how-it-works)
+2. [Prerequisites](#prerequisites)
+3. [Step 1: Register Your Application](#step-1-register-your-application)
+4. [Step 2: Redirect Users to Authorization](#step-2-redirect-users-to-authorization)
+5. [Step 3: Handle the Callback](#step-3-handle-the-callback)
+6. [Step 4: Exchange Code for Access Token](#step-4-exchange-code-for-access-token)
+7. [Step 5: Use the Access Token](#step-5-use-the-access-token)
+8. [PKCE Support (Mobile / SPA)](#pkce-support-mobile--spa)
+9. [Token Structure](#token-structure)
+10. [Scopes](#scopes)
+11. [Verification Levels](#verification-levels)
+12. [User Grant Management](#user-grant-management)
+13. [Security Best Practices](#security-best-practices)
+14. [Error Handling](#error-handling)
+15. [Complete Examples](#complete-examples)
+
+---
+
+## How It Works
+
+Gerege SSO implements the **OAuth 2.0 Authorization Code Flow**. Here is the high-level sequence:
 
 ```
 ┌──────────┐     ┌──────────────┐     ┌────────────┐
-│ Таны апп │     │  Gerege SSO  │     │ Хэрэглэгч- │
-│ (Client) │     │   Сервер     │     │ ийн Browser │
+│ Your App │     │  Gerege SSO  │     │   User's   │
+│ (Client) │     │   Server     │     │  Browser   │
 └────┬─────┘     └──────┬───────┘     └─────┬──────┘
      │                  │                    │
-     │  1. /api/oauth/authorize руу          │
-     │     чиглүүлэх                         │
+     │  1. Redirect to /api/oauth/authorize  │
      │ ─────────────────────────────────────>│
      │                  │                    │
-     │                  │  2. Хэрэглэгч     │
-     │                  │     нэвтэрнэ      │
+     │                  │  2. User logs in   │
      │                  │<───────────────────│
      │                  │                    │
-     │                  │  3. Зөвшөөрлийн    │
-     │                  │     дэлгэц         │
+     │                  │  3. Consent screen  │
      │                  │───────────────────>│
      │                  │                    │
-     │                  │  4. Хэрэглэгч     │
-     │                  │     зөвшөөрнө     │
+     │                  │  4. User approves   │
      │                  │<───────────────────│
      │                  │                    │
-     │  5. Authorization code-тэй           │
-     │     callback руу чиглүүлэх            │
+     │  5. Redirect to your callback with    │
+     │     authorization code                │
      │<──────────────────────────────────────│
      │                  │                    │
      │  6. POST /api/oauth/token             │
-     │     (кодыг token-оор солих)           │
+     │     (exchange code for token)         │
      │ ────────────────>│                    │
      │                  │                    │
-     │  7. Access token буцаана              │
+     │  7. Access token returned             │
      │<─────────────────│                    │
      │                  │                    │
-     │  8. Token ашиглан хэрэглэгчийг       │
-     │     таних                             │
+     │  8. Use token to identify user        │
      │                  │                    │
 ```
 
 ---
 
-## Урьдчилсан нөхцөл
+## Prerequisites
 
-Холболт хийхээс өмнө танд дараах зүйлс хэрэгтэй:
+Before integrating, you need:
 
-- Бүртгэгдсэн OAuth client (Gerege SSO админаас авна)
-- HTTP хүсэлт илгээх чадвартай backend сервер (token солилцооны хувьд)
-- Production орчинд HTTPS идэвхжүүлсэн redirect URI
+- A registered OAuth client (obtained from the Gerege SSO admin)
+- A backend server capable of making HTTP requests (for token exchange)
+- HTTPS-enabled redirect URI(s) for production
 
 ---
 
-## Алхам 1: Аппликейшнээ бүртгүүлэх
+## Step 1: Register Your Application
 
-Gerege SSO админтай холбогдож аппликейшнээ бүртгүүлнэ. Дараах мэдээллийг өгөх шаардлагатай:
+Contact the Gerege SSO administrator to register your application. You will need to provide:
 
-| Талбар | Тайлбар | Жишээ |
-|--------|---------|-------|
-| `name` | Аппликейшний нэр | `"Миний апп"` |
-| `redirect_uris` | Зөвшөөрлийн дараа хэрэглэгчийг буцаах URL | `["https://myapp.mn/callback"]` |
-| `scopes` | Хүсэж буй өгөгдлийн хамрах хүрээ | `["openid", "profile"]` |
+| Field | Description | Example |
+|-------|-------------|---------|
+| `name` | Your application name | `"My Awesome App"` |
+| `redirect_uris` | Callback URL(s) where users are sent after authorization | `["https://myapp.mn/callback"]` |
+| `scopes` | Requested data access scopes | `["openid", "profile"]` |
 
-Бүртгүүлсний дараа танд дараах зүйлс олгогдоно:
+Upon registration, you will receive:
 
-| Мэдээлэл | Тайлбар |
-|-----------|---------|
-| `client_id` | 64 тэмдэгтийн нийтийн танигч (public identifier) |
-| `client_secret` | 64 тэмдэгтийн нууц түлхүүр (зөвхөн нэг удаа харуулна — аюулгүй хадгалаарай!) |
+| Credential | Description |
+|------------|-------------|
+| `client_id` | 64-character public identifier for your app |
+| `client_secret` | 64-character secret key (shown only once — store it securely!) |
 
-> **Анхааруулга:** `client_secret` нь зөвхөн үүсгэх үед харагдана. Хэрэв алдвал шинэ client бүртгүүлэх шаардлагатай.
+> **Warning:** The `client_secret` is displayed only at creation time. If lost, a new client must be registered.
 
-### Admin API (зөвхөн SSO админуудад)
+### Admin API (for SSO administrators only)
 
 ```bash
-# Шинэ client бүртгэх
+# Register a new client
 curl -X POST https://sso.gerege.mn/api/admin/clients \
   -H "X-API-Key: <ADMIN_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Миний апп",
+    "name": "My Awesome App",
     "redirect_uris": ["https://myapp.mn/callback"],
     "scopes": ["openid", "profile"]
   }'
 
-# Хариу
+# Response
 {
-  "client_id": "a1b2c3d4e5f6...64тэмдэгт",
-  "client_secret": "x9y8z7w6v5u4...64тэмдэгт"
+  "client_id": "a1b2c3d4e5f6...64chars",
+  "client_secret": "x9y8z7w6v5u4...64chars"
 }
 ```
 
 ---
 
-## Алхам 2: Хэрэглэгчийг зөвшөөрөл рүү чиглүүлэх
+## Step 2: Redirect Users to Authorization
 
-Хэрэглэгч таны апп дээр "Gerege-ээр нэвтрэх" товчийг дарахад тэднийг дараах хаяг руу чиглүүлнэ:
+When a user clicks "Login with Gerege" in your app, redirect them to:
 
 ```
 GET https://sso.gerege.mn/api/oauth/authorize
 ```
 
-### Заавал шаардлагатай параметрүүд
+### Required Parameters
 
-| Параметр | Төрөл | Тайлбар |
-|----------|-------|---------|
-| `client_id` | string | Бүртгэгдсэн client ID |
-| `redirect_uri` | string | Бүртгэгдсэн URI-уудын аль нэгтэй яг таарах ёстой |
-| `response_type` | string | `"code"` байх ёстой |
-| `scope` | string | Зайгаар тусгаарласан хамрах хүрээ (жнь: `"openid profile"`) |
-| `state` | string | CSRF хамгаалалтын санамсаргүй тэмдэгт мөр (та үүсгэнэ) |
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `client_id` | string | Your registered client ID |
+| `redirect_uri` | string | Must exactly match one of your registered URIs |
+| `response_type` | string | Must be `"code"` |
+| `scope` | string | Space-separated scopes (e.g., `"openid profile"`) |
+| `state` | string | Random string for CSRF protection (you generate this) |
 
-### Нэмэлт параметрүүд (PKCE)
+### Optional Parameters (PKCE)
 
-| Параметр | Төрөл | Тайлбар |
-|----------|-------|---------|
-| `code_challenge` | string | code_verifier-ийн SHA256 hash, Base64url кодлогдсон |
-| `code_challenge_method` | string | `"S256"` (санал болгох) эсвэл `"plain"` |
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `code_challenge` | string | Base64url-encoded SHA256 hash of code_verifier |
+| `code_challenge_method` | string | `"S256"` (recommended) or `"plain"` |
 
-### Жишээ URL
+### Example URL
 
 ```
 https://sso.gerege.mn/api/oauth/authorize?
@@ -159,64 +154,64 @@ https://sso.gerege.mn/api/oauth/authorize?
   state=random_csrf_token_abc123
 ```
 
-### Дараа нь юу болох вэ
+### What Happens Next
 
-1. Хэрэглэгч **нэвтрээгүй** бол → Gerege SSO нэвтрэх хуудас руу чиглүүлэгдэнэ (Google, Apple, Facebook, Twitter-ээр нэвтрэх боломжтой)
-2. Хэрэглэгч **нэвтэрсэн боловч таны аппыг зөвшөөрөөгүй** бол → таны апп ямар өгөгдөлд хандахыг хүсч байгааг харуулсан зөвшөөрлийн дэлгэц гарна
-3. Хэрэглэгч **аль хэдийн зөвшөөрсөн** бол → authorization code-тэй шууд таны апп руу чиглүүлэгдэнэ
+1. If the user is **not logged in** → they are redirected to the Gerege SSO login page where they can sign in via Google, Apple, Facebook, or Twitter
+2. If the user is **logged in but hasn't approved your app** → they see a consent screen showing what data your app is requesting
+3. If the user **has already approved** → they are immediately redirected back to your app with an authorization code
 
 ---
 
-## Алхам 3: Callback боловсруулах
+## Step 3: Handle the Callback
 
-Хэрэглэгч таны аппыг зөвшөөрсөн (эсвэл татгалзсан) дараа Gerege SSO тэдний browser-ийг таны `redirect_uri` руу чиглүүлнэ:
+After the user approves (or denies) your app, Gerege SSO redirects their browser to your `redirect_uri`:
 
-### Амжилттай зөвшөөрөл
+### Successful Authorization
 
 ```
 https://myapp.mn/callback?code=AUTH_CODE_HERE&state=random_csrf_token_abc123
 ```
 
-| Параметр | Тайлбар |
-|----------|---------|
-| `code` | Authorization код (нэг удаагийн, 5 минутын дотор дуусна) |
-| `state` | Таны илгээсэн state утга — **таарч байгаа эсэхийг заавал шалгаарай!** |
+| Parameter | Description |
+|-----------|-------------|
+| `code` | Authorization code (single-use, expires in 5 minutes) |
+| `state` | The same state value you sent — **verify this matches!** |
 
-### Татгалзсан эсвэл алдаа
+### Denied or Error
 
 ```
 https://myapp.mn/callback?error=access_denied&state=random_csrf_token_abc123
 ```
 
-### Таны callback handler дараах зүйлийг хийх ёстой:
+### Your Callback Handler Should:
 
-1. `state` параметр нь хэрэглэгчийн session-д хадгалсан утгатай **таарч** байгааг шалгах
-2. `code` параметрийг **авах**
-3. Кодыг access token-оор **солих** (дараагийн алхам)
+1. **Verify** that the `state` parameter matches the one you stored in the user's session
+2. **Extract** the `code` parameter
+3. **Exchange** the code for an access token (next step)
 
 ---
 
-## Алхам 4: Кодыг Access Token-оор солих
+## Step 4: Exchange Code for Access Token
 
-Authorization кодыг access token-оор солихын тулд сервер-сервер POST хүсэлт илгээнэ:
+Make a server-to-server POST request to exchange the authorization code for an access token:
 
 ```
 POST https://sso.gerege.mn/api/oauth/token
 Content-Type: application/x-www-form-urlencoded
 ```
 
-### Хүсэлтийн параметрүүд
+### Request Parameters
 
-| Параметр | Төрөл | Заавал эсэх | Тайлбар |
-|----------|-------|-------------|---------|
-| `grant_type` | string | Тийм | `"authorization_code"` байх ёстой |
-| `code` | string | Тийм | Callback-аас ирсэн authorization код |
-| `redirect_uri` | string | Тийм | Алхам 2-т ашигласан URI-тай таарах ёстой |
-| `client_id` | string | Тийм | Таны client ID |
-| `client_secret` | string | Тийм | Таны client secret |
-| `code_verifier` | string | PKCE бол | Анхны code_verifier (PKCE ашигласан бол) |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `grant_type` | string | Yes | Must be `"authorization_code"` |
+| `code` | string | Yes | The authorization code from the callback |
+| `redirect_uri` | string | Yes | Must match the URI used in Step 2 |
+| `client_id` | string | Yes | Your client ID |
+| `client_secret` | string | Yes | Your client secret |
+| `code_verifier` | string | If PKCE | The original code_verifier (if PKCE was used) |
 
-### Жишээ хүсэлт
+### Example Request
 
 ```bash
 curl -X POST https://sso.gerege.mn/api/oauth/token \
@@ -228,7 +223,7 @@ curl -X POST https://sso.gerege.mn/api/oauth/token \
   -d "client_secret=x9y8z7w6v5u4..."
 ```
 
-### Амжилттай хариу
+### Successful Response
 
 ```json
 {
@@ -238,20 +233,20 @@ curl -X POST https://sso.gerege.mn/api/oauth/token \
 }
 ```
 
-> **Чухал:** Authorization код нь **нэг удаагийн** хэрэглээтэй. Солилцоо амжилтгүй болвол хэрэглэгч дахин зөвшөөрөл өгөх шаардлагатай.
+> **Important:** The authorization code is **single-use**. If the exchange fails, the user must re-authorize.
 
 ---
 
-## Алхам 5: Access Token ашиглах
+## Step 5: Use the Access Token
 
-`access_token` нь хэрэглэгчийн мэдээллийг агуулсан JWT юм. Үүнийг decode хийж хэрэглэгчийн өгөгдлийг гаргаж авч болно.
+The `access_token` is a JWT that contains the user's identity information. You can decode it to extract user data.
 
-### Token-ийг decode хийх
+### Decoding the Token
 
-Token нь HS256-аар гарын үсэг зурагдсан. JWT payload-ыг decode хийж хэрэглэгчийн claim-уудад хандана:
+The token is signed with HS256. Decode the JWT payload to access user claims:
 
 ```javascript
-// Жишээ: JWT payload decode хийх (Node.js)
+// Example: Decode JWT payload (Node.js)
 const token = "eyJhbGciOiJIUzI1NiIs...";
 const payload = JSON.parse(
   Buffer.from(token.split('.')[1], 'base64').toString()
@@ -278,55 +273,55 @@ console.log(payload);
 // }
 ```
 
-### Хэрэглэгчийн гол талбарууд
+### Key User Fields
 
-| Claim | Төрөл | Тайлбар |
-|-------|-------|---------|
-| `sub` | string | Давтагдашгүй Gerege ID (11 оронтой) — хэрэглэгчийн танигч болгон ашиглана |
-| `email` | string | Хэрэглэгчийн имэйл хаяг |
-| `picture` | string | Профайл зургийн URL |
-| `email_verified` | boolean | Имэйл баталгаажсан эсэх |
-| `gerege.gen_id` | string | `sub`-тай ижил — Gerege ID |
-| `gerege.first_name` | string | Хэрэглэгчийн нэр |
-| `gerege.last_name` | string | Хэрэглэгчийн овог |
-| `gerege.family_name` | string | Хэрэглэгчийн ургийн овог |
-| `gerege.birth_date` | string | Төрсөн огноо (`YYYY-MM-DD`) |
-| `gerege.gender` | string | `"1"` = Эрэгтэй, `"2"` = Эмэгтэй |
-| `gerege.verification_level` | integer | Баталгаажуулалтын түвшин (1–4) |
-| `aud` | string | Таны `client_id` — таны апптай таарч байгааг шалгаарай |
-| `iss` | string | Олгогч — `"https://sso.gerege.mn"` байх ёстой |
-| `exp` | integer | Token-ий дуусах хугацаа (Unix timestamp) |
+| Claim | Type | Description |
+|-------|------|-------------|
+| `sub` | string | Unique Gerege ID (11 digits) — use this as the user identifier |
+| `email` | string | User's email address |
+| `picture` | string | Profile picture URL |
+| `email_verified` | boolean | Whether email is verified by the OAuth provider |
+| `gerege.gen_id` | string | Same as `sub` — the Gerege ID |
+| `gerege.first_name` | string | User's first name (Mongolian) |
+| `gerege.last_name` | string | User's last name |
+| `gerege.family_name` | string | User's family name |
+| `gerege.birth_date` | string | Date of birth (`YYYY-MM-DD`) |
+| `gerege.gender` | string | `"1"` = Male, `"2"` = Female |
+| `gerege.verification_level` | integer | Identity verification level (1–4) |
+| `aud` | string | Your `client_id` — verify this matches your app |
+| `iss` | string | Issuer — should be `"https://sso.gerege.mn"` |
+| `exp` | integer | Token expiration (Unix timestamp) |
 
-> **Нууцлал:** `reg_no` (регистрийн дугаар) болон `civil_id` нь гуравдагч талын token-д **хэзээ ч** орохгүй. Эдгээр мэдрэмтгий талбарууд зөвхөн Gerege SSO системийн дотор ашиглагдана.
+> **Privacy:** The `reg_no` (registration number) and `civil_id` are **never** included in third-party tokens. These sensitive fields are only available within the Gerege SSO system itself.
 
 ---
 
-## PKCE дэмжлэг (Мобайл / SPA)
+## PKCE Support (Mobile / SPA)
 
-`client_secret`-ийг аюулгүй хадгалах боломжгүй мобайл апп болон SPA (Single Page Application)-д зориулж Gerege SSO нь **PKCE (Proof Key for Code Exchange)** дэмждэг.
+For mobile apps and single-page applications (SPAs) where the `client_secret` cannot be stored securely, Gerege SSO supports **PKCE (Proof Key for Code Exchange)**.
 
-### PKCE хэрхэн ажилладаг
+### How PKCE Works
 
-1. **`code_verifier` үүсгэх** — санамсаргүй тэмдэгт мөр (43–128 тэмдэгт)
-2. **`code_challenge` гаргах** — verifier-ийн SHA256 hash, base64url кодлогдсон
-3. **`code_challenge`-ийг** зөвшөөрлийн хүсэлтэд илгээх
-4. **`code_verifier`-ийг** token солилцооны хүсэлтэд илгээх
-5. Сервер SHA256(verifier) нь challenge-тай таарч байгааг шалгана
+1. **Generate a `code_verifier`** — a random string (43–128 characters)
+2. **Derive a `code_challenge`** — SHA256 hash of the verifier, base64url-encoded
+3. **Send `code_challenge`** in the authorization request
+4. **Send `code_verifier`** in the token exchange request
+5. Server verifies that SHA256(verifier) matches the challenge
 
-### Жишээ хэрэгжүүлэлт
+### Example Implementation
 
 ```javascript
-// 1. code_verifier үүсгэх
+// 1. Generate code_verifier
 const crypto = require('crypto');
 const codeVerifier = crypto.randomBytes(32).toString('base64url');
 
-// 2. code_challenge гаргах
+// 2. Derive code_challenge
 const codeChallenge = crypto
   .createHash('sha256')
   .update(codeVerifier)
   .digest('base64url');
 
-// 3. PKCE-тэй зөвшөөрлийн URL
+// 3. Authorization URL with PKCE
 const authUrl = `https://sso.gerege.mn/api/oauth/authorize?` +
   `client_id=${CLIENT_ID}&` +
   `redirect_uri=${REDIRECT_URI}&` +
@@ -336,7 +331,7 @@ const authUrl = `https://sso.gerege.mn/api/oauth/authorize?` +
   `code_challenge=${codeChallenge}&` +
   `code_challenge_method=S256`;
 
-// 4. code_verifier-тэй token солилцоо
+// 4. Token exchange with code_verifier
 const tokenResponse = await fetch('https://sso.gerege.mn/api/oauth/token', {
   method: 'POST',
   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -353,9 +348,9 @@ const tokenResponse = await fetch('https://sso.gerege.mn/api/oauth/token', {
 
 ---
 
-## Token-ий бүтэц
+## Token Structure
 
-### Гуравдагч талын Access Token (1 цагийн хүчинтэй хугацаа)
+### Third-Party Access Token (1-hour expiry)
 
 ```json
 {
@@ -380,62 +375,62 @@ const tokenResponse = await fetch('https://sso.gerege.mn/api/oauth/token', {
 }
 ```
 
-### Token-ий чухал мэдээлэл
+### Important Token Details
 
-| Шинж чанар | Утга |
-|------------|------|
-| Алгоритм | HS256 (HMAC-SHA256) |
-| Хүчинтэй хугацаа | 1 цаг (3600 секунд) |
-| Олгогч (Issuer) | `https://sso.gerege.mn` |
-| Хүлээн авагч (Audience) | Таны `client_id` |
+| Property | Value |
+|----------|-------|
+| Algorithm | HS256 (HMAC-SHA256) |
+| Expiry | 1 hour (3600 seconds) |
+| Issuer | `https://sso.gerege.mn` |
+| Audience | Your `client_id` |
 
-### Token шалгах жагсаалт
+### Token Validation Checklist
 
-Таны сервер token хүлээж авахдаа дараахыг шалгана:
+When your server receives a token, verify:
 
-1. **Гарын үсэг** — HS256 гарын үсгийг баталгаажуулах (хуваалцсан JWT secret шаардлагатай)
-2. **Хүчинтэй хугацаа** — `exp` > одоогийн цаг эсэхийг шалгах
-3. **Олгогч** — `iss` == `"https://sso.gerege.mn"` эсэхийг шалгах
-4. **Хүлээн авагч** — `aud` == таны `client_id` эсэхийг шалгах
-
----
-
-## Хамрах хүрээ (Scopes)
-
-| Хамрах хүрээ | Тайлбар | Агуулагдах өгөгдөл |
-|-------------|---------|---------------------|
-| `openid` | Үндсэн таниулалт | `sub` (Gerege ID), `iss`, `aud` |
-| `profile` | Хэрэглэгчийн профайл | `first_name`, `last_name`, `family_name`, `birth_date`, `gender`, `picture` |
-| `email` | Имэйл хаяг | `email`, `email_verified` |
-
-Хамрах хүрээ заагаагүй бол анхдагч утга: `openid`, `profile`.
+1. **Signature** — Validate the HS256 signature (requires shared JWT secret)
+2. **Expiry** — Check that `exp` > current time
+3. **Issuer** — Check that `iss` == `"https://sso.gerege.mn"`
+4. **Audience** — Check that `aud` == your `client_id`
 
 ---
 
-## Баталгаажуулалтын түвшин
+## Scopes
 
-Хэрэглэгч бүр өөрийн биеийн байцаалт хэр баталгаажсаныг илэрхийлэх `verification_level` утгатай:
+| Scope | Description | Data Included |
+|-------|-------------|---------------|
+| `openid` | Basic identity | `sub` (Gerege ID), `iss`, `aud` |
+| `profile` | User profile | `first_name`, `last_name`, `family_name`, `birth_date`, `gender`, `picture` |
+| `email` | Email address | `email`, `email_verified` |
 
-| Түвшин | Нэр | Тайлбар | Итгэлцлийн түвшин |
-|--------|-----|---------|-------------------|
-| 1 | Имэйл баталгаажсан | OAuth нийлүүлэгчээр (Google, Apple г.м.) нэвтэрсэн | Суурь |
-| 2 | Утас баталгаажсан | Утасны дугаараа OTP-ээр баталгаажуулсан | Дунд |
-| 3 | Регистр баталгаажсан | Регистрийн дугаар иргэний бүртгэлтэй таарсан | Өндөр |
-| 4 | ДАН баталгаажсан | Монголын Дижитал ID (ДАН) системээр баталгаажсан | Хамгийн өндөр |
+Default scopes if not specified: `openid`, `profile`.
 
-### Баталгаажуулалтын түвшин ашиглах
+---
 
-Та `verification_level` claim-ийг ашиглан аппдаа хандалтын хяналт хийж болно:
+## Verification Levels
+
+Each user has a `verification_level` indicating how thoroughly their identity has been verified:
+
+| Level | Name | Description | Trust Level |
+|-------|------|-------------|-------------|
+| 1 | Email Verified | User authenticated via OAuth provider (Google, Apple, etc.) | Basic |
+| 2 | Phone Verified | User verified their phone number via OTP | Medium |
+| 3 | Registry Verified | User's registration number matched against civil registry | High |
+| 4 | DAN Verified | User verified via Mongolia's Digital ID (DAN) system | Highest |
+
+### Using Verification Levels
+
+You can use the `verification_level` claim to enforce access control in your app:
 
 ```javascript
 const payload = decodeJWT(accessToken);
 const level = payload.gerege.verification_level;
 
 if (level < 3) {
-  // Мэдрэмтгий үйлдлүүдэд өндөр баталгаажуулалт шаардах
+  // Require higher verification for sensitive operations
   return res.status(403).json({
-    error: "Биеийн байцаалт шаардлагатай",
-    message: "Энэ боломжийг ашиглахын өмнө sso.gerege.mn дээр биеийн байцаалтаа баталгаажуулна уу",
+    error: "Identity verification required",
+    message: "Please verify your identity on sso.gerege.mn before using this feature",
     required_level: 3,
     current_level: level
   });
@@ -444,87 +439,87 @@ if (level < 3) {
 
 ---
 
-## Хэрэглэгчийн зөвшөөрлийн удирдлага
+## User Grant Management
 
-Хэрэглэгчид Gerege SSO хяналтын самбараас гуравдагч талын апп-уудад олгосон хандалтаа харж, цуцлах боломжтой.
+Users can view and revoke access granted to third-party apps from their Gerege SSO dashboard.
 
-### Хэрэглэгч хандалтыг цуцлахад юу болох
+### What Happens When a User Revokes Access
 
-- `user_grants` хүснэгтийн бичлэг цуцлагдсан гэж тэмдэглэгдэнэ
-- Таны апп дараагийн нэвтрэлтийн оролдлого дээр хэрэглэгчийг дахин зөвшөөрөл авах шаардлагатай болно
-- Одоо байгаа token-ууд хүчинтэй хугацаа дуустал (хамгийн ихдээ 1 цаг) хүчинтэй хэвээр үлдэнэ
+- The grant entry in `user_grants` is marked as revoked
+- Your app will need the user to re-authorize on the next login attempt
+- Existing tokens remain valid until they expire (1 hour max)
 
-### Дахин зөвшөөрлийн урсгал
+### Re-Authorization Flow
 
-Хэрэглэгч таны аппын хандалтыг цуцалсны дараа дахин нэвтрэх оролдлого хийвэл:
+If a user has revoked your app's access and tries to log in again:
 
-1. Хэрэглэгч зөвшөөрлийн дэлгэц рүү чиглүүлэгдэнэ
-2. Хэрэглэгч таны аппыг дахин зөвшөөрөх ёстой
-3. Шинэ зөвшөөрөл үүснэ
-4. Хэвийн урсгал үргэлжлэнэ
-
----
-
-## Аюулгүй байдлын зөвлөмж
-
-### Заавал хийх
-
-- **`client_secret`-ийг аюулгүй хадгалах** — frontend код, мобайл апп, нийтийн репозитори-д хэзээ ч ил гаргахгүй
-- **`state` параметрийг заавал шалгах** — CSRF халдлагаас хамгаална
-- **HTTPS ашиглах** — production орчинд бүх redirect URI-д
-- **Token claim-уудыг шалгах** — өгөгдөлд итгэхээс өмнө `iss`, `aud`, `exp` шалгах
-- **PKCE ашиглах** — мобайл болон SPA аппликейшнүүдэд
-
-### Зөвлөмж
-
-- **`sub` (gen_id)-ийг хэрэглэгчийн танигч болгон ашиглах** — систем даяар тогтвортой, давтагдашгүй
-- **Token-ий хүчинтэй хугацааг зөв боловсруулах** — token дуусахад хэрэглэгчийг дахин зөвшөөрөл авахаар чиглүүлэх
-- **Зөвшөөрлийн үйл явдлуудыг бүртгэх** — хэрэглэгчид хэзээ зөвшөөрч/цуцалж байгааг хянах
-- **Хамгийн бага хамрах хүрээ хүсэх** — зөвхөн таны аппд шаардлагатай өгөгдлийг хүсэх
-
-### Хэзээ ч хийж болохгүй
-
-- Client-side код дээр **`client_secret`-ийг хэзээ ч ил гаргахгүй**
-- Token-ийг **localStorage-д хэзээ ч хадгалахгүй** — httpOnly cookie эсвэл серверийн аюулгүй хадгалалт ашиглах
-- **`state` шалгалтыг хэзээ ч алгасахгүй** — энэ бол таны CSRF хамгаалалт
-- **`reg_no` эсвэл `civil_id` token-д байна гэж хэзээ ч бүү тооцоол** — эдгээр гуравдагч талтай хэзээ ч хуваалцахгүй
+1. User is redirected to the consent screen
+2. User must approve your app again
+3. A new grant is created
+4. Normal flow continues
 
 ---
 
-## Алдааны боловсруулалт
+## Security Best Practices
 
-### Зөвшөөрлийн алдаанууд
+### Must Do
 
-| Алдаа | Тайлбар | Үйлдэл |
-|-------|---------|---------|
-| `invalid_client` | Client ID олдоогүй эсвэл идэвхгүй | `client_id`-аа шалгана уу |
-| `invalid_redirect_uri` | Redirect URI бүртгэгдсэн URI-уудтай таарахгүй | Бүртгэгдсэн URI-уудаа шалгана уу |
-| `invalid_response_type` | Зөвхөн `"code"` дэмжигддэг | `response_type=code` ашиглана уу |
-| `access_denied` | Хэрэглэгч зөвшөөрлийн хүсэлтийг татгалзсан | Хэрэглэгчид тохирох мессеж харуулна уу |
+- **Store `client_secret` securely** — never expose it in frontend code, mobile apps, or public repositories
+- **Always validate the `state` parameter** — prevents CSRF attacks
+- **Use HTTPS** for all redirect URIs in production
+- **Verify token claims** — check `iss`, `aud`, and `exp` before trusting token data
+- **Use PKCE** for mobile and single-page applications
 
-### Token солилцооны алдаанууд
+### Should Do
 
-| Алдаа | Тайлбар | Үйлдэл |
-|-------|---------|---------|
-| `invalid_grant` | Auth код хугацаа дууссан, ашиглагдсан, эсвэл буруу | Зөвшөөрлийн урсгалыг дахин эхлүүлнэ үү |
-| `invalid_client` | Client баталгаажуулалт амжилтгүй | `client_id` болон `client_secret`-ийг шалгана уу |
-| `invalid_request` | Заавал шаардлагатай параметрүүд дутуу | Бүх шаардлагатай талбаруудыг шалгана уу |
-| `invalid_pkce` | PKCE баталгаажуулалт амжилтгүй | `code_verifier` нь `code_challenge`-тай таарч байгааг шалгана уу |
+- **Use `sub` (gen_id) as the user identifier** — it is stable and unique across the system
+- **Handle token expiry gracefully** — redirect users to re-authorize when tokens expire
+- **Log authorization events** — track when users authorize/deauthorize your app
+- **Request minimal scopes** — only request the data your app actually needs
 
-### HTTP статус кодууд
+### Never Do
 
-| Код | Утга |
-|-----|------|
-| 200 | Амжилттай |
-| 302 | Чиглүүлэлт (зөвшөөрлийн урсгал) |
-| 400 | Буруу хүсэлт (параметрүүд буруу) |
-| 401 | Зөвшөөрөлгүй (мэдээлэл буруу) |
-| 404 | Client олдсонгүй |
-| 500 | Серверийн алдаа |
+- **Never expose `client_secret`** in client-side code
+- **Never store tokens in localStorage** — use httpOnly cookies or secure server-side storage
+- **Never skip `state` validation** — this is your CSRF protection
+- **Never assume `reg_no` or `civil_id` will be in the token** — these are never shared with third parties
 
 ---
 
-## Бүрэн жишээнүүд
+## Error Handling
+
+### Authorization Errors
+
+| Error | Description | Action |
+|-------|-------------|--------|
+| `invalid_client` | Client ID not found or inactive | Verify your `client_id` |
+| `invalid_redirect_uri` | Redirect URI doesn't match registered URIs | Check registered URIs |
+| `invalid_response_type` | Only `"code"` is supported | Use `response_type=code` |
+| `access_denied` | User denied the consent request | Show appropriate message to user |
+
+### Token Exchange Errors
+
+| Error | Description | Action |
+|-------|-------------|--------|
+| `invalid_grant` | Auth code expired, already used, or invalid | Restart authorization flow |
+| `invalid_client` | Client authentication failed | Verify `client_id` and `client_secret` |
+| `invalid_request` | Missing required parameters | Check all required fields |
+| `invalid_pkce` | PKCE verification failed | Verify `code_verifier` matches `code_challenge` |
+
+### HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 302 | Redirect (authorization flow) |
+| 400 | Bad request (invalid parameters) |
+| 401 | Unauthorized (invalid credentials) |
+| 404 | Client not found |
+| 500 | Server error |
+
+---
+
+## Complete Examples
 
 ### Node.js / Express
 
@@ -538,10 +533,10 @@ const CLIENT_SECRET = process.env.GEREGE_CLIENT_SECRET;
 const REDIRECT_URI = 'https://myapp.mn/callback';
 const SSO_BASE = 'https://sso.gerege.mn';
 
-// State-үүдийг session-д хадгалах (production-д Redis ашиглана)
+// Store states in session (use Redis in production)
 const states = new Map();
 
-// Алхам 1: Хэрэглэгчийг Gerege SSO руу чиглүүлэх
+// Step 1: Redirect user to Gerege SSO
 app.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   states.set(state, true);
@@ -556,22 +551,22 @@ app.get('/login', (req, res) => {
   res.redirect(authUrl);
 });
 
-// Алхам 2: Callback боловсруулах
+// Step 2: Handle callback
 app.get('/callback', async (req, res) => {
   const { code, state, error } = req.query;
 
-  // State шалгах
+  // Verify state
   if (!states.has(state)) {
-    return res.status(403).send('State буруу — CSRF халдлага байж магадгүй');
+    return res.status(403).send('Invalid state — possible CSRF attack');
   }
   states.delete(state);
 
-  // Алдаа шалгах
+  // Check for errors
   if (error) {
-    return res.status(400).send(`Зөвшөөрөл амжилтгүй: ${error}`);
+    return res.status(400).send(`Authorization failed: ${error}`);
   }
 
-  // Алхам 3: Кодыг token-оор солих
+  // Step 3: Exchange code for token
   const tokenRes = await fetch(`${SSO_BASE}/api/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -586,17 +581,17 @@ app.get('/callback', async (req, res) => {
 
   if (!tokenRes.ok) {
     const err = await tokenRes.json();
-    return res.status(400).json({ error: 'Token солилцоо амжилтгүй', details: err });
+    return res.status(400).json({ error: 'Token exchange failed', details: err });
   }
 
   const { access_token } = await tokenRes.json();
 
-  // Алхам 4: Token-оос хэрэглэгчийн мэдээлэл гаргах
+  // Step 4: Decode user info from token
   const payload = JSON.parse(
     Buffer.from(access_token.split('.')[1], 'base64').toString()
   );
 
-  // payload.sub (gen_id)-ийг давтагдашгүй хэрэглэгчийн танигч болгон ашиглах
+  // Use payload.sub (gen_id) as the unique user identifier
   const user = {
     geregeId: payload.sub,
     email: payload.email,
@@ -605,7 +600,7 @@ app.get('/callback', async (req, res) => {
     verificationLevel: payload.gerege.verification_level,
   };
 
-  // Session үүсгэх, хэрэглэгчийг хадгалах, dashboard руу чиглүүлэх...
+  // Create session, store user, redirect to dashboard...
   req.session.user = user;
   res.redirect('/dashboard');
 });
@@ -650,17 +645,17 @@ def login():
 
 @app.route('/callback')
 def callback():
-    # State шалгах
+    # Verify state
     if request.args.get('state') != session.pop('oauth_state', None):
-        return 'State буруу', 403
+        return 'Invalid state', 403
 
     error = request.args.get('error')
     if error:
-        return f'Зөвшөөрөл амжилтгүй: {error}', 400
+        return f'Authorization failed: {error}', 400
 
     code = request.args.get('code')
 
-    # Кодыг token-оор солих
+    # Exchange code for token
     token_res = requests.post(f'{SSO_BASE}/api/oauth/token', data={
         'grant_type': 'authorization_code',
         'code': code,
@@ -670,16 +665,16 @@ def callback():
     })
 
     if not token_res.ok:
-        return jsonify({'error': 'Token солилцоо амжилтгүй'}), 400
+        return jsonify({'error': 'Token exchange failed'}), 400
 
     access_token = token_res.json()['access_token']
 
-    # JWT payload decode хийх
+    # Decode JWT payload
     payload_b64 = access_token.split('.')[1]
-    payload_b64 += '=' * (4 - len(payload_b64) % 4)  # Base64 дүүргэх
+    payload_b64 += '=' * (4 - len(payload_b64) % 4)  # Pad base64
     payload = json.loads(base64.b64decode(payload_b64))
 
-    # Хэрэглэгчийг session-д хадгалах
+    # Store user in session
     session['user'] = {
         'gerege_id': payload['sub'],
         'email': payload['email'],
@@ -714,7 +709,7 @@ var (
 	ssoBase      = "https://sso.gerege.mn"
 )
 
-// Production-д Redis эсвэл мэдээллийн сан ашиглан state хадгалах
+// In production, use Redis or database for state storage
 var stateStore = map[string]bool{}
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -733,14 +728,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	if !stateStore[state] {
-		http.Error(w, "State буруу", http.StatusForbidden)
+		http.Error(w, "Invalid state", http.StatusForbidden)
 		return
 	}
 	delete(stateStore, state)
 
 	code := r.URL.Query().Get("code")
 
-	// Кодыг token-оор солих
+	// Exchange code for token
 	resp, err := http.PostForm(ssoBase+"/api/oauth/token", url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
@@ -749,7 +744,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		"client_secret": {clientSecret},
 	})
 	if err != nil {
-		http.Error(w, "Token солилцоо амжилтгүй", http.StatusBadGateway)
+		http.Error(w, "Token exchange failed", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
@@ -761,15 +756,15 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(resp.Body).Decode(&tokenRes)
 
-	// JWT payload decode хийх
+	// Decode JWT payload
 	parts := strings.Split(tokenRes.AccessToken, ".")
 	payload, _ := base64.RawURLEncoding.DecodeString(parts[1])
 
 	var claims map[string]interface{}
 	json.Unmarshal(payload, &claims)
 
-	// claims["sub"]-ийг давтагдашгүй Gerege ID болгон ашиглах
-	fmt.Fprintf(w, "Тавтай морил, Gerege ID: %s", claims["sub"])
+	// Use claims["sub"] as the unique Gerege ID
+	fmt.Fprintf(w, "Welcome, Gerege ID: %s", claims["sub"])
 }
 
 func main() {
@@ -781,48 +776,48 @@ func main() {
 
 ---
 
-## Шуурхай лавлагаа
+## Quick Reference
 
-### Endpoint-ууд
+### Endpoints
 
-| Endpoint | Метод | Зорилго |
-|----------|-------|---------|
-| `/api/oauth/authorize` | GET | Зөвшөөрлийн урсгал эхлүүлэх |
-| `/api/oauth/token` | POST | Кодыг access token-оор солих |
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/oauth/authorize` | GET | Start authorization flow |
+| `/api/oauth/token` | POST | Exchange code for access token |
 
-### Зөвшөөрлийн параметрүүд
+### Authorization Parameters
 
 ```
 GET /api/oauth/authorize?
-  client_id=ТАНЫ_CLIENT_ID&
-  redirect_uri=ТАНЫ_CALLBACK_URL&
+  client_id=YOUR_CLIENT_ID&
+  redirect_uri=YOUR_CALLBACK_URL&
   response_type=code&
   scope=openid profile email&
-  state=САНАМСАРГҮЙ_ТЭМДЭГТ_МӨР
+  state=RANDOM_STRING
 ```
 
-### Token солилцооны параметрүүд
+### Token Exchange Parameters
 
 ```
 POST /api/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&
-code=AUTH_КОД&
-redirect_uri=ТАНЫ_CALLBACK_URL&
-client_id=ТАНЫ_CLIENT_ID&
-client_secret=ТАНЫ_CLIENT_SECRET
+code=AUTH_CODE&
+redirect_uri=YOUR_CALLBACK_URL&
+client_id=YOUR_CLIENT_ID&
+client_secret=YOUR_CLIENT_SECRET
 ```
 
-### Token-ий хүчинтэй хугацаа
+### Token Expiry
 
-| Token төрөл | Хүчинтэй хугацаа |
-|-------------|-------------------|
-| Гуравдагч талын access token | 1 цаг |
-| Authorization код | 5 минут (нэг удаагийн) |
+| Token Type | Expiry |
+|------------|--------|
+| Third-party access token | 1 hour |
+| Authorization code | 5 minutes (single-use) |
 
 ---
 
-## Холбоо барих
+## Support
 
-Асуулт байгаа бол эсвэл аппликейшнээ бүртгүүлэхийн тулд Gerege SSO багтай холбогдоно уу.
+For questions or to register your application, contact the Gerege SSO team.

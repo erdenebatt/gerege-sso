@@ -33,6 +33,7 @@ type AuthHandler struct {
 	jwtService           *services.JWTService
 	userService          *services.UserService
 	auditService         *services.AuditService
+	emailService         *services.EmailService
 	redis                *redis.Client
 	config               *config.Config
 }
@@ -46,6 +47,7 @@ func NewAuthHandler(
 	jwtService *services.JWTService,
 	userService *services.UserService,
 	auditService *services.AuditService,
+	emailService *services.EmailService,
 	redis *redis.Client,
 	config *config.Config,
 ) *AuthHandler {
@@ -57,6 +59,7 @@ func NewAuthHandler(
 		jwtService:           jwtService,
 		userService:          userService,
 		auditService:         auditService,
+		emailService:         emailService,
 		redis:                redis,
 		config:               config,
 	}
@@ -1583,8 +1586,15 @@ func (h *AuthHandler) SendEmailOTP(c *gin.Context) {
 	// Set cooldown: 60 seconds
 	h.redis.Set(ctx, cooldownKey, "1", 60*time.Second)
 
-	// TODO: Send email via provider here
-	// For dev mode, return OTP in response
+	// Send email via SMTP (production) or return in response (dev)
+	if h.emailService != nil {
+		if err := h.emailService.SendOTP(email, otp); err != nil {
+			log.Printf("Failed to send OTP email to %s: %v", maskEmail(email), err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "И-мэйл илгээхэд алдаа гарлаа"})
+			return
+		}
+	}
+
 	response := gin.H{
 		"message": "OTP sent",
 		"email":   maskEmail(email),

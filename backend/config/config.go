@@ -14,6 +14,15 @@ type Config struct {
 	Auth     AuthConfig
 	Public   PublicConfig
 	Admin    AdminConfig
+	SMTP     SMTPConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	From     string
 }
 
 type AdminConfig struct {
@@ -145,6 +154,13 @@ func Load() *Config {
 		},
 		Admin: AdminConfig{
 			APIKey: getEnv("ADMIN_API_KEY", ""),
+		},
+		SMTP: SMTPConfig{
+			Host:     getEnv("SMTP_HOST", ""),
+			Port:     getEnv("SMTP_PORT", "587"),
+			User:     getEnv("SMTP_USER", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", ""),
 		},
 	}
 }

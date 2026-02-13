@@ -87,6 +87,12 @@ func main() {
 	auditService := services.NewAuditService(db)
 	apiLogService := services.NewAPILogService(db)
 
+	// Initialize email service (optional)
+	emailService := services.NewEmailService(cfg.SMTP)
+	if emailService != nil {
+		log.Println("SMTP email service enabled")
+	}
+
 	// Initialize Apple OAuth service (optional)
 	var appleOAuthService *services.AppleOAuthService
 	if cfg.Auth.AppleClientID != "" {
@@ -127,7 +133,7 @@ func main() {
 	grantService := services.NewGrantService(db)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, rdb, cfg)
+	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, emailService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 	apiLogHandler := handlers.NewAPILogHandler(apiLogService)

@@ -34,6 +34,10 @@ function LoginPageContent() {
       if (token) {
         const user = await fetchUser()
         if (user) {
+          if (!user.verified) {
+            router.replace('/register')
+            return
+          }
           const redirect = redirectParam || localStorage.getItem('oauth_redirect') || '/dashboard'
           localStorage.removeItem('oauth_redirect')
           if (redirect.startsWith('/api/')) {

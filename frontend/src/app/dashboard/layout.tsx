@@ -19,7 +19,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     // Only fetch if not already present or force refresh logic
-    fetchUser()
+    fetchUser().then((userData) => {
+      if (userData && !userData.verified) {
+        router.replace('/register')
+      }
+    })
     fetchGrants()
   }, [token, pathname, fetchUser, fetchGrants, router])
 
@@ -52,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  if (!user) {
+  if (!user || !user.verified) {
     return null
   }
 

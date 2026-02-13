@@ -58,7 +58,11 @@ export function EmailOTPLogin() {
       setToken(tokenRes.token)
 
       // Fetch user and redirect
-      await fetchUser()
+      const userData = await fetchUser()
+      if (userData && !userData.verified) {
+        router.replace('/register')
+        return
+      }
       const redirect = localStorage.getItem('oauth_redirect') || '/dashboard'
       localStorage.removeItem('oauth_redirect')
       router.replace(redirect)

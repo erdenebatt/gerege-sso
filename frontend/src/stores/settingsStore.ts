@@ -62,6 +62,14 @@ export const translations = {
     otpResend: 'Дахин илгээх',
     sending: 'Илгээж байна...',
     verifying: 'Шалгаж байна...',
+
+    // Register
+    registerTitle: 'Иргэний баталгаажуулалт',
+    registerDescription:
+      'Регистрийн дугаараа оруулж баталгаажуулна уу. Баталгаажуулалт хийсний дараа системийг бүрэн ашиглах боломжтой.',
+    registerButton: 'Баталгаажуулах',
+    registerPlaceholder: 'АА00112233',
+    registerLogout: 'Гарах',
   },
   en: {
     // Header
@@ -89,6 +97,14 @@ export const translations = {
     otpResend: 'Resend',
     sending: 'Sending...',
     verifying: 'Verifying...',
+
+    // Register
+    registerTitle: 'Identity Verification',
+    registerDescription:
+      'Please enter your registration number to verify your identity. You can fully use the system after verification.',
+    registerButton: 'Verify',
+    registerPlaceholder: 'AA00112233',
+    registerLogout: 'Sign out',
   },
 }
 

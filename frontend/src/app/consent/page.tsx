@@ -23,7 +23,29 @@ function ConsentPageContent() {
   useEffect(() => {
     api.auth
       .me()
-      .then(setUser)
+      .then((userData) => {
+        if (!userData.verified) {
+          // Store the full authorize URL so user returns here after verification
+          const authorizeParams = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope,
+            state,
+          })
+          if (codeChallenge) {
+            authorizeParams.set('code_challenge', codeChallenge)
+            authorizeParams.set('code_challenge_method', codeChallengeMethod || 'plain')
+          }
+          localStorage.setItem(
+            'oauth_redirect',
+            `/api/oauth/authorize?${authorizeParams.toString()}`
+          )
+          window.location.href = '/register'
+          return
+        }
+        setUser(userData)
+      })
       .catch((err) => {
         console.error('Failed to fetch user info:', err)
         // If unauthorized, redirect to authorize endpoint which will handle login

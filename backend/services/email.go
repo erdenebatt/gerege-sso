@@ -1,8 +1,10 @@
 package services
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/smtp"
+	"strings"
 
 	"gerege-sso/config"
 )
@@ -30,23 +32,29 @@ func NewEmailService(cfg config.SMTPConfig) *EmailService {
 	}
 }
 
+// encodeSubject encodes a UTF-8 subject using RFC 2047 base64 encoding
+func encodeSubject(s string) string {
+	return "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte(s)) + "?="
+}
+
 // SendOTP sends a 6-digit OTP code to the given email address
 func (s *EmailService) SendOTP(to, otp string) error {
-	subject := "Gerege SSO - Нэвтрэх код"
-	body := fmt.Sprintf(`Сайн байна уу,
+	subject := encodeSubject("Gerege SSO - Нэвтрэх код")
+	body := fmt.Sprintf("Сайн байна уу,\r\n\r\nТаны нэвтрэх код: %s\r\n\r\nКод 10 минутын дотор хүчинтэй.\r\n\r\nХэрэв та энэ кодыг хүсээгүй бол энэ имэйлийг үл тоомсорлоно уу.\r\n\r\n---\r\nGerege SSO\r\nsso.gerege.mn", otp)
+	encodedBody := base64.StdEncoding.EncodeToString([]byte(body))
 
-Таны нэвтрэх код: %s
+	// Wrap base64 at 76 chars per RFC 2045
+	var wrapped []string
+	for i := 0; i < len(encodedBody); i += 76 {
+		end := i + 76
+		if end > len(encodedBody) {
+			end = len(encodedBody)
+		}
+		wrapped = append(wrapped, encodedBody[i:end])
+	}
 
-Код 10 минутын дотор хүчинтэй.
-
-Хэрэв та энэ кодыг хүсээгүй бол энэ имэйлийг үл тоомсорлоно уу.
-
----
-Gerege SSO
-sso.gerege.mn`, otp)
-
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s",
-		s.from, to, subject, body)
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s\r\n",
+		s.from, to, subject, strings.Join(wrapped, "\r\n"))
 
 	auth := smtp.PlainAuth("", s.user, s.password, s.host)
 	addr := s.host + ":" + s.port

@@ -108,7 +108,7 @@ ssh -i "$SSH_KEY" "$SERVER_USER@$SERVER_IP" bash -s <<REMOTE_SCRIPT
     git pull origin main
 
     echo "[remote] Rebuilding and restarting containers..."
-    docker compose up -d --build backend
+    docker compose up -d --build backend frontend
 
     echo "[remote] Waiting for backend to be healthy..."
     RETRIES=30

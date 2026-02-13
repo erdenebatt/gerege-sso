@@ -54,6 +54,14 @@ export const translations = {
       'Google, Apple эсвэл Facebook бүртгэлээр нэвтэрч, регистрийн дугаараараа баталгаажуулна уу.',
     copyright: '© 2024 Gerege SSO. Бүх эрх хуулиар хамгаалагдсан.',
     checking: 'Шалгаж байна...',
+    emailPlaceholder: 'И-мэйл хаяг',
+    sendCode: 'Код илгээх',
+    otpPlaceholder: '6 оронтой код',
+    verifyCode: 'Баталгаажуулах',
+    otpSent: 'Код илгээгдлээ',
+    otpResend: 'Дахин илгээх',
+    sending: 'Илгээж байна...',
+    verifying: 'Шалгаж байна...',
   },
   en: {
     // Header
@@ -73,6 +81,14 @@ export const translations = {
       'Sign in with Google, Apple or Facebook and verify with your registration number.',
     copyright: '© 2024 Gerege SSO. All rights reserved.',
     checking: 'Checking...',
+    emailPlaceholder: 'Email address',
+    sendCode: 'Send code',
+    otpPlaceholder: '6-digit code',
+    verifyCode: 'Verify',
+    otpSent: 'Code sent',
+    otpResend: 'Resend',
+    sending: 'Sending...',
+    verifying: 'Verifying...',
   },
 }
 

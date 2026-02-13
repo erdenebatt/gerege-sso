@@ -1350,6 +1350,19 @@ func generateOTP() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
+// maskEmail masks an email showing first 2 chars and domain (e.g. "te***@gmail.com")
+func maskEmail(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return "***@***"
+	}
+	local := parts[0]
+	if len(local) <= 2 {
+		return local + "***@" + parts[1]
+	}
+	return local[:2] + strings.Repeat("*", len(local)-2) + "@" + parts[1]
+}
+
 // maskPhone masks a phone number showing first 2 and last 2 digits (e.g. "99****12")
 func maskPhone(phone string) string {
 	if len(phone) < 4 {
@@ -1523,4 +1536,174 @@ func (h *AuthHandler) VerifyPhoneOTP(c *gin.Context) {
 	}, c.ClientIP(), c.Request.UserAgent())
 
 	c.JSON(http.StatusOK, gin.H{"message": "Утасны баталгаажуулалт амжилттай"})
+}
+
+// SendEmailOTP generates and stores an OTP for email-based passwordless login
+// @Summary Send email OTP
+// @Description Sends a 6-digit OTP to the provided email address for passwordless login
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body object true "Email request" example({"email":"user@example.com"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 429 {object} map[string]interface{}
+// @Router /api/auth/email/send-otp [post]
+func (h *AuthHandler) SendEmailOTP(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "И-мэйл хаяг буруу байна"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	ctx := context.Background()
+
+	// Check cooldown (60 seconds between requests per email)
+	cooldownKey := "email_otp_cooldown:" + email
+	if _, err := h.redis.Get(ctx, cooldownKey).Result(); err == nil {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "60 секунд хүлээнэ үү"})
+		return
+	}
+
+	// Generate 6-digit OTP
+	otp, err := generateOTP()
+	if err != nil {
+		log.Printf("Failed to generate OTP: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate OTP"})
+		return
+	}
+
+	// Store OTP in Redis: email_otp:{email} → "{otp}:0" (0 attempts), TTL 10 minutes
+	otpKey := "email_otp:" + email
+	h.redis.Set(ctx, otpKey, otp+":0", 10*time.Minute)
+
+	// Set cooldown: 60 seconds
+	h.redis.Set(ctx, cooldownKey, "1", 60*time.Second)
+
+	// TODO: Send email via provider here
+	// For dev mode, return OTP in response
+	response := gin.H{
+		"message": "OTP sent",
+		"email":   maskEmail(email),
+	}
+
+	// In dev mode, include OTP in response for testing
+	if os.Getenv("GIN_MODE") != "release" {
+		response["otp"] = otp
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// VerifyEmailOTP verifies the OTP and logs in (or creates) the user
+// @Summary Verify email OTP
+// @Description Verifies the 6-digit OTP code, finds or creates user, returns exchange code
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body object true "OTP verification request" example({"email":"user@example.com","otp":"123456"})
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /api/auth/email/verify-otp [post]
+func (h *AuthHandler) VerifyEmailOTP(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	ctx := context.Background()
+	otpKey := "email_otp:" + email
+
+	// Get stored OTP
+	stored, err := h.redis.Get(ctx, otpKey).Result()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "OTP хугацаа дууссан эсвэл илгээгээгүй байна"})
+		return
+	}
+
+	// Parse stored value: "{otp}:{attempts}"
+	parts := strings.SplitN(stored, ":", 2)
+	if len(parts) != 2 {
+		h.redis.Del(ctx, otpKey)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid OTP data"})
+		return
+	}
+	storedOTP := parts[0]
+	attempts, _ := strconv.Atoi(parts[1])
+
+	// Check if OTP matches
+	if req.OTP != storedOTP {
+		attempts++
+		if attempts >= 5 {
+			// Max attempts reached, delete OTP
+			h.redis.Del(ctx, otpKey)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "OTP оролдлого хэтэрсэн. Дахин илгээнэ үү"})
+			return
+		}
+		// Update attempt count, preserve TTL
+		ttl, _ := h.redis.TTL(ctx, otpKey).Result()
+		if ttl > 0 {
+			h.redis.Set(ctx, otpKey, fmt.Sprintf("%s:%d", storedOTP, attempts), ttl)
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":         "OTP буруу байна",
+			"attempts_left": 5 - attempts,
+		})
+		return
+	}
+
+	// OTP correct — delete it (single-use)
+	h.redis.Del(ctx, otpKey)
+
+	// Find or create user by email
+	user, err := h.userService.FindOrCreateByEmail(email)
+	if err != nil {
+		log.Printf("Failed to find or create user: %v", err)
+		middleware.RecordLoginAttempt(false, "email")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user"})
+		return
+	}
+
+	// Update last login
+	if err := h.userService.UpdateLastLogin(user.ID); err != nil {
+		log.Printf("Failed to update last login: %v", err)
+	}
+
+	// Generate JWT
+	jwtToken, err := h.jwtService.GenerateToken(user)
+	if err != nil {
+		log.Printf("Failed to generate JWT: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Record login metric
+	middleware.RecordLoginAttempt(true, "email")
+
+	// Log audit
+	h.auditService.AddLog(user.ID, "login", map[string]interface{}{
+		"method": "email_otp",
+		"email":  email,
+	}, c.ClientIP(), c.Request.UserAgent())
+
+	// Generate single-use exchange code
+	exchangeCode, exchangeErr := h.generateTokenExchangeCode(jwtToken)
+	if exchangeErr != nil {
+		log.Printf("Failed to generate exchange code: %v", exchangeErr)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate login code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"code":    exchangeCode,
+	})
 }

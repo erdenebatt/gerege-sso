@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { OAuthButtons } from '@/components/auth'
+import { OAuthButtons, EmailOTPLogin } from '@/components/auth'
 import { Header } from '@/components/layout'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore, useTranslation } from '@/stores/settingsStore'
@@ -121,6 +121,11 @@ function LoginPageContent() {
             <span className="px-4 text-sm text-slate-400">{t.or}</span>
             <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600"></div>
           </div>
+
+          {/* Email OTP Login */}
+          <EmailOTPLogin />
+
+          <div className="mt-6" />
 
           {/* Description */}
           <p className="text-sm text-slate-500 dark:text-slate-400 text-center">

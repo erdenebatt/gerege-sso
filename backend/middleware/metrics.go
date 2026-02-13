@@ -63,7 +63,7 @@ func init() {
 	// Pre-initialize counters so they appear in /metrics from startup
 	identityVerificationTotal.WithLabelValues("success")
 	identityVerificationTotal.WithLabelValues("failure")
-	for _, provider := range []string{"google", "apple", "facebook", "twitter"} {
+	for _, provider := range []string{"google", "apple", "facebook", "twitter", "email"} {
 		loginAttemptsTotal.WithLabelValues("success", provider)
 		loginAttemptsTotal.WithLabelValues("failure", provider)
 	}

@@ -155,6 +155,18 @@ export const api = {
         body: JSON.stringify({ otp }),
       }),
 
+    sendEmailOTP: (email: string) =>
+      fetchAPI<{ message: string; email: string; otp?: string }>('/api/auth/email/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+
+    verifyEmailOTP: (email: string, otp: string) =>
+      fetchAPI<{ message: string; code: string }>('/api/auth/email/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp }),
+      }),
+
     danCallback: (regNo: string) =>
       fetchAPI<{ message: string; reg_no: string }>(
         `/api/auth/dan/callback?reg_no=${encodeURIComponent(regNo)}`

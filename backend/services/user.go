@@ -217,6 +217,36 @@ func (s *UserService) FindByEmail(email string) (*models.User, error) {
 	return scanUser(s.db.QueryRow(query, email))
 }
 
+// FindOrCreateByEmail finds a user by email, or creates a new one if not found.
+// Used for passwordless email OTP login.
+func (s *UserService) FindOrCreateByEmail(email string) (*models.User, error) {
+	user, err := s.FindByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	if user != nil {
+		return user, nil
+	}
+
+	// Create new user with email
+	genID, err := s.genIDService.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate gen_id: %w", err)
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO users (gen_id, email, email_verified, verified, verification_level)
+		VALUES ($1, $2, true, false, 1)
+		RETURNING %s
+	`, userColumns)
+
+	user, err = scanUser(s.db.QueryRow(query, genID, email))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+	return user, nil
+}
+
 // FindByGenID finds a user by gen_id
 func (s *UserService) FindByGenID(genID string) (*models.User, error) {
 	query := fmt.Sprintf("SELECT %s FROM users WHERE gen_id = $1", userColumns)

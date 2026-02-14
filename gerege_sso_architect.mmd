@@ -18,6 +18,9 @@
 %%   - Утасны OTP баталгаажуулалт
 %%   - Регистрийн дугаар (reg_no) баталгаажуулалт (ЗААВАЛ)
 %%   - Олон provider-ийн бүртгэл холбох (account linking)
+%%   - MFA/2FA: TOTP (Authenticator App), Passkey/FIDO2, Push Notification
+%%   - QR Code Login (нууц үггүй нэвтрэлт)
+%%   - Recovery Codes (нөөц нэвтрэлтийн код)
 %%
 %% Tech Stack:
 %%   Backend:  Go 1.21+ / Gin framework
@@ -107,6 +110,13 @@ graph TB
 %%   user_grants - Хэрэглэгчийн зөвшөөрсөн application
 %%   dan_verification_logs - DAN баталгаажуулалтын бүртгэл
 %%   registry_verify_logs  - Регистрийн баталгаажуулалтын бүртгэл
+%%   user_mfa_settings     - MFA тохиргоо (хэрэглэгч тус бүр)
+%%   user_totp             - TOTP нууц түлхүүр (AES-256-GCM шифрлэгдсэн)
+%%   mfa_recovery_codes    - Нөөц нэвтрэлтийн код (SHA-256 hash)
+%%   webauthn_credentials  - Passkey/FIDO2 баталгаажуулалтын мэдээлэл
+%%   user_devices          - Push notification төхөөрөмжүүд
+%%   qr_login_sessions     - QR нэвтрэлтийн session
+%%   mfa_audit_log         - MFA аудитын бүртгэл
 %% ============================================================================
 
 erDiagram
@@ -150,6 +160,8 @@ erDiagram
         bigint citizen_id FK "citizens.id → холбогдсон иргэн"
         boolean verified "reg_no баталгаажсан эсэх (ЗААВАЛ)"
         integer verification_level "1:email 2:registry 3:phone 4:dan"
+        boolean mfa_enabled "MFA идэвхжүүлсэн эсэх"
+        varchar mfa_level "none | optional | required"
         timestamp created_at
         timestamp updated_at
         timestamp last_login_at
@@ -212,6 +224,81 @@ erDiagram
         timestamp created_at
     }
 
+    user_mfa_settings {
+        bigserial id PK
+        bigint user_id FK "users.id (unique)"
+        boolean totp_enabled "TOTP идэвхтэй эсэх"
+        boolean passkey_enabled "Passkey идэвхтэй эсэх"
+        boolean push_enabled "Push notification идэвхтэй эсэх"
+        varchar preferred_method "totp | passkey | push"
+        boolean backup_eligible "Нөөц код ашиглах боломжтой эсэх"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    user_totp {
+        bigserial id PK
+        bigint user_id FK "users.id (unique)"
+        varchar encrypted_secret "AES-256-GCM шифрлэгдсэн TOTP нууц"
+        varchar encryption_iv "Шифрлэлтийн IV"
+        boolean verified "Тохиргоо баталгаажсан эсэх"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    mfa_recovery_codes {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar code_hash "SHA-256 hash"
+        boolean used "Ашигласан эсэх"
+        timestamp used_at "Ашигласан огноо"
+        timestamp created_at
+    }
+
+    webauthn_credentials {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar credential_id UK "WebAuthn credential ID"
+        bytea public_key "Нийтийн түлхүүр"
+        varchar name "Төхөөрөмжийн нэр"
+        bigint sign_count "Гарын үсгийн тоолуур"
+        varchar aaguid "Authenticator AAGUID"
+        timestamp last_used_at "Сүүлд ашигласан"
+        timestamp created_at
+    }
+
+    user_devices {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar device_token "Push notification token"
+        varchar platform "ios | android | web"
+        varchar device_name "Төхөөрөмжийн нэр"
+        boolean is_active "Идэвхтэй эсэх"
+        timestamp last_used_at
+        timestamp created_at
+    }
+
+    qr_login_sessions {
+        uuid id PK
+        varchar session_token UK "QR session token"
+        varchar status "pending | scanned | approved | expired"
+        bigint approved_user_id FK "users.id (зөвшөөрсөн хэрэглэгч)"
+        varchar ip_address "IP хаяг"
+        varchar user_agent "Browser мэдээлэл"
+        timestamp expires_at "Дуусах хугацаа (5 мин)"
+        timestamp created_at
+    }
+
+    mfa_audit_log {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar action "totp_setup | passkey_register | mfa_success | mfa_fail"
+        varchar method "totp | passkey | push | recovery | qr"
+        varchar ip_address "IP хаяг"
+        jsonb details "Дэлгэрэнгүй мэдээлэл"
+        timestamp created_at
+    }
+
     users ||--o| citizens : "citizen_id → verified=true үед холбогдоно"
     users ||--o{ sessions : "user_id"
     users ||--o{ audit_logs : "user_id"
@@ -219,6 +306,13 @@ erDiagram
     users ||--o{ dan_verification_logs : "user_id"
     users ||--o{ registry_verify_logs : "user_id"
     oauth_clients ||--o{ user_grants : "client_id"
+    users ||--o| user_mfa_settings : "user_id"
+    users ||--o| user_totp : "user_id"
+    users ||--o{ mfa_recovery_codes : "user_id"
+    users ||--o{ webauthn_credentials : "user_id"
+    users ||--o{ user_devices : "user_id"
+    users ||--o{ qr_login_sessions : "approved_user_id"
+    users ||--o{ mfa_audit_log : "user_id"
 
 %% ============================================================================
 %% 3. OAUTH2 SOCIAL LOGIN FLOW (Google жишээ дээр)
@@ -269,8 +363,15 @@ sequenceDiagram
 
     FE->>BE: POST /api/auth/exchange-token {code}
     BE->>R: exchange_code шалгах + устгах
-    BE->>BE: JWT token үүсгэх (24 цаг)
-    BE-->>FE: {token, user}
+
+    alt MFA идэвхтэй хэрэглэгч
+        BE->>BE: TempJWT үүсгэх (5 мин, хязгаарлагдмал эрх)
+        BE-->>FE: {mfa_required: true, temp_token, mfa_methods: [...]}
+        FE->>U: /mfa руу чиглүүлэх (MFA challenge хуудас)
+    else MFA идэвхгүй хэрэглэгч
+        BE->>BE: JWT token үүсгэх (24 цаг)
+        BE-->>FE: {token, user}
+    end
 
     FE->>FE: token → localStorage + cookie
 
@@ -581,7 +682,160 @@ sequenceDiagram
     end
 
 %% ============================================================================
-%% 10. BACKEND ARCHITECTURE - Route & Handler Map
+%% 10. MFA AUTHENTICATION FLOW (Олон хүчин зүйлт баталгаажуулалт)
+%% ============================================================================
+%% Нэвтрэлтийн дараа MFA шалгалт хийх:
+%%   - exchange-token → mfa_required: true + temp_token
+%%   - Frontend → /mfa challenge хуудас
+%%   - Хэрэглэгч аргаа сонгоно (TOTP, Passkey, Push, Recovery)
+%%   - Амжилттай бол бүтэн JWT token олгоно
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    Note over U,FE: Нэвтрэлт амжилттай → MFA шаардлагатай
+
+    FE->>BE: POST /api/auth/exchange-token {code}
+    BE->>R: exchange_code шалгах + устгах
+    BE->>DB: user.mfa_enabled шалгах
+    BE->>BE: TempJWT үүсгэх (5 мин TTL, mfa_pending: true)
+    BE-->>FE: {mfa_required: true, temp_token, mfa_methods: ["totp", "passkey"]}
+
+    FE->>U: /mfa руу чиглүүлэх
+
+    alt TOTP (Authenticator App) сонгосон
+        U->>FE: 6 оронтой TOTP код оруулах
+        FE->>BE: POST /api/auth/mfa/totp/validate {code} ⟨TempJWT⟩
+        BE->>DB: user_totp.encrypted_secret авах
+        BE->>BE: AES-256-GCM decrypt → TOTP шалгах
+        alt TOTP зөв
+            BE->>BE: Бүтэн JWT үүсгэх (24 цаг, mfa_verified: true)
+            BE->>DB: mfa_audit_log бүртгэх (mfa_success)
+            BE-->>FE: {token, user}
+            FE->>U: /dashboard руу чиглүүлэх
+        else TOTP буруу
+            BE->>DB: mfa_audit_log бүртгэх (mfa_fail)
+            BE-->>FE: 401 "TOTP код буруу"
+        end
+
+    else Passkey/FIDO2 сонгосон
+        FE->>BE: POST /api/auth/mfa/passkey/auth/begin ⟨TempJWT⟩
+        BE->>R: webauthn_auth:{gen_id} challenge хадгалах (5 мин)
+        BE-->>FE: {publicKey: {challenge, allowCredentials, ...}}
+        FE->>U: Passkey баталгаажуулалт (Touch ID, Face ID, Security Key)
+        U-->>FE: WebAuthn assertion
+        FE->>BE: POST /api/auth/mfa/passkey/auth/finish {assertion} ⟨TempJWT⟩
+        BE->>R: webauthn_auth:{gen_id} challenge авах
+        BE->>DB: webauthn_credentials шалгах
+        BE->>BE: Бүтэн JWT үүсгэх (24 цаг, mfa_verified: true)
+        BE->>DB: mfa_audit_log бүртгэх (mfa_success)
+        BE-->>FE: {token, user}
+        FE->>U: /dashboard руу чиглүүлэх
+
+    else Push Notification сонгосон
+        FE->>BE: POST /api/auth/push/challenge ⟨TempJWT⟩
+        BE->>DB: user_devices-аас идэвхтэй төхөөрөмж хайх
+        BE->>BE: Push notification илгээх
+        BE-->>FE: {challenge_id}
+        loop Хүлээх (30 сек timeout)
+            FE->>BE: GET /api/auth/push/status/{challenge_id} ⟨TempJWT⟩
+            BE-->>FE: {status: "pending" | "approved" | "denied"}
+        end
+        alt Зөвшөөрсөн
+            BE->>BE: Бүтэн JWT үүсгэх (24 цаг, mfa_verified: true)
+            BE-->>FE: {token, user}
+            FE->>U: /dashboard руу чиглүүлэх
+        end
+
+    else Recovery Code сонгосон
+        U->>FE: Нөөц код оруулах
+        FE->>BE: POST /api/auth/mfa/recovery/validate {code} ⟨TempJWT⟩
+        BE->>DB: mfa_recovery_codes-аас SHA-256 hash шалгах
+        alt Код зөв + ашиглаагүй
+            BE->>DB: UPDATE mfa_recovery_codes SET used=true
+            BE->>BE: Бүтэн JWT үүсгэх (24 цаг, mfa_verified: true)
+            BE->>DB: mfa_audit_log бүртгэх (recovery_used)
+            BE-->>FE: {token, user, remaining_codes: N}
+            FE->>U: /dashboard руу чиглүүлэх
+        else Код буруу
+            BE-->>FE: 401 "Нөөц код буруу"
+        end
+    end
+
+%% ============================================================================
+%% 11. MFA SETUP FLOW (TOTP тохиргоо)
+%% ============================================================================
+%% TOTP (Authenticator App) тохируулах:
+%%   - /dashboard/security/mfa хуудсанд тохируулна
+%%   - QR код скан хийх → баталгаажуулах → Recovery код олгох
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    U->>FE: /dashboard/security/mfa хуудас нээх
+    FE->>BE: GET /api/auth/mfa/settings ⟨JWT⟩
+    BE->>DB: user_mfa_settings авах
+    BE-->>FE: {totp_enabled: false, passkey_enabled: false, ...}
+
+    Note over U,FE: TOTP тохируулах
+
+    U->>FE: "TOTP идэвхжүүлэх" дарах
+    FE->>BE: POST /api/auth/mfa/totp/setup ⟨JWT⟩
+    BE->>BE: TOTP secret үүсгэх (32 байт)
+    BE->>R: SET mfa_totp_setup:{user_id} = {secret} (TTL: 10 мин)
+    BE-->>FE: {qr_uri: "otpauth://totp/Gerege:user@email?secret=BASE32&issuer=Gerege", secret: "BASE32SECRET"}
+
+    FE->>U: QR код харуулах + нууц түлхүүр
+    U->>U: Authenticator app-аар QR скан хийх
+
+    U->>FE: 6 оронтой код оруулах (баталгаажуулалт)
+    FE->>BE: POST /api/auth/mfa/totp/verify-setup {code} ⟨JWT⟩
+    BE->>R: GET mfa_totp_setup:{user_id}
+    BE->>BE: TOTP код шалгах (secret-тэй тааруулах)
+
+    alt Код зөв
+        BE->>BE: AES-256-GCM-ээр secret шифрлэх
+        BE->>DB: INSERT user_totp {encrypted_secret, iv, verified: true}
+        BE->>DB: UPDATE user_mfa_settings SET totp_enabled=true
+        BE->>DB: UPDATE users SET mfa_enabled=true
+        BE->>BE: 12 ширхэг recovery код үүсгэх
+        BE->>DB: INSERT mfa_recovery_codes (SHA-256 hash)
+        BE->>R: DEL mfa_totp_setup:{user_id}
+        BE->>DB: mfa_audit_log бүртгэх (totp_setup)
+        BE-->>FE: {success: true, recovery_codes: ["XXXX-XXXX", ...]}
+        FE->>U: Recovery кодуудыг хадгалахыг анхааруулах
+    else Код буруу
+        BE-->>FE: 400 "TOTP код буруу"
+    end
+
+    Note over U,FE: Passkey тохируулах
+
+    U->>FE: "Passkey нэмэх" дарах
+    FE->>BE: POST /api/auth/mfa/passkey/register/begin ⟨JWT⟩
+    BE->>R: SET webauthn_reg:{gen_id} = {challenge, session} (TTL: 5 мин)
+    BE-->>FE: {publicKey: {challenge, rp, user, pubKeyCredParams, ...}}
+
+    FE->>U: Passkey бүртгэх (Touch ID, Face ID, Security Key)
+    U-->>FE: WebAuthn attestation
+    FE->>BE: POST /api/auth/mfa/passkey/register/finish {attestation} ⟨JWT⟩
+    BE->>R: GET webauthn_reg:{gen_id}
+    BE->>DB: INSERT webauthn_credentials {credential_id, public_key, name}
+    BE->>DB: UPDATE user_mfa_settings SET passkey_enabled=true
+    BE->>DB: mfa_audit_log бүртгэх (passkey_register)
+    BE-->>FE: {success: true, credential: {id, name}}
+
+%% ============================================================================
+%% 12. BACKEND ARCHITECTURE - Route & Handler Map
 %% ============================================================================
 %% Бүх API endpoint-ууд болон тэдгээрийн handler function
 %% ============================================================================
@@ -647,6 +901,53 @@ graph LR
         O2["POST /token → Token()"]
     end
 
+    subgraph "/api/auth/mfa - MFA Routes"
+        direction TB
+        subgraph "TOTP"
+            M1["POST /mfa/totp/setup → SetupTOTP() ⟨JWT⟩"]
+            M2["POST /mfa/totp/verify-setup → VerifyTOTPSetup() ⟨JWT⟩"]
+            M3["POST /mfa/totp/validate → ValidateTOTP() ⟨TempJWT⟩"]
+            M4["DELETE /mfa/totp → DisableTOTP() ⟨JWT⟩"]
+        end
+
+        subgraph "Passkey/FIDO2"
+            M5["POST /mfa/passkey/register/begin → PasskeyRegisterBegin() ⟨JWT⟩"]
+            M6["POST /mfa/passkey/register/finish → PasskeyRegisterFinish() ⟨JWT⟩"]
+            M7["POST /mfa/passkey/auth/begin → PasskeyAuthBegin() ⟨TempJWT⟩"]
+            M8["POST /mfa/passkey/auth/finish → PasskeyAuthFinish() ⟨TempJWT⟩"]
+            M9["GET /mfa/passkey/list → ListPasskeys() ⟨JWT⟩"]
+            M10["DELETE /mfa/passkey/:id → DeletePasskey() ⟨JWT⟩"]
+        end
+
+        subgraph "Recovery Codes"
+            M11["GET /mfa/recovery/codes → GetRecoveryCodes() ⟨JWT⟩"]
+            M12["POST /mfa/recovery/regenerate → RegenerateCodes() ⟨JWT⟩"]
+            M13["POST /mfa/recovery/validate → ValidateRecovery() ⟨TempJWT⟩"]
+        end
+
+        subgraph "MFA Settings"
+            M14["GET /mfa/settings → GetMFASettings() ⟨JWT⟩"]
+            M15["PUT /mfa/settings → UpdateMFASettings() ⟨JWT⟩"]
+        end
+
+        subgraph "Device Management"
+            M16["GET /mfa/devices → ListDevices() ⟨JWT⟩"]
+            M17["DELETE /mfa/devices/:id → RemoveDevice() ⟨JWT⟩"]
+        end
+
+        subgraph "Push Authentication"
+            M18["POST /push/register-device → RegisterDevice() ⟨JWT⟩"]
+            M19["POST /push/challenge → SendPushChallenge() ⟨TempJWT⟩"]
+            M20["GET /push/status/:id → GetPushStatus() ⟨TempJWT⟩"]
+        end
+
+        subgraph "QR Login"
+            M21["GET /qr/generate → GenerateQR()"]
+            M22["POST /qr/approve → ApproveQR() ⟨JWT⟩"]
+            M23["GET /qr/status/:id → GetQRStatus()"]
+        end
+    end
+
     subgraph "/api/admin - Admin Routes ⟨X-Admin-Key⟩"
         AD1["POST /clients → CreateClient()"]
         AD2["GET /clients → ListClients()"]
@@ -657,7 +958,7 @@ graph LR
     end
 
 %% ============================================================================
-%% 11. MIDDLEWARE STACK
+%% 13. MIDDLEWARE STACK
 %% ============================================================================
 %% Request бүр дараах middleware-ууд дамжина:
 %% ============================================================================
@@ -678,7 +979,7 @@ graph TD
     PUBLIC --> HANDLER
 
 %% ============================================================================
-%% 12. BACKEND SERVICE LAYER
+%% 14. BACKEND SERVICE LAYER
 %% ============================================================================
 %% Handler → Service → Database/External харилцаа
 %% ============================================================================
@@ -689,11 +990,12 @@ graph TB
         OH["OAuthProviderHandler<br/>oauth_provider.go"]
         HH["HealthHandler<br/>health.go"]
         ALH["APILogHandler<br/>apilog.go"]
+        MH["MFAHandler<br/>mfa.go<br/>TOTP, Passkey, Recovery<br/>Push, QR endpoints"]
     end
 
     subgraph "Services Layer"
         US["UserService<br/>user.go (400+ мөр)<br/>FindByProviderID()<br/>FindOrCreateByEmail()<br/>LinkCitizen()<br/>LinkProviderID()<br/>UpdateVerificationLevel()"]
-        JS["JWTService<br/>jwt.go<br/>GenerateToken()<br/>GenerateThirdPartyToken()<br/>ValidateToken()<br/>BlacklistToken()"]
+        JS["JWTService<br/>jwt.go<br/>GenerateToken()<br/>GenerateThirdPartyToken()<br/>GenerateTempToken()<br/>ValidateToken()<br/>BlacklistToken()"]
         GS["GoogleOAuthService<br/>oauth.go"]
         AS["AppleOAuthService<br/>apple.go"]
         FS["FacebookOAuthService<br/>facebook.go"]
@@ -704,6 +1006,13 @@ graph TB
         GRS["GrantService<br/>grant.go"]
         AUS["AuditService<br/>audit.go"]
         GIS["GenIDService<br/>genid.go<br/>11 оронтой ID үүсгэх"]
+        TOTP_S["TOTPService<br/>totp.go<br/>SetupTOTP()<br/>VerifySetup()<br/>ValidateCode()<br/>AES-256-GCM encrypt/decrypt"]
+        PK_S["PasskeyService<br/>passkey.go<br/>BeginRegistration()<br/>FinishRegistration()<br/>BeginAuthentication()<br/>FinishAuthentication()"]
+        RC_S["RecoveryService<br/>recovery.go<br/>GenerateCodes()<br/>ValidateCode()<br/>RegenerateCodes()<br/>SHA-256 hash"]
+        MS_S["MFASettingsService<br/>mfa_settings.go<br/>GetSettings()<br/>UpdateSettings()"]
+        MA_S["MFAAuditService<br/>mfa_audit.go<br/>LogEvent()<br/>GetHistory()"]
+        PA_S["PushAuthService<br/>push_auth.go<br/>RegisterDevice()<br/>SendChallenge()<br/>GetStatus()"]
+        QL_S["QRLoginService<br/>qr_login.go<br/>GenerateSession()<br/>ApproveSession()<br/>GetStatus()"]
     end
 
     subgraph "Data Layer"
@@ -737,6 +1046,16 @@ graph TB
     OH --> GRS
     OH --> AUS
 
+    MH --> TOTP_S
+    MH --> PK_S
+    MH --> RC_S
+    MH --> MS_S
+    MH --> MA_S
+    MH --> PA_S
+    MH --> QL_S
+    MH --> JS
+    MH --> US
+
     US --> PG
     US --> GCS
     JS --> RD
@@ -745,6 +1064,16 @@ graph TB
     GRS --> PG
     AUS --> PG
     GIS --> PG
+    TOTP_S --> PG
+    TOTP_S --> RD
+    PK_S --> PG
+    PK_S --> RD
+    RC_S --> PG
+    MS_S --> PG
+    MA_S --> PG
+    PA_S --> PG
+    QL_S --> PG
+    QL_S --> RD
 
     GS --> GAPI
     AS --> AAPI
@@ -754,16 +1083,17 @@ graph TB
     ES --> SMTP_S
 
 %% ============================================================================
-%% 13. FRONTEND ARCHITECTURE - Component Tree
+%% 15. FRONTEND ARCHITECTURE - Component Tree
 %% ============================================================================
 
 graph TB
     subgraph "Next.js App Router"
         ROOT["RootLayout<br/>layout.tsx<br/>ThemeProvider + StoreHydration + ErrorBoundary"]
 
-        ROOT --> LOGIN_P["/ (Login Page)<br/>page.tsx<br/>OAuthButtons + EmailOTPLogin"]
+        ROOT --> LOGIN_P["/ (Login Page)<br/>page.tsx<br/>OAuthButtons + EmailOTPLogin<br/>+ QR Login + Passkey Login"]
         ROOT --> CALLBACK_P["/callback<br/>page.tsx<br/>Exchange code + Account linking"]
         ROOT --> REGISTER_P["/register<br/>page.tsx<br/>reg_no баталгаажуулалт"]
+        ROOT --> MFA_P["/mfa<br/>page.tsx<br/>MFA challenge хуудас<br/>TOTP | Passkey | Push | Recovery"]
         ROOT --> CONSENT_P["/consent<br/>page.tsx<br/>OAuth2 зөвшөөрлийн хуудас"]
         ROOT --> DASH_L["/dashboard (Layout)<br/>layout.tsx<br/>★ verified шалгах ★<br/>Sidebar + Header"]
         ROOT --> GRANTS_P["/grants<br/>page.tsx<br/>Холбогдсон app-ууд"]
@@ -773,6 +1103,7 @@ graph TB
         DASH_L --> DASH_P["/dashboard<br/>page.tsx<br/>Профайл + IdentityCard"]
         DASH_L --> DAN_P["/dashboard/dan<br/>page.tsx<br/>DAN баталгаажуулалт"]
         DASH_L --> SEC_P["/dashboard/security<br/>page.tsx<br/>Утас + Provider-ууд"]
+        DASH_L --> MFA_SET_P["/dashboard/security/mfa<br/>page.tsx<br/>MFA тохиргоо<br/>TOTP + Passkey + Push + Recovery"]
         DASH_L --> ACT_P["/dashboard/activity<br/>page.tsx<br/>Нэвтрэлтийн түүх"]
         DASH_L --> LOG_P["/dashboard/logs<br/>page.tsx<br/>API log-ууд"]
     end
@@ -787,11 +1118,22 @@ graph TB
         direction TB
         OAB["OAuthButtons.tsx<br/>Google, Apple, Facebook, Twitter"]
         EOTP["EmailOTPLogin.tsx<br/>Имэйл OTP форм"]
+        QRL["QRLoginTab.tsx<br/>QR код нэвтрэлт"]
+        PKL["PasskeyLoginButton.tsx<br/>Passkey нэвтрэлт"]
         ICARD["IdentityCard.tsx<br/>Иргэний мэдээлэл"]
         VPROG["VerificationProgress.tsx<br/>Баталгаажуулалтын явц"]
         SCARD["SecurityCard.tsx<br/>Аюулгүй байдлын тохиргоо"]
         PVM["PhoneVerifyModal.tsx<br/>Утасны OTP modal"]
         GCARD["GrantCard.tsx<br/>Холбогдсон app карт"]
+    end
+
+    subgraph "MFA Components"
+        direction TB
+        TOTP_C["TOTPSetup.tsx<br/>QR код + баталгаажуулалт"]
+        PK_C["PasskeySetup.tsx<br/>Passkey бүртгэх/устгах"]
+        DM_C["DeviceManagement.tsx<br/>Push төхөөрөмж удирдах"]
+        RC_C["RecoveryCodes.tsx<br/>Нөөц код харах/шинэчлэх"]
+        MFA_CH["MFAChallenge.tsx<br/>MFA шалгалтын форм"]
     end
 
     subgraph "API Layer"
@@ -801,17 +1143,24 @@ graph TB
 
     LOGIN_P --> OAB
     LOGIN_P --> EOTP
+    LOGIN_P --> QRL
+    LOGIN_P --> PKL
+    MFA_P --> MFA_CH
     DASH_P --> ICARD
     DASH_P --> VPROG
     SEC_P --> SCARD
     SEC_P --> PVM
+    MFA_SET_P --> TOTP_C
+    MFA_SET_P --> PK_C
+    MFA_SET_P --> DM_C
+    MFA_SET_P --> RC_C
     GRANTS_P --> GCARD
 
     ROOT --> AUTH_STORE
     ROOT --> SETTINGS
 
 %% ============================================================================
-%% 14. VERIFICATION LEVEL SYSTEM
+%% 16. VERIFICATION LEVEL SYSTEM
 %% ============================================================================
 %% Баталгаажуулалтын түвшин (зөвхөн дээшлэх чиглэлд):
 %%   Level 1: Email баталгаажсан (OAuth/Email OTP бүртгэл)
@@ -833,15 +1182,23 @@ graph LR
     style L4 fill:#efe,stroke:#0a0
 
 %% ============================================================================
-%% 15. JWT TOKEN STRUCTURE
+%% 17. JWT TOKEN STRUCTURE
 %% ============================================================================
 %% Gerege SSO-ийн JWT token-ий бүтэц:
 %%
 %% Internal JWT (24 цаг):
 %%   sub: gen_id (11 оронтой)
 %%   email: user email
+%%   mfa_verified: true/false (MFA баталгаажсан эсэх)
 %%   gerege: {reg_no, first_name, family_name, last_name, birth_date, gender,
 %%            verified, verification_level, name}
+%%
+%% Temp JWT (5 мин) - MFA хүлээж байгаа:
+%%   sub: gen_id
+%%   email: user email
+%%   mfa_pending: true
+%%   scope: "mfa_challenge" (хязгаарлагдмал эрх)
+%%   ★ /api/auth/mfa/* endpoint-ууд руу л хандах боломжтой
 %%
 %% Third-Party JWT (1 цаг):
 %%   sub: gen_id
@@ -856,8 +1213,14 @@ graph LR
 graph TB
     subgraph "Internal JWT (24h TTL)"
         IH["Header: {alg: HS256, typ: JWT}"]
-        IP["Payload:<br/>sub: '10000000001' (gen_id)<br/>email: 'user@example.com'<br/>jti: 'uuid-v4'<br/>iat: timestamp<br/>exp: +24h<br/>gerege: {<br/>  reg_no: 'УБ12345678'<br/>  first_name: 'Бат'<br/>  family_name: 'Боржигон'<br/>  last_name: 'Дорж'<br/>  birth_date: '1990-01-01'<br/>  gender: 1<br/>  verified: true<br/>  verification_level: 2<br/>  name: 'Б.Дорж'<br/>}"]
+        IP["Payload:<br/>sub: '10000000001' (gen_id)<br/>email: 'user@example.com'<br/>jti: 'uuid-v4'<br/>iat: timestamp<br/>exp: +24h<br/>mfa_verified: true<br/>gerege: {<br/>  reg_no: 'УБ12345678'<br/>  first_name: 'Бат'<br/>  family_name: 'Боржигон'<br/>  last_name: 'Дорж'<br/>  birth_date: '1990-01-01'<br/>  gender: 1<br/>  verified: true<br/>  verification_level: 2<br/>  name: 'Б.Дорж'<br/>}"]
         IS["Signature: HMAC-SHA256(secret)"]
+    end
+
+    subgraph "Temp JWT (5min TTL) - MFA Pending"
+        TMH["Header: {alg: HS256, typ: JWT}"]
+        TMP["Payload:<br/>sub: '10000000001' (gen_id)<br/>email: 'user@example.com'<br/>jti: 'uuid-v4'<br/>iat: timestamp<br/>exp: +5min<br/>mfa_pending: true<br/>scope: 'mfa_challenge'<br/>★ gerege claim БАЙХГҮЙ<br/>★ /api/auth/mfa/* endpoint-ууд руу л хандана"]
+        TMS["Signature: HMAC-SHA256(secret)"]
     end
 
     subgraph "Third-Party JWT (1h TTL)"
@@ -867,7 +1230,7 @@ graph TB
     end
 
 %% ============================================================================
-%% 16. REDIS KEY PATTERNS
+%% 18. REDIS KEY PATTERNS
 %% ============================================================================
 %% Redis-д хадгалагдах бүх түлхүүрүүд:
 %% ============================================================================
@@ -886,10 +1249,15 @@ graph TB
         R10["dan_state:{state}<br/>TTL: 10 мин<br/>DAN SSO state"]
         R11["rate_limit:{ip}:{endpoint}<br/>TTL: 1 мин<br/>Token bucket counter"]
         R12["oauth_client:{client_id}<br/>TTL: cache TTL<br/>Client data cache"]
+        R13["webauthn_reg:{gen_id}<br/>TTL: 5 мин<br/>WebAuthn бүртгэлийн session"]
+        R14["webauthn_auth:{gen_id}<br/>TTL: 5 мин<br/>WebAuthn баталгаажуулалтын session"]
+        R15["mfa_totp_setup:{user_id}<br/>TTL: 10 мин<br/>TOTP тохиргооны түр мэдээлэл"]
+        R16["qr_session:{session_id}<br/>TTL: 5 мин<br/>QR нэвтрэлтийн session"]
+        R17["push_challenge:{challenge_id}<br/>TTL: 60 сек<br/>Push notification challenge"]
     end
 
 %% ============================================================================
-%% 17. SECURITY ARCHITECTURE
+%% 19. SECURITY ARCHITECTURE
 %% ============================================================================
 
 graph TB
@@ -908,6 +1276,14 @@ graph TB
         D4["Transaction Isolation<br/>LinkCitizen() → DB transaction<br/>Row-level locking"]
     end
 
+    subgraph "MFA Security"
+        MFA1["AES-256-GCM Encryption<br/>TOTP нууц түлхүүр шифрлэлт<br/>MFA_ENCRYPTION_KEY (32 bytes)"]
+        MFA2["SHA-256 Hashed Recovery Codes<br/>Нөөц кодууд hash-лагдсан хадгалагдана<br/>Нэг удаагийн ашиглалт"]
+        MFA3["WebAuthn/FIDO2<br/>Phishing-resistant баталгаажуулалт<br/>Public-key криптограф"]
+        MFA4["TempJWT Scope Limitation<br/>MFA pending token → 5 мин TTL<br/>Зөвхөн /mfa/* endpoint-ууд руу"]
+        MFA5["Backup Eligibility Tracking<br/>Нөөц код ашиглах боломжийг<br/>хянах (backup_eligible flag)"]
+    end
+
     subgraph "Network Security"
         N1["Rate Limiting<br/>20 req/min per IP (auth endpoints)<br/>Redis token bucket"]
         N2["CORS Policy<br/>Frontend domain-аас л зөвшөөрнө"]
@@ -920,10 +1296,11 @@ graph TB
         AU2["dan_verification_logs<br/>DAN баталгаажуулалт"]
         AU3["registry_verify_logs<br/>Регистрийн баталгаажуулалт"]
         AU4["Prometheus Metrics<br/>Login attempts, verification counts"]
+        AU5["mfa_audit_log<br/>MFA setup, success, fail бүртгэл<br/>Арга тус бүрээр хянах"]
     end
 
 %% ============================================================================
-%% 18. DEPLOYMENT ARCHITECTURE
+%% 20. DEPLOYMENT ARCHITECTURE
 %% ============================================================================
 
 graph TB
@@ -943,7 +1320,7 @@ graph TB
     GF_S -->|"Prometheus metrics"| BE_S
 
 %% ============================================================================
-%% 19. FILE STRUCTURE MAP
+%% 21. FILE STRUCTURE MAP
 %% ============================================================================
 %%
 %% gerege-sso/
@@ -958,7 +1335,8 @@ graph TB
 %% │   │   ├── oauth_provider.go            ← ★ OAuth2 server (authorize/token)
 %% │   │   ├── oauth_provider_test.go       ← OAuth provider tests
 %% │   │   ├── health.go                    ← Health/readiness checks
-%% │   │   └── apilog.go                    ← API log handler
+%% │   │   ├── apilog.go                    ← API log handler
+%% │   │   └── mfa.go                       ← ★ MFA handler (TOTP, Passkey, Recovery, Push, QR)
 %% │   ├── middleware/
 %% │   │   ├── jwt.go                       ← ★ JWT validation middleware
 %% │   │   ├── admin.go                     ← Admin API key middleware
@@ -970,7 +1348,8 @@ graph TB
 %% │   ├── models/
 %% │   │   ├── user.go                      ← User, Citizen, JWT models
 %% │   │   ├── oauth_client.go              ← OAuth client model
-%% │   │   └── user_grant.go                ← User grant model
+%% │   │   ├── user_grant.go                ← User grant model
+%% │   │   └── mfa.go                      ← MFA models (TOTP, Passkey, Recovery, QR, Push, Audit)
 %% │   ├── services/
 %% │   │   ├── user.go                      ← ★ User & Citizen service (400+ lines)
 %% │   │   ├── user_test.go                 ← User service tests
@@ -985,7 +1364,14 @@ graph TB
 %% │   │   ├── grant.go                     ← User grant management
 %% │   │   ├── audit.go                     ← Audit logging
 %% │   │   ├── apilog.go                    ← API request logging
-%% │   │   └── genid.go                     ← 11-digit ID generation
+%% │   │   ├── genid.go                     ← 11-digit ID generation
+%% │   │   ├── totp.go                      ← ★ TOTP service (AES-256-GCM encrypt/decrypt)
+%% │   │   ├── passkey.go                   ← ★ Passkey/FIDO2 WebAuthn service
+%% │   │   ├── recovery.go                  ← Recovery codes service (SHA-256)
+%% │   │   ├── mfa_settings.go              ← MFA settings service
+%% │   │   ├── mfa_audit.go                 ← MFA audit logging service
+%% │   │   ├── push_auth.go                 ← Push notification MFA service
+%% │   │   └── qr_login.go                  ← QR code login service
 %% │   ├── repository/
 %% │   │   ├── interfaces.go               ← Repository interfaces
 %% │   │   └── mocks/user_mock.go           ← Test mocks
@@ -999,12 +1385,14 @@ graph TB
 %% │       │   ├── page.tsx                 ← ★ Login page
 %% │       │   ├── callback/page.tsx        ← ★ OAuth callback handler
 %% │       │   ├── register/page.tsx        ← ★ reg_no verification
+%% │       │   ├── mfa/page.tsx             ← ★ MFA challenge хуудас
 %% │       │   ├── consent/page.tsx         ← ★ OAuth consent screen
 %% │       │   ├── dashboard/
 %% │       │   │   ├── layout.tsx           ← ★ Verification enforcer
 %% │       │   │   ├── page.tsx             ← Dashboard home
 %% │       │   │   ├── dan/page.tsx         ← DAN verification
 %% │       │   │   ├── security/page.tsx    ← Security settings
+%% │       │   │   ├── security/mfa/page.tsx ← ★ MFA тохиргоо хуудас
 %% │       │   │   ├── activity/page.tsx    ← Login history
 %% │       │   │   └── logs/page.tsx        ← API logs
 %% │       │   ├── grants/page.tsx          ← Connected apps
@@ -1014,7 +1402,8 @@ graph TB
 %% │       │   ├── data-deletion/page.tsx   ← Data deletion info
 %% │       │   └── docs/page.tsx            ← API documentation
 %% │       ├── components/
-%% │       │   ├── auth/                    ← LoginCard, OAuthButtons, EmailOTPLogin, ProtectedRoute
+%% │       │   ├── auth/                    ← LoginCard, OAuthButtons, EmailOTPLogin, ProtectedRoute, QRLoginTab, PasskeyLoginButton
+%% │       │   ├── mfa/                     ← ★ TOTPSetup, PasskeySetup, DeviceManagement, RecoveryCodes, MFAChallenge
 %% │       │   ├── dashboard/               ← IdentityCard, VerificationProgress, SecurityCard, PhoneVerifyModal
 %% │       │   ├── layout/                  ← Header, Sidebar, Footer, UserDropdown
 %% │       │   └── ui/                      ← Button, Input, Card, Modal, Badge, Toast, Skeleton
@@ -1044,7 +1433,7 @@ graph TB
 %% └── CLAUDE.md                            ← Project rules for AI
 %%
 %% ============================================================================
-%% 20. ENVIRONMENT VARIABLES REFERENCE
+%% 22. ENVIRONMENT VARIABLES REFERENCE
 %% ============================================================================
 %%
 %% DATABASE:
@@ -1071,6 +1460,12 @@ graph TB
 %% ADMIN:
 %%   ADMIN_API_KEY
 %%   PUBLIC_URL (frontend URL)
+%%
+%% MFA:
+%%   MFA_ENCRYPTION_KEY (32 bytes hex, AES-256 TOTP нууц түлхүүр шифрлэлт)
+%%   WEBAUTHN_RP_ID (Relying Party ID - домэйн)
+%%   WEBAUTHN_RP_ORIGIN (Relying Party Origin - https://domain)
+%%   WEBAUTHN_RP_NAME (Relying Party харуулах нэр)
 %%
 %% ============================================================================
 %% END OF ARCHITECTURE DOCUMENT

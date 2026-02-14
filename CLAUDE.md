@@ -240,9 +240,137 @@ qrcode.react             — QR code rendering (TOTP setup)
 - TempJWT: 5min TTL, `mfa_pending: true` claim — only valid for MFA endpoints
 - All MFA actions are logged in `mfa_audit_log` table
 
+---
+
+## Gerege Authenticator Mobile App (`authenticator/`)
+
+### Overview
+
+Expo SDK 54 (React Native, TypeScript) дээр бичигдсэн тусдаа mobile authenticator апп. Үндсэн зорилго:
+- **QR Login** — Компьютер дээрх QR код скан хийж нэг товчоор login approve хийх
+- **TOTP Codes** — Google Authenticator шиг 6 оронтой код real-time харуулах (RFC 6238)
+
+**Bundle ID:** `mn.gerege.authenticator`
+
+### Project Structure
+
+```
+authenticator/
+├── App.tsx                          # Entry point — NavigationContainer + auth check
+├── app.json                         # Expo config (camera permission, bundle ID)
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── navigation/
+│   │   └── AppNavigator.tsx         # Stack navigator (Login → Home → Scanner → AddAccount)
+│   ├── screens/
+│   │   ├── LoginScreen.tsx          # Email OTP нэвтрэлт
+│   │   ├── HomeScreen.tsx           # TOTP accounts жагсаалт + scan/add товчууд
+│   │   ├── ScannerScreen.tsx        # Dual-purpose QR scanner (QR login + TOTP)
+│   │   └── AddAccountScreen.tsx     # TOTP account гараар нэмэх
+│   ├── components/
+│   │   ├── TOTPCode.tsx             # 6 оронтой код + 30с countdown progress bar
+│   │   └── AccountCard.tsx          # Account list item (long-press to delete)
+│   ├── lib/
+│   │   ├── api.ts                   # Backend API client (sso.gerege.mn)
+│   │   ├── totp.ts                  # TOTP код тооцоолох (otpauth library, RFC 6238)
+│   │   └── storage.ts              # SecureStore wrapper (JWT token, TOTP secrets)
+│   └── stores/
+│       └── authStore.ts             # Zustand auth state (login, logout, checkAuth)
+```
+
+### Screens
+
+| Screen | File | Purpose |
+|--------|------|---------|
+| Login | `LoginScreen.tsx` | Email OTP login: send-otp → verify-otp → exchange-token → save JWT |
+| Home | `HomeScreen.tsx` | TOTP accounts list with live codes, "QR Скан" + "Гараар нэмэх" buttons |
+| Scanner | `ScannerScreen.tsx` | expo-camera QR scanner — auto-detects QR type by URL/URI |
+| AddAccount | `AddAccountScreen.tsx` | Manual TOTP entry (issuer, email, secret) or scan QR shortcut |
+
+### QR Scanner Dual-Purpose Logic
+
+`ScannerScreen` нэг камер scanner-ээр хоёр төрлийн QR код ялгаж уншина:
+
+1. **QR Login** (`sso.gerege.mn/qr/scan?session=xxx`):
+   - `POST /api/auth/qr/scan` → session-г "scanned" гэж тэмдэглэнэ
+   - Хэрэглэгчид confirm dialog харуулна
+   - "Зөвшөөрөх" → `POST /api/auth/qr/approve` → компьютер дээр auto-login
+
+2. **TOTP URI** (`otpauth://totp/Issuer:account?secret=...`):
+   - URI parse → issuer, account, secret задална
+   - SecureStore-д хадгална → Home дээр шинэ account гарна
+
+### Storage (`src/lib/storage.ts`)
+
+`expo-secure-store` (iOS Keychain / Android Keystore) ашиглана:
+- `saveToken()` / `getToken()` / `removeToken()` — JWT хадгалах
+- `saveTOTPAccount()` / `getTOTPAccounts()` / `removeTOTPAccount()` — TOTP secret-үүд
+
+### API Client (`src/lib/api.ts`)
+
+Base URL: `https://sso.gerege.mn`
+
+| Function | Endpoint | Auth |
+|----------|----------|------|
+| `sendEmailOTP(email)` | `POST /api/auth/email/send-otp` | None |
+| `verifyEmailOTP(email, otp)` | `POST /api/auth/email/verify-otp` | None |
+| `exchangeToken(code)` | `POST /api/auth/exchange-token` | None |
+| `getMe()` | `GET /api/auth/me` | JWT |
+| `markQRScanned(sessionId)` | `POST /api/auth/qr/scan` | None |
+| `approveQR(sessionId)` | `POST /api/auth/qr/approve` | JWT |
+| `setupTOTP()` | `POST /api/auth/mfa/totp/setup` | JWT |
+| `verifyTOTPSetup(code)` | `POST /api/auth/mfa/totp/verify-setup` | JWT |
+
+### Auth Store (`src/stores/authStore.ts`)
+
+Zustand store:
+- `token` / `user` — JWT token, user info
+- `loading` — initial auth check state
+- `login(email, otp)` — verify OTP → exchange token → save → fetch user
+- `logout()` — clear token + SecureStore
+- `checkAuth()` — startup-д token шалгаж /me дуудна
+
+### TOTP Code Generation (`src/lib/totp.ts`)
+
+- `generateTOTPCode(secret)` — `otpauth` library ашиглан 6 digit код (SHA1, 30с period)
+- `getRemainingSeconds()` — countdown seconds (30 - current epoch % 30)
+- `parseTOTPUri(uri)` — `otpauth://totp/...` URI parse хийж issuer, account, secret буцаана
+
+### npm Dependencies
+
+```
+expo-camera                      — QR код скан (barcode scanner)
+expo-secure-store                — iOS Keychain / Android Keystore
+@react-navigation/native         — Navigation container
+@react-navigation/native-stack   — Stack navigator
+react-native-screens             — Native screen optimization
+react-native-safe-area-context   — Safe area insets
+zustand                          — State management
+otpauth                          — TOTP код тооцоолох (RFC 6238, no native deps)
+```
+
+### Key Design Decisions
+
+- **Client-side TOTP:** Secret-г SecureStore-д хадгалж `otpauth` library-гаар код тооцоолно. Backend руу илгээхгүй (Google Authenticator pattern)
+- **Dual-purpose scanner:** Нэг scanner-ээр QR Login + TOTP QR аль алийг уншина. URL/URI parse хийж ялгана
+- **No push notification (v1):** MVP-д push байхгүй. QR scan + TOTP only
+- **Auth-gated navigation:** Token байхгүй бол зөвхөн LoginScreen харуулна
+
+### Running
+
+```bash
+cd authenticator
+npx expo start
+```
+
+Expo Go апп дээр QR код скан хийж нээнэ.
+
+---
+
 ### TODO / Future Work
 
 - Push notification delivery via FCM/APNs (currently challenge-only, no actual push sent)
 - JWT middleware enforcement: `mfa_pending` tokens should ONLY access MFA endpoints (not yet enforced)
-- Gerege Authenticator mobile app (React Native)
+- ~~Gerege Authenticator mobile app (React Native)~~ — implemented in `authenticator/` (Expo SDK 54)
 - ~~Passkey-only login~~ — implemented via `/api/auth/passkey/login/begin` + `/finish` (discoverable credentials)

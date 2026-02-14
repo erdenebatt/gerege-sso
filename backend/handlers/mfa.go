@@ -352,11 +352,13 @@ func (h *MFAHandler) PasskeyAuthFinish(c *gin.Context) {
 
 	response, err := protocol.ParseCredentialRequestResponseBody(c.Request.Body)
 	if err != nil {
+		log.Printf("Passkey parse response failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credential response"})
 		return
 	}
 
 	if err := h.passkeyService.FinishAuthentication(user.ID, user.GenID, user.Email, &session, response); err != nil {
+		log.Printf("Passkey auth failed for user %d: %v", user.ID, err)
 		h.mfaAuditService.Log(user.ID, "passkey_auth_failed", "passkey", false, c.ClientIP(), c.Request.UserAgent(), nil)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Passkey authentication failed"})
 		return

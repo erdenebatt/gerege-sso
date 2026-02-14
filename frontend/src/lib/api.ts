@@ -250,6 +250,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    passkeyLoginBegin: () =>
+      fetchAPI<{ publicKey: unknown; session_key: string }>('/api/auth/passkey/login/begin', {
+        method: 'POST',
+      }),
+    passkeyLoginFinish: (data: unknown) =>
+      fetchAPI<{ message: string; token: string }>('/api/auth/passkey/login/finish', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     listPasskeys: () => fetchAPI<{ passkeys: PasskeyInfo[] }>('/api/auth/mfa/passkey/list'),
     deletePasskey: (id: string) =>
       fetchAPI<{ message: string }>(`/api/auth/mfa/passkey/${id}`, { method: 'DELETE' }),

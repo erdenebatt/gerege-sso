@@ -280,3 +280,44 @@ func (s *PasskeyService) RenamePasskey(userID int64, credentialID, name string) 
 	`, name, credentialID, userID)
 	return err
 }
+
+// BeginDiscoverableLogin starts a passwordless login (no user context needed)
+func (s *PasskeyService) BeginDiscoverableLogin() (*protocol.CredentialAssertion, *webauthn.SessionData, error) {
+	options, session, err := s.webauthn.BeginDiscoverableLogin()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to begin discoverable login: %w", err)
+	}
+	return options, session, nil
+}
+
+// FinishDiscoverableLogin completes passwordless login, returns the matched user ID
+func (s *PasskeyService) FinishDiscoverableLogin(
+	session *webauthn.SessionData,
+	response *protocol.ParsedCredentialAssertionData,
+	findUser func(rawID, userHandle []byte) (int64, string, string, error),
+) (int64, error) {
+	var foundUserID int64
+
+	handler := func(rawID, userHandle []byte) (webauthn.User, error) {
+		userID, genID, email, err := findUser(rawID, userHandle)
+		if err != nil {
+			return nil, err
+		}
+		foundUserID = userID
+		return s.loadWebAuthnUser(userID, genID, email)
+	}
+
+	credential, err := s.webauthn.ValidateDiscoverableLogin(handler, *session, response)
+	if err != nil {
+		return 0, fmt.Errorf("failed to validate discoverable login: %w", err)
+	}
+
+	// Update sign count
+	now := time.Now()
+	s.db.Exec(`
+		UPDATE webauthn_credentials SET sign_count = $1, last_used_at = $2
+		WHERE user_id = $3 AND credential_id = $4
+	`, credential.Authenticator.SignCount, now, foundUserID, credential.ID)
+
+	return foundUserID, nil
+}

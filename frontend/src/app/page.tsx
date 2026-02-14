@@ -114,11 +114,14 @@ function LoginPageContent() {
     setError(null)
     try {
       const { startAuthentication } = await import('@simplewebauthn/browser')
-      const options: any = await api.mfa.passkeyAuthBegin()
+      const beginData = await api.mfa.passkeyLoginBegin()
       const authResp = await startAuthentication({
-        optionsJSON: (options.publicKey ?? options) as any,
+        optionsJSON: beginData.publicKey as any,
       })
-      const data = await api.mfa.passkeyAuthFinish(authResp)
+      const data = await api.mfa.passkeyLoginFinish({
+        session_key: beginData.session_key,
+        ...authResp,
+      })
       if (data.token) {
         setToken(data.token)
         const user = await fetchUser()

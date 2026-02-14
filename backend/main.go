@@ -265,6 +265,10 @@ func main() {
 				mfa.DELETE("/devices/:id", middleware.JWTAuth(jwtService), mfaHandler.RemoveDevice)
 			}
 
+			// Passwordless Passkey Login (public, no JWT)
+			auth.POST("/passkey/login/begin", mfaHandler.PasskeyLoginBegin)
+			auth.POST("/passkey/login/finish", mfaHandler.PasskeyLoginFinish)
+
 			// QR Login (public + authenticated)
 			qr := auth.Group("/qr")
 			{

@@ -1,7 +1,12 @@
 package handlers
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -429,6 +434,118 @@ func (h *MFAHandler) DeletePasskey(c *gin.Context) {
 	h.mfaAuditService.Log(userID, "passkey_deleted", "passkey", true, c.ClientIP(), c.Request.UserAgent(), nil)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Passkey deleted successfully"})
+}
+
+// ============================================================
+// Passwordless Passkey Login (Public — no JWT required)
+// ============================================================
+
+// PasskeyLoginBegin starts a passwordless passkey login (discoverable credentials)
+func (h *MFAHandler) PasskeyLoginBegin(c *gin.Context) {
+	if h.passkeyService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Passkey not configured"})
+		return
+	}
+
+	options, session, err := h.passkeyService.BeginDiscoverableLogin()
+	if err != nil {
+		log.Printf("Failed to begin passkey login: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin passkey login"})
+		return
+	}
+
+	// Store session with random key
+	keyBytes := make([]byte, 16)
+	rand.Read(keyBytes)
+	sessionKey := hex.EncodeToString(keyBytes)
+
+	sessionJSON, _ := json.Marshal(session)
+	h.redis.Set(c.Request.Context(), "webauthn_login:"+sessionKey, string(sessionJSON), 300*1e9)
+
+	c.JSON(http.StatusOK, gin.H{
+		"publicKey":   options.Response,
+		"session_key": sessionKey,
+	})
+}
+
+// PasskeyLoginFinish completes a passwordless passkey login
+func (h *MFAHandler) PasskeyLoginFinish(c *gin.Context) {
+	if h.passkeyService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Passkey not configured"})
+		return
+	}
+
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request"})
+		return
+	}
+
+	var envelope struct {
+		SessionKey string `json:"session_key"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil || envelope.SessionKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing session_key"})
+		return
+	}
+
+	sessionJSON, err := h.redis.Get(c.Request.Context(), "webauthn_login:"+envelope.SessionKey).Result()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Login session expired"})
+		return
+	}
+	h.redis.Del(c.Request.Context(), "webauthn_login:"+envelope.SessionKey)
+
+	var session webauthn.SessionData
+	if err := json.Unmarshal([]byte(sessionJSON), &session); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session data"})
+		return
+	}
+
+	response, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(body))
+	if err != nil {
+		log.Printf("Passkey login parse response failed: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid credential response"})
+		return
+	}
+
+	findUser := func(rawID, userHandle []byte) (int64, string, string, error) {
+		genID := string(userHandle)
+		user, err := h.userService.FindByGenID(genID)
+		if err != nil || user == nil {
+			return 0, "", "", fmt.Errorf("user not found")
+		}
+		return user.ID, user.GenID, user.Email, nil
+	}
+
+	userID, err := h.passkeyService.FinishDiscoverableLogin(&session, response, findUser)
+	if err != nil {
+		log.Printf("Passkey login failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Passkey authentication failed"})
+		return
+	}
+
+	user, err := h.userService.FindByID(userID)
+	if err != nil || user == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to find user"})
+		return
+	}
+
+	fullToken, err := h.jwtService.GenerateToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	h.mfaAuditService.Log(userID, "passkey_login", "passkey", true, c.ClientIP(), c.Request.UserAgent(), nil)
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("gerege_token", fullToken, int(h.jwtService.GetExpiry().Seconds()), "/", "", true, true)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Passkey login successful",
+		"token":   fullToken,
+	})
 }
 
 // ============================================================

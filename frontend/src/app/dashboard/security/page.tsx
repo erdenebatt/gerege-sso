@@ -118,6 +118,12 @@ export default function SecurityPage() {
       description: `${connectedCount} сервис холбогдсон`,
     },
     {
+      label: 'MFA хоёр шатлалт баталгаажуулалт',
+      done: user.mfa_enabled,
+      description: user.mfa_enabled ? 'Идэвхтэй' : 'Тохируулаагүй',
+      href: user.mfa_enabled ? undefined : '/dashboard/security/mfa',
+    },
+    {
       label: 'Холбогдсон апп-уудыг шалгасан',
       done: true,
       description: `${grants.length} апп холбогдсон`,

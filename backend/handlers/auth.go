@@ -34,6 +34,7 @@ type AuthHandler struct {
 	userService          *services.UserService
 	auditService         *services.AuditService
 	emailService         *services.EmailService
+	mfaSettingsService   *services.MFASettingsService
 	redis                *redis.Client
 	config               *config.Config
 }
@@ -48,6 +49,7 @@ func NewAuthHandler(
 	userService *services.UserService,
 	auditService *services.AuditService,
 	emailService *services.EmailService,
+	mfaSettingsService *services.MFASettingsService,
 	redis *redis.Client,
 	config *config.Config,
 ) *AuthHandler {
@@ -60,9 +62,29 @@ func NewAuthHandler(
 		userService:          userService,
 		auditService:         auditService,
 		emailService:         emailService,
+		mfaSettingsService:   mfaSettingsService,
 		redis:                redis,
 		config:               config,
 	}
+}
+
+// generateMFAAwareToken generates either a full JWT or a temp token if MFA is required.
+// Returns (token, mfaRequired, error)
+func (h *AuthHandler) generateMFAAwareToken(user *models.User) (string, bool, error) {
+	if user.MFAEnabled {
+		// Generate temp token for MFA challenge
+		tempToken, err := h.jwtService.GenerateTempToken(user)
+		if err != nil {
+			return "", false, err
+		}
+		return tempToken, true, nil
+	}
+	// No MFA — generate full token
+	fullToken, err := h.jwtService.GenerateToken(user)
+	if err != nil {
+		return "", false, err
+	}
+	return fullToken, false, nil
 }
 
 // GoogleLogin initiates Google OAuth flow
@@ -203,8 +225,8 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		}
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate JWT (MFA-aware)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		h.redirectWithError(c, "Failed to generate token")
@@ -229,6 +251,9 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
+	if mfaRequired {
+		callbackURL += "&mfa_required=true"
+	}
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -276,12 +301,17 @@ func (h *AuthHandler) ExchangeToken(c *gin.Context) {
 		return
 	}
 
+	// Check if this is a temp (MFA pending) token
+	claims, err := h.jwtService.ValidateToken(jwtToken)
+	mfaRequired := err == nil && claims.MFAPending
+
 	// Set httpOnly cookie
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("gerege_token", jwtToken, int(h.jwtService.GetExpiry().Seconds()), "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{
-		"token": jwtToken,
+		"token":        jwtToken,
+		"mfa_required": mfaRequired,
 	})
 }
 
@@ -472,8 +502,8 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 		log.Printf("Failed to update last login: %v", err)
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate JWT (MFA-aware)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		h.redirectWithError(c, "Failed to generate token")
@@ -498,6 +528,9 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	}
 
 	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
+	if mfaRequired {
+		callbackURL += "&mfa_required=true"
+	}
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -570,6 +603,8 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		Email:             user.Email,
 		Verified:          user.Verified,
 		VerificationLevel: user.VerificationLevel,
+		MFAEnabled:        user.MFAEnabled,
+		MFALevel:          user.MFALevel,
 		Providers: map[string]bool{
 			"google":   user.GoogleSub.Valid,
 			"apple":    user.AppleSub.Valid,
@@ -841,8 +876,8 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 		}
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate JWT (MFA-aware)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		h.redirectWithError(c, "Failed to generate token")
@@ -867,6 +902,9 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}
 
 	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
+	if mfaRequired {
+		callbackURL += "&mfa_required=true"
+	}
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -1010,8 +1048,8 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 		}
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate JWT (MFA-aware)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		h.redirectWithError(c, "Failed to generate token")
@@ -1036,6 +1074,9 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 	}
 
 	callbackURL := h.config.Public.URL + "/callback?code=" + exchangeCode
+	if mfaRequired {
+		callbackURL += "&mfa_required=true"
+	}
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }
 
@@ -1687,8 +1728,8 @@ func (h *AuthHandler) VerifyEmailOTP(c *gin.Context) {
 		log.Printf("Failed to update last login: %v", err)
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate JWT (MFA-aware)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -1713,7 +1754,8 @@ func (h *AuthHandler) VerifyEmailOTP(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"code":    exchangeCode,
+		"message":      "Login successful",
+		"code":         exchangeCode,
+		"mfa_required": mfaRequired,
 	})
 }

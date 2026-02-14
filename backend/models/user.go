@@ -52,6 +52,8 @@ type User struct {
 	CitizenID     sql.NullInt64  `json:"citizen_id"`
 	Verified          bool           `json:"verified"`
 	VerificationLevel int            `json:"verification_level"`
+	MFAEnabled        bool           `json:"mfa_enabled"`
+	MFALevel          int            `json:"mfa_level"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	LastLoginAt   sql.NullTime   `json:"last_login_at"`
@@ -158,6 +160,8 @@ type UserResponse struct {
 	Picture         string               `json:"picture,omitempty"`
 	Verified          bool                 `json:"verified"`
 	VerificationLevel int                  `json:"verification_level"`
+	MFAEnabled        bool                 `json:"mfa_enabled"`
+	MFALevel          int                  `json:"mfa_level"`
 	Providers         map[string]bool      `json:"providers"`
 	CreatedAt       string               `json:"created_at"`
 	UpdatedAt       string               `json:"updated_at"`

@@ -15,6 +15,14 @@ type Config struct {
 	Public   PublicConfig
 	Admin    AdminConfig
 	SMTP     SMTPConfig
+	MFA      MFAConfig
+}
+
+type MFAConfig struct {
+	EncryptionKey   string // AES-256 key for TOTP secrets (64 hex chars = 32 bytes)
+	WebAuthnRPID    string // Relying Party ID (domain)
+	WebAuthnOrigin  string // Relying Party Origin (https://domain)
+	WebAuthnRPName  string // Relying Party display name
 }
 
 type SMTPConfig struct {
@@ -161,6 +169,12 @@ func Load() *Config {
 			User:     getEnv("SMTP_USER", ""),
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", ""),
+		},
+		MFA: MFAConfig{
+			EncryptionKey:  getEnv("MFA_ENCRYPTION_KEY", ""),
+			WebAuthnRPID:   getEnv("WEBAUTHN_RP_ID", "sso.gerege.mn"),
+			WebAuthnOrigin: getEnv("WEBAUTHN_RP_ORIGIN", "https://sso.gerege.mn"),
+			WebAuthnRPName: getEnv("WEBAUTHN_RP_NAME", "Gerege SSO"),
 		},
 	}
 }

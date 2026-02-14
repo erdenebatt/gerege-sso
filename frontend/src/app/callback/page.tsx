@@ -13,7 +13,7 @@ type ViewState = 'loading' | 'success' | 'error' | 'pending_link' | 'verify'
 function CallbackPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { token, user, setToken, fetchUser, logout } = useAuthStore()
+  const { token, user, setToken, setMFAPending, fetchUser, logout } = useAuthStore()
 
   const [view, setView] = useState<ViewState>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -44,10 +44,22 @@ function CallbackPageContent() {
         return
       }
 
+      // Check for MFA required flag from OAuth redirect
+      const mfaRequired = searchParams.get('mfa_required')
+
       // New login - exchange code for token
       if (exchangeCode) {
         try {
           const data = await api.auth.exchangeToken(exchangeCode)
+
+          // Check if MFA is required
+          if (data.mfa_required || mfaRequired === 'true') {
+            setMFAPending(true, data.token)
+            window.history.replaceState({}, document.title, '/callback')
+            router.replace('/mfa')
+            return
+          }
+
           setToken(data.token)
           // Clean URL
           window.history.replaceState({}, document.title, '/callback')

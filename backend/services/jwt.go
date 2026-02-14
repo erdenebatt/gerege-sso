@@ -23,8 +23,10 @@ type JWTService struct {
 // Claims represents the JWT claims structure
 type Claims struct {
 	jwt.RegisteredClaims
-	Email  string            `json:"email"`
-	Gerege models.GeregeInfo `json:"gerege"`
+	Email       string            `json:"email"`
+	Gerege      models.GeregeInfo `json:"gerege"`
+	MFAPending  bool              `json:"mfa_pending,omitempty"`
+	MFAVerified bool              `json:"mfa_verified,omitempty"`
 }
 
 // NewJWTService creates a new JWTService
@@ -91,6 +93,39 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 		},
 		Email:  user.Email,
 		Gerege: gerege,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secret)
+}
+
+// GenerateTempToken creates a limited JWT for MFA pending state (5 min TTL)
+func (s *JWTService) GenerateTempToken(user *models.User) (string, error) {
+	now := time.Now()
+	expiresAt := now.Add(5 * time.Minute) // short-lived for MFA challenge
+
+	gerege := models.GeregeInfo{
+		Verified:          user.Verified,
+		VerificationLevel: user.VerificationLevel,
+	}
+
+	jtiBytes := make([]byte, 16)
+	if _, err := rand.Read(jtiBytes); err != nil {
+		return "", fmt.Errorf("failed to generate jti: %w", err)
+	}
+	jti := hex.EncodeToString(jtiBytes)
+
+	claims := &Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
+			Subject:   user.GenID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			Issuer:    "gerege-sso",
+		},
+		Email:      user.Email,
+		Gerege:     gerege,
+		MFAPending: true,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

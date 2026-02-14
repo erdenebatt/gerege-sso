@@ -12,11 +12,15 @@ interface AuthState {
   grants: Grant[]
   isLoading: boolean
   error: string | null
+  mfaPending: boolean
+  tempToken: string | null
 
   setToken: (token: string) => void
   setUser: (user: User) => void
   setGrants: (grants: Grant[]) => void
   setError: (error: string | null) => void
+  setMFAPending: (pending: boolean, tempToken?: string) => void
+  clearMFA: () => void
   logout: () => void
   fetchUser: () => Promise<User | null>
   fetchGrants: () => Promise<void>
@@ -31,6 +35,8 @@ export const useAuthStore = create<AuthState>()(
       grants: [],
       isLoading: false,
       error: null,
+      mfaPending: false,
+      tempToken: null,
 
       setToken: (token) => {
         setToken(token)
@@ -43,11 +49,29 @@ export const useAuthStore = create<AuthState>()(
 
       setError: (error) => set({ error }),
 
+      setMFAPending: (pending, tempToken) => {
+        if (pending && tempToken) {
+          setToken(tempToken)
+          set({ mfaPending: true, tempToken, token: tempToken })
+        } else {
+          set({ mfaPending: pending })
+        }
+      },
+
+      clearMFA: () => set({ mfaPending: false, tempToken: null }),
+
       logout: () => {
         // Call backend to blacklist the token
         api.auth.logout().catch(() => {})
         removeToken()
-        set({ token: null, user: null, grants: [], error: null })
+        set({
+          token: null,
+          user: null,
+          grants: [],
+          error: null,
+          mfaPending: false,
+          tempToken: null,
+        })
       },
 
       fetchUser: async () => {

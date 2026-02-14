@@ -20,7 +20,7 @@ var providerColumns = map[string]string{
 }
 
 // userColumns is the standard set of columns selected for user queries
-const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, verification_level, created_at, updated_at, last_login_at`
+const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, verification_level, mfa_enabled, mfa_level, created_at, updated_at, last_login_at`
 
 // UserService handles user-related operations
 type UserService struct {
@@ -50,6 +50,7 @@ func scanUser(row scannable) (*models.User, error) {
 		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub,
 		&user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
 		&user.Picture, &user.CitizenID, &user.Verified, &user.VerificationLevel,
+		&user.MFAEnabled, &user.MFALevel,
 		&user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
 	)
 	if err == sql.ErrNoRows {
@@ -210,6 +211,17 @@ func (s *UserService) CreateFromTwitter(twitterInfo *models.TwitterUserInfo) (*m
 }
 
 // --- Non-provider-specific methods ---
+
+// FindByID finds a user by ID
+func (s *UserService) FindByID(id int64) (*models.User, error) {
+	query := fmt.Sprintf("SELECT %s FROM users WHERE id = $1", userColumns)
+	user, err := scanUser(s.db.QueryRow(query, id))
+	if err != nil {
+		return nil, err
+	}
+	s.loadCitizen(user)
+	return user, nil
+}
 
 // FindByEmail finds a user by email
 func (s *UserService) FindByEmail(email string) (*models.User, error) {

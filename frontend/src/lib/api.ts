@@ -8,6 +8,13 @@ import type {
   UpdateClientDTO,
   AuditLog,
   CreateClientResponse,
+  MFASettings,
+  TOTPSetupResponse,
+  RecoveryCodesResponse,
+  PushChallengeResponse,
+  QRGenerateResponse,
+  PasskeyInfo,
+  DeviceInfo,
 } from '@/types'
 import { getToken } from './auth'
 
@@ -120,7 +127,7 @@ export const api = {
     me: () => fetchAPI<User>('/api/auth/me'),
 
     exchangeToken: (code: string) =>
-      fetchAPI<{ token: string }>('/api/auth/exchange-token', {
+      fetchAPI<{ token: string; mfa_required: boolean }>('/api/auth/exchange-token', {
         method: 'POST',
         body: JSON.stringify({ code }),
       }),
@@ -162,10 +169,13 @@ export const api = {
       }),
 
     verifyEmailOTP: (email: string, otp: string) =>
-      fetchAPI<{ message: string; code: string }>('/api/auth/email/verify-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email, otp }),
-      }),
+      fetchAPI<{ message: string; code: string; mfa_required: boolean }>(
+        '/api/auth/email/verify-otp',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email, otp }),
+        }
+      ),
 
     danCallback: (regNo: string) =>
       fetchAPI<{ message: string; reg_no: string }>(
@@ -197,6 +207,94 @@ export const api = {
       fetchAPI<{ message: string }>('/api/auth/logout', {
         method: 'POST',
       }),
+  },
+
+  mfa: {
+    // Settings
+    getSettings: () => fetchAPI<MFASettings>('/api/auth/mfa/settings'),
+    updateSettings: (data: { preferred_method: string }) =>
+      fetchAPI<{ message: string }>('/api/auth/mfa/settings', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    // TOTP
+    setupTOTP: () => fetchAPI<TOTPSetupResponse>('/api/auth/mfa/totp/setup', { method: 'POST' }),
+    verifyTOTPSetup: (code: string) =>
+      fetchAPI<{ message: string; recovery_codes: RecoveryCodesResponse }>(
+        '/api/auth/mfa/totp/verify-setup',
+        {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }
+      ),
+    validateTOTP: (code: string) =>
+      fetchAPI<{ message: string; token: string }>('/api/auth/mfa/totp/validate', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+    disableTOTP: () => fetchAPI<{ message: string }>('/api/auth/mfa/totp', { method: 'DELETE' }),
+
+    // Passkey
+    passkeyRegisterBegin: () =>
+      fetchAPI<unknown>('/api/auth/mfa/passkey/register/begin', { method: 'POST' }),
+    passkeyRegisterFinish: (data: unknown) =>
+      fetchAPI<{ message: string }>('/api/auth/mfa/passkey/register/finish', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    passkeyAuthBegin: () =>
+      fetchAPI<unknown>('/api/auth/mfa/passkey/auth/begin', { method: 'POST' }),
+    passkeyAuthFinish: (data: unknown) =>
+      fetchAPI<{ message: string; token: string }>('/api/auth/mfa/passkey/auth/finish', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    listPasskeys: () => fetchAPI<{ passkeys: PasskeyInfo[] }>('/api/auth/mfa/passkey/list'),
+    deletePasskey: (id: string) =>
+      fetchAPI<{ message: string }>(`/api/auth/mfa/passkey/${id}`, { method: 'DELETE' }),
+
+    // Push
+    registerDevice: (data: { token: string; device_name: string; device_type: string }) =>
+      fetchAPI<DeviceInfo>('/api/auth/mfa/push/register-device', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    sendPushChallenge: () =>
+      fetchAPI<PushChallengeResponse>('/api/auth/mfa/push/challenge', { method: 'POST' }),
+    getPushStatus: (id: string) =>
+      fetchAPI<{ status: string; token?: string }>(`/api/auth/mfa/push/status/${id}`),
+
+    // QR Login
+    generateQR: () => fetchAPI<QRGenerateResponse>('/api/auth/qr/generate'),
+    getQRStatus: (id: string) =>
+      fetchAPI<{ status: string; token?: string }>(`/api/auth/qr/status/${id}`),
+    approveQR: (sessionId: string) =>
+      fetchAPI<{ message: string }>('/api/auth/qr/approve', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId }),
+      }),
+
+    // Recovery
+    getRecoveryCodes: () =>
+      fetchAPI<{ codes: unknown[]; remaining: number; total: number }>(
+        '/api/auth/mfa/recovery/codes'
+      ),
+    regenerateCodes: () =>
+      fetchAPI<RecoveryCodesResponse>('/api/auth/mfa/recovery/regenerate', { method: 'POST' }),
+    validateRecovery: (code: string) =>
+      fetchAPI<{ message: string; token: string; remaining_codes: number }>(
+        '/api/auth/mfa/recovery/validate',
+        {
+          method: 'POST',
+          body: JSON.stringify({ code }),
+        }
+      ),
+
+    // Devices
+    listDevices: () => fetchAPI<{ devices: DeviceInfo[] }>('/api/auth/mfa/devices'),
+    removeDevice: (id: string) =>
+      fetchAPI<{ message: string }>(`/api/auth/mfa/devices/${id}`, { method: 'DELETE' }),
   },
 
   oauth: {

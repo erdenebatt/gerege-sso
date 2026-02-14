@@ -128,15 +128,41 @@ func main() {
 		log.Println("Twitter/X Login enabled")
 	}
 
+	// Initialize MFA services
+	var totpService *services.TOTPService
+	if cfg.MFA.EncryptionKey != "" {
+		totpService = services.NewTOTPService(db, cfg.MFA.EncryptionKey)
+		log.Println("TOTP MFA service enabled")
+	}
+
+	var passkeyService *services.PasskeyService
+	if cfg.MFA.WebAuthnRPID != "" {
+		var err error
+		passkeyService, err = services.NewPasskeyService(db, cfg.MFA.WebAuthnRPID, cfg.MFA.WebAuthnOrigin, cfg.MFA.WebAuthnRPName)
+		if err != nil {
+			log.Printf("Passkey service not configured: %v", err)
+		} else {
+			log.Println("Passkey/WebAuthn MFA service enabled")
+		}
+	}
+
+	pushAuthService := services.NewPushAuthService(db, rdb)
+	wsHub := services.NewWSHub()
+	qrLoginService := services.NewQRLoginService(db, rdb, wsHub, cfg.Public.URL)
+	recoveryService := services.NewRecoveryService(db)
+	mfaSettingsService := services.NewMFASettingsService(db)
+	mfaAuditService := services.NewMFAAuditService(db)
+
 	// Initialize OAuth2 provider service
 	clientService := services.NewClientService(db, rdb)
 	grantService := services.NewGrantService(db)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, emailService, rdb, cfg)
+	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, emailService, mfaSettingsService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 	apiLogHandler := handlers.NewAPILogHandler(apiLogService)
+	mfaHandler := handlers.NewMFAHandler(totpService, passkeyService, pushAuthService, qrLoginService, recoveryService, mfaSettingsService, mfaAuditService, jwtService, userService, wsHub, rdb)
 
 	// Setup Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -201,7 +227,55 @@ func main() {
 			// User grants endpoints
 			auth.GET("/grants", middleware.JWTAuth(jwtService), oauthProviderHandler.ListMyGrants)
 			auth.DELETE("/grants/:id", middleware.JWTAuth(jwtService), oauthProviderHandler.RevokeGrant)
+
+			// MFA routes
+			mfa := auth.Group("/mfa")
+			{
+				// TOTP
+				mfa.POST("/totp/setup", middleware.JWTAuth(jwtService), mfaHandler.SetupTOTP)
+				mfa.POST("/totp/verify-setup", middleware.JWTAuth(jwtService), mfaHandler.VerifyTOTPSetup)
+				mfa.POST("/totp/validate", middleware.JWTAuth(jwtService), mfaHandler.ValidateTOTP)
+				mfa.DELETE("/totp", middleware.JWTAuth(jwtService), mfaHandler.DisableTOTP)
+
+				// Passkey
+				mfa.POST("/passkey/register/begin", middleware.JWTAuth(jwtService), mfaHandler.PasskeyRegisterBegin)
+				mfa.POST("/passkey/register/finish", middleware.JWTAuth(jwtService), mfaHandler.PasskeyRegisterFinish)
+				mfa.POST("/passkey/auth/begin", middleware.JWTAuth(jwtService), mfaHandler.PasskeyAuthBegin)
+				mfa.POST("/passkey/auth/finish", middleware.JWTAuth(jwtService), mfaHandler.PasskeyAuthFinish)
+				mfa.GET("/passkey/list", middleware.JWTAuth(jwtService), mfaHandler.ListPasskeys)
+				mfa.DELETE("/passkey/:id", middleware.JWTAuth(jwtService), mfaHandler.DeletePasskey)
+
+				// Push
+				mfa.POST("/push/register-device", middleware.JWTAuth(jwtService), mfaHandler.RegisterDevice)
+				mfa.POST("/push/challenge", middleware.JWTAuth(jwtService), mfaHandler.SendPushChallenge)
+				mfa.POST("/push/respond", mfaHandler.RespondPushChallenge)
+				mfa.GET("/push/status/:id", middleware.JWTAuth(jwtService), mfaHandler.GetPushChallengeStatus)
+
+				// Recovery
+				mfa.GET("/recovery/codes", middleware.JWTAuth(jwtService), mfaHandler.GetRecoveryCodes)
+				mfa.POST("/recovery/regenerate", middleware.JWTAuth(jwtService), mfaHandler.RegenerateCodes)
+				mfa.POST("/recovery/validate", middleware.JWTAuth(jwtService), mfaHandler.ValidateRecovery)
+
+				// Settings
+				mfa.GET("/settings", middleware.JWTAuth(jwtService), mfaHandler.GetMFASettings)
+				mfa.PUT("/settings", middleware.JWTAuth(jwtService), mfaHandler.UpdateMFASettings)
+
+				// Devices
+				mfa.GET("/devices", middleware.JWTAuth(jwtService), mfaHandler.ListDevices)
+				mfa.DELETE("/devices/:id", middleware.JWTAuth(jwtService), mfaHandler.RemoveDevice)
+			}
+
+			// QR Login (public + authenticated)
+			qr := auth.Group("/qr")
+			{
+				qr.GET("/generate", mfaHandler.GenerateQR)
+				qr.POST("/approve", middleware.JWTAuth(jwtService), mfaHandler.ApproveQR)
+				qr.GET("/status/:id", mfaHandler.GetQRStatus)
+			}
 		}
+
+		// WebSocket routes (outside /api for cleaner URLs)
+		router.GET("/ws/auth/qr/:id", mfaHandler.QRWebSocket)
 
 		// OAuth2 provider routes
 		oauth := api.Group("/oauth")

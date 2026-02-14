@@ -275,6 +275,7 @@ func main() {
 				qr.GET("/generate", mfaHandler.GenerateQR)
 				qr.POST("/approve", middleware.JWTAuth(jwtService), mfaHandler.ApproveQR)
 				qr.GET("/status/:id", mfaHandler.GetQRStatus)
+				qr.POST("/scan", mfaHandler.QRMarkScanned)
 			}
 		}
 

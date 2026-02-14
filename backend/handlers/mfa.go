@@ -766,6 +766,24 @@ func (h *MFAHandler) QRWebSocket(c *gin.Context) {
 	}
 }
 
+// QRMarkScanned marks a QR session as scanned (called when mobile opens the QR URL)
+func (h *MFAHandler) QRMarkScanned(c *gin.Context) {
+	var req struct {
+		SessionID string `json:"session_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if err := h.qrLoginService.MarkScanned(req.SessionID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Session marked as scanned"})
+}
+
 // ============================================================
 // Recovery Endpoints
 // ============================================================

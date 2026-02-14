@@ -24,6 +24,7 @@ function LoginPageContent() {
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [qrSessionId, setQrSessionId] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
+  const [qrScanned, setQrScanned] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -87,11 +88,14 @@ function LoginPageContent() {
             if (qrPollRef.current) clearInterval(qrPollRef.current)
             setToken(status.token)
             router.replace('/dashboard')
+          } else if (status.status === 'scanned') {
+            setQrScanned(true)
           } else if (status.status === 'expired') {
             if (qrPollRef.current) clearInterval(qrPollRef.current)
             setError('QR код хугацаа дууслаа')
             setQrCode(null)
             setQrSessionId(null)
+            setQrScanned(false)
           }
         } catch {
           // Continue polling
@@ -292,7 +296,7 @@ function LoginPageContent() {
                   </div>
                   <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                     <div className="w-4 h-4 border-2 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-                    Хүлээж байна...
+                    {qrScanned ? 'Скан хийгдлээ, зөвшөөрөл хүлээж байна...' : 'Хүлээж байна...'}
                   </div>
                 </div>
               ) : (
@@ -315,6 +319,7 @@ function LoginPageContent() {
                   if (qrPollRef.current) clearInterval(qrPollRef.current)
                   setQrCode(null)
                   setQrSessionId(null)
+                  setQrScanned(false)
                 }}
                 className="mt-4 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
               >

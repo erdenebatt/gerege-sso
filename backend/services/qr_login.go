@@ -66,7 +66,7 @@ func (s *QRLoginService) GenerateSession(ipAddress, userAgent string) (*models.Q
 	s.redis.Set(ctx, "qr_session:"+sessionUUID, "pending", 5*time.Minute)
 
 	// Generate QR code image with the session approval URL
-	qrData := fmt.Sprintf("%s/api/auth/qr/scan?session=%s", s.publicURL, sessionUUID)
+	qrData := fmt.Sprintf("%s/qr/scan?session=%s", s.publicURL, sessionUUID)
 	png, err := qrcode.Encode(qrData, qrcode.Medium, 256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate QR code: %w", err)

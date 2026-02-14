@@ -283,6 +283,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ session_id: sessionId }),
       }),
+    markQRScanned: (sessionId: string) =>
+      fetchAPI<{ message: string }>('/api/auth/qr/scan', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId }),
+      }),
 
     // Recovery
     getRecoveryCodes: () =>

@@ -67,7 +67,7 @@ func (s *PasskeyService) loadWebAuthnUser(userID int64, genID, email string) (*w
 // loadCredentials loads WebAuthn credentials from the database
 func (s *PasskeyService) loadCredentials(userID int64) ([]webauthn.Credential, error) {
 	rows, err := s.db.Query(`
-		SELECT credential_id, public_key, attestation_type, aaguid, sign_count, transport
+		SELECT credential_id, public_key, attestation_type, aaguid, sign_count, transport, backup_eligible, backup_state
 		FROM webauthn_credentials WHERE user_id = $1
 	`, userID)
 	if err != nil {
@@ -84,8 +84,10 @@ func (s *PasskeyService) loadCredentials(userID int64) ([]webauthn.Credential, e
 			aaguid          []byte
 			signCount       uint32
 			transports      []string
+			backupEligible  bool
+			backupState     bool
 		)
-		if err := rows.Scan(&credID, &publicKey, &attestationType, &aaguid, &signCount, pq.Array(&transports)); err != nil {
+		if err := rows.Scan(&credID, &publicKey, &attestationType, &aaguid, &signCount, pq.Array(&transports), &backupEligible, &backupState); err != nil {
 			return nil, fmt.Errorf("failed to scan credential: %w", err)
 		}
 
@@ -99,6 +101,10 @@ func (s *PasskeyService) loadCredentials(userID int64) ([]webauthn.Credential, e
 			PublicKey:       publicKey,
 			AttestationType: attestationType,
 			Transport:       authTransports,
+			Flags: webauthn.CredentialFlags{
+				BackupEligible: backupEligible,
+				BackupState:    backupState,
+			},
 			Authenticator: webauthn.Authenticator{
 				AAGUID:    aaguid,
 				SignCount: signCount,
@@ -151,10 +157,11 @@ func (s *PasskeyService) FinishRegistration(userID int64, genID, email string, s
 	}
 
 	_, err = s.db.Exec(`
-		INSERT INTO webauthn_credentials (id, user_id, credential_id, public_key, attestation_type, aaguid, sign_count, transport)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO webauthn_credentials (id, user_id, credential_id, public_key, attestation_type, aaguid, sign_count, transport, backup_eligible, backup_state)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, id, userID, credential.ID, credential.PublicKey, credential.AttestationType,
-		credential.Authenticator.AAGUID, credential.Authenticator.SignCount, pq.Array(transports))
+		credential.Authenticator.AAGUID, credential.Authenticator.SignCount, pq.Array(transports),
+		credential.Flags.BackupEligible, credential.Flags.BackupState)
 	if err != nil {
 		return fmt.Errorf("failed to store credential: %w", err)
 	}

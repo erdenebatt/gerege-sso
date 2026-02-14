@@ -1,0 +1,1077 @@
+%% ============================================================================
+%% GEREGE SSO - Full System Architecture Knowledge Base
+%% Purpose: AI training document for understanding the Gerege SSO platform
+%% Format: Mermaid diagram collection
+%% Updated: 2026-02-14
+%% ============================================================================
+
+%% ============================================================================
+%% 1. SYSTEM OVERVIEW - High Level Architecture
+%% ============================================================================
+%% Gerege SSO нь Монгол улсын иргэдэд зориулсан нэгдсэн нэвтрэлт
+%% таниулалтын (OAuth 2.0) систем юм.
+%%
+%% Дэмждэг нэвтрэлтийн аргууд:
+%%   - OAuth 2.0 Social: Google, Apple, Facebook, Twitter/X
+%%   - DAN (Цахим иргэний үнэмлэх) SSO
+%%   - Email OTP (нууц үггүй нэвтрэлт)
+%%   - Утасны OTP баталгаажуулалт
+%%   - Регистрийн дугаар (reg_no) баталгаажуулалт (ЗААВАЛ)
+%%   - Олон provider-ийн бүртгэл холбох (account linking)
+%%
+%% Tech Stack:
+%%   Backend:  Go 1.21+ / Gin framework
+%%   Frontend: Next.js 14+ (App Router) / TypeScript / Tailwind CSS
+%%   Database: PostgreSQL 15
+%%   Cache:    Redis 7
+%%   Infra:    Docker Compose / Nginx / Grafana
+%% ============================================================================
+
+graph TB
+    subgraph "External Identity Providers"
+        GOOGLE["Google OAuth2"]
+        APPLE["Apple Sign-In"]
+        FACEBOOK["Facebook OAuth2"]
+        TWITTER["Twitter/X OAuth2<br/>(PKCE)"]
+        DAN["DAN SSO<br/>(sso.gov.mn)<br/>Цахим иргэний үнэмлэх"]
+    end
+
+    subgraph "Gerege SSO Platform"
+        subgraph "Frontend - Next.js 14+ (App Router)"
+            LOGIN["Login Page<br/>/"]
+            CALLBACK["Callback Handler<br/>/callback"]
+            REGISTER["Register Page<br/>/register<br/>(reg_no verification)"]
+            CONSENT["OAuth Consent<br/>/consent"]
+            DASHBOARD["Dashboard<br/>/dashboard/**"]
+            GRANTS_PAGE["Grants<br/>/grants"]
+            ADMIN_UI["Admin Panel<br/>/admin/**"]
+        end
+
+        subgraph "Backend - Go/Gin :8080"
+            AUTH_API["/api/auth/*<br/>Authentication API"]
+            OAUTH_API["/api/oauth/*<br/>OAuth2 Server API"]
+            ADMIN_API["/api/admin/*<br/>Admin API"]
+            MIDDLEWARE["Middleware Stack<br/>JWT | CORS | RateLimit<br/>Logger | Security | Metrics"]
+        end
+
+        subgraph "Data Layer"
+            POSTGRES[("PostgreSQL 15<br/>Users, Citizens, Clients<br/>Grants, Audit Logs")]
+            REDIS[("Redis 7<br/>Sessions, OTP, State<br/>JWT Blacklist, Cache")]
+        end
+    end
+
+    subgraph "External Services"
+        GEREGE_CORE["Gerege Core API<br/>Иргэний бүртгэлийн мэдээлэл"]
+        SMTP["SMTP Server<br/>Email OTP илгээх"]
+    end
+
+    subgraph "Third-Party Apps (OAuth2 Clients)"
+        CLIENT_APP["Client Application<br/>redirect_uri дээр буцаах"]
+    end
+
+    GOOGLE --> AUTH_API
+    APPLE --> AUTH_API
+    FACEBOOK --> AUTH_API
+    TWITTER --> AUTH_API
+    DAN --> AUTH_API
+
+    LOGIN --> AUTH_API
+    CALLBACK --> AUTH_API
+    REGISTER --> AUTH_API
+    CONSENT --> OAUTH_API
+    DASHBOARD --> AUTH_API
+    GRANTS_PAGE --> AUTH_API
+    ADMIN_UI --> ADMIN_API
+
+    AUTH_API --> MIDDLEWARE
+    OAUTH_API --> MIDDLEWARE
+    ADMIN_API --> MIDDLEWARE
+
+    MIDDLEWARE --> POSTGRES
+    MIDDLEWARE --> REDIS
+
+    AUTH_API --> GEREGE_CORE
+    AUTH_API --> SMTP
+
+    OAUTH_API --> CLIENT_APP
+
+%% ============================================================================
+%% 2. DATABASE SCHEMA - Entity Relationship Diagram
+%% ============================================================================
+%% Үндсэн хүснэгтүүд:
+%%   citizens  - Иргэний бүртгэлийн мастер мэдээлэл
+%%   users     - SSO хэрэглэгчийн мэдээлэл
+%%   sessions  - Хэрэглэгчийн session
+%%   audit_logs - Үйлдлийн бүртгэл
+%%   oauth_clients - Гуравдагч талын OAuth application
+%%   user_grants - Хэрэглэгчийн зөвшөөрсөн application
+%%   dan_verification_logs - DAN баталгаажуулалтын бүртгэл
+%%   registry_verify_logs  - Регистрийн баталгаажуулалтын бүртгэл
+%% ============================================================================
+
+erDiagram
+    citizens {
+        bigserial id PK
+        varchar reg_no UK "Регистрийн дугаар (unique)"
+        bigint civil_id "Иргэний ID"
+        varchar first_name "Нэр"
+        varchar last_name "Овог"
+        varchar family_name "Ургийн овог"
+        smallint gender "Хүйс"
+        date birth_date "Төрсөн огноо"
+        varchar phone_no "Утасны дугаар"
+        varchar email "Имэйл"
+        varchar aimag_city_code "Аймаг/Хот код"
+        varchar aimag_city_name "Аймаг/Хот нэр"
+        varchar sum_district_code "Сум/Дүүрэг код"
+        varchar sum_district_name "Сум/Дүүрэг нэр"
+        varchar bag_khoroo_code "Баг/Хороо код"
+        varchar bag_khoroo_name "Баг/Хороо нэр"
+        varchar street_name "Гудамж"
+        varchar residence_address "Оршин суугаа хаяг"
+        varchar ebarimt_tin "Е-баримт ТИН"
+        timestamp deleted_date "Soft delete"
+        bigint created_user_id
+        bigint updated_user_id
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    users {
+        bigserial id PK
+        varchar gen_id UK "11 оронтой давтагдашгүй ID"
+        varchar google_sub UK "Google account ID"
+        varchar apple_sub UK "Apple account ID"
+        varchar facebook_id UK "Facebook account ID"
+        varchar twitter_id UK "Twitter account ID"
+        varchar email "Имэйл хаяг"
+        boolean email_verified "Имэйл баталгаажсан эсэх"
+        varchar picture "Профайл зураг URL"
+        bigint citizen_id FK "citizens.id → холбогдсон иргэн"
+        boolean verified "reg_no баталгаажсан эсэх (ЗААВАЛ)"
+        integer verification_level "1:email 2:registry 3:phone 4:dan"
+        timestamp created_at
+        timestamp updated_at
+        timestamp last_login_at
+    }
+
+    oauth_clients {
+        uuid id PK
+        varchar client_id UK "Client identifier"
+        varchar client_secret_hash "Bcrypt hash"
+        varchar name "Application нэр"
+        text_arr redirect_uris "Зөвшөөрөгдсөн redirect URI"
+        text_arr allowed_scopes "Зөвшөөрөгдсөн scope"
+        boolean is_active "Идэвхтэй эсэх"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    user_grants {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar client_id FK "oauth_clients.client_id"
+        varchar client_name "Application нэр (denormalized)"
+        text_arr scopes "Зөвшөөрсөн scope-ууд"
+        timestamp granted_at "Зөвшөөрсөн огноо"
+        timestamp revoked_at "Цуцалсан огноо"
+        timestamp last_used_at "Сүүлд ашигласан"
+    }
+
+    sessions {
+        uuid id PK
+        bigint user_id FK "users.id"
+        varchar token_hash "Session token hash"
+        varchar ip_address "IP хаяг"
+        varchar user_agent "Browser мэдээлэл"
+        timestamp expires_at "Дуусах хугацаа"
+        timestamp created_at
+    }
+
+    audit_logs {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar action "Үйлдлийн төрөл (50 char)"
+        jsonb details "Дэлгэрэнгүй мэдээлэл"
+        varchar ip_address "IP хаяг"
+        timestamp created_at
+    }
+
+    dan_verification_logs {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar reg_no "Регистрийн дугаар"
+        varchar method "Баталгаажуулалтын арга"
+        timestamp created_at
+    }
+
+    registry_verify_logs {
+        bigserial id PK
+        bigint user_id FK "users.id"
+        varchar reg_no "Регистрийн дугаар"
+        timestamp created_at
+    }
+
+    users ||--o| citizens : "citizen_id → verified=true үед холбогдоно"
+    users ||--o{ sessions : "user_id"
+    users ||--o{ audit_logs : "user_id"
+    users ||--o{ user_grants : "user_id"
+    users ||--o{ dan_verification_logs : "user_id"
+    users ||--o{ registry_verify_logs : "user_id"
+    oauth_clients ||--o{ user_grants : "client_id"
+
+%% ============================================================================
+%% 3. OAUTH2 SOCIAL LOGIN FLOW (Google жишээ дээр)
+%% ============================================================================
+%% Бүх social provider ижил урсгалтай:
+%%   1. Frontend → Backend redirect → Provider
+%%   2. Provider → Backend callback → Exchange code үүсгэх
+%%   3. Frontend → Exchange code → JWT token авах
+%%   4. verified=false бол /register руу чиглүүлэх
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч (Browser)
+    participant FE as Frontend (Next.js)
+    participant BE as Backend (Go/Gin)
+    participant G as Google OAuth2
+    participant DB as PostgreSQL
+    participant R as Redis
+
+    U->>FE: "Google-ээр нэвтрэх" дарах
+    FE->>BE: GET /api/auth/google
+    BE->>R: state token хадгалах (10 мин TTL)
+    BE->>U: 302 Redirect → Google Authorization URL
+
+    U->>G: Google нэвтрэлт хийх
+    G->>BE: GET /api/auth/google/callback?code=XXX&state=YYY
+
+    BE->>R: state token шалгах
+    BE->>G: Authorization code → Access Token солих
+    G-->>BE: Access Token
+    BE->>G: GET /userinfo (email, name, picture)
+    G-->>BE: User Info
+
+    alt Хэрэглэгч байхгүй бол
+        BE->>DB: gen_id үүсгэх (11 оронтой)
+        BE->>DB: INSERT users (google_sub, email, verified=false)
+    else Хэрэглэгч байвал
+        BE->>DB: UPDATE last_login_at
+    end
+
+    alt Ижил email-тэй өөр provider-ийн бүртгэл байвал
+        BE->>R: pending_link хадгалах (10 мин TTL)
+        BE->>U: 302 → /callback?pending_link=true&gen_id=XXX
+    else Хэвийн нэвтрэлт
+        BE->>R: exchange_code хадгалах (60 сек TTL, нэг удаагийн)
+        BE->>U: 302 → /callback?code=EXCHANGE_CODE
+    end
+
+    FE->>BE: POST /api/auth/exchange-token {code}
+    BE->>R: exchange_code шалгах + устгах
+    BE->>BE: JWT token үүсгэх (24 цаг)
+    BE-->>FE: {token, user}
+
+    FE->>FE: token → localStorage + cookie
+
+    alt user.verified === false
+        FE->>U: /register руу чиглүүлэх
+    else user.verified === true
+        FE->>U: /dashboard руу чиглүүлэх
+    end
+
+%% ============================================================================
+%% 4. EMAIL OTP PASSWORDLESS LOGIN FLOW
+%% ============================================================================
+%% Имэйл + OTP ашиглан нууц үггүй нэвтрэх:
+%%   - 6 оронтой OTP код (10 мин хүчинтэй)
+%%   - 5 удаагийн оролдлого хязгаар
+%%   - 60 секундын cooldown дахин илгээхэд
+%%   - SMTP-ээр имэйл илгээх (dev горимд console-д харуулна)
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant SMTP as SMTP Server
+    participant DB as PostgreSQL
+
+    U->>FE: Имэйл хаяг оруулах
+    FE->>BE: POST /api/auth/email/send-otp {email}
+
+    BE->>R: email_otp_cooldown:{email} шалгах
+    alt Cooldown идэвхтэй
+        BE-->>FE: 429 "60 секунд хүлээнэ үү"
+    end
+
+    BE->>BE: 6 оронтой OTP үүсгэх (crypto/rand)
+    BE->>R: SET email_otp:{email} = "OTP:0" (TTL: 10 мин)
+    BE->>R: SET email_otp_cooldown:{email} = "1" (TTL: 60 сек)
+
+    alt Production горим
+        BE->>SMTP: OTP имэйл илгээх (UTF-8 base64 encoding)
+        SMTP-->>U: OTP код имэйлээр хүлээн авах
+    else Development горим
+        BE-->>FE: {otp: "123456"} шууд буцаах
+    end
+
+    U->>FE: OTP код оруулах
+    FE->>BE: POST /api/auth/email/verify-otp {email, otp}
+
+    BE->>R: GET email_otp:{email}
+    BE->>BE: OTP шалгах + оролдлого тоолох
+
+    alt OTP буруу (5-аас дээш оролдлого)
+        BE->>R: DEL email_otp:{email}
+        BE-->>FE: 401 "OTP хүчингүй"
+    end
+
+    alt OTP зөв
+        BE->>R: DEL email_otp:{email}
+        BE->>DB: FindOrCreateByEmail(email)
+        BE->>DB: UPDATE last_login_at
+        BE->>R: exchange_code хадгалах (60 сек)
+        BE-->>FE: {exchange_code}
+    end
+
+    FE->>BE: POST /api/auth/exchange-token {code}
+    BE-->>FE: {token, user}
+
+    alt user.verified === false
+        FE->>U: /register руу чиглүүлэх
+    end
+
+%% ============================================================================
+%% 5. MANDATORY REG_NO VERIFICATION FLOW (ЗААВАЛ)
+%% ============================================================================
+%% Бүх шинэ хэрэглэгч reg_no баталгаажуулалт хийх ЁСТОЙ:
+%%   - verified=false → /dashboard/** руу нэвтрэх боломжгүй
+%%   - Dashboard layout → /register руу redirect
+%%   - Consent page → /register руу redirect (oauth_redirect хадгална)
+%%   - Email OTP login → /register руу redirect
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as PostgreSQL
+    participant CORE as Gerege Core API
+
+    Note over U,FE: Хэрэглэгч нэвтэрсэн, verified=false
+
+    U->>FE: /dashboard руу очих оролдлого
+    FE->>FE: dashboard/layout.tsx → user.verified шалгах
+    FE->>U: 302 → /register руу чиглүүлэх
+
+    U->>FE: /register хуудас
+    U->>FE: Регистрийн дугаар оруулах (жишээ: УБ12345678)
+    FE->>BE: POST /api/auth/verify {reg_no: "УБ12345678"}
+
+    BE->>BE: reg_no → Latin ↔ Cyrillic хөрвүүлэх
+    BE->>DB: SELECT * FROM citizens WHERE UPPER(reg_no) = ?
+
+    alt Иргэн локал DB-д олдсон
+        BE->>DB: BEGIN TRANSACTION
+        BE->>DB: UPDATE users SET verified=true, citizen_id=X
+        BE->>DB: INSERT INTO registry_verify_logs
+        BE->>DB: COMMIT
+    else Иргэн локал DB-д олдоогүй
+        BE->>CORE: POST /api/user/find {reg_no}
+        CORE-->>BE: Citizen data (нэр, хаяг, утас, ...)
+        BE->>DB: INSERT INTO citizens (...) VALUES (...)
+        BE->>DB: BEGIN TRANSACTION
+        BE->>DB: UPDATE users SET verified=true, citizen_id=X
+        BE->>DB: INSERT INTO registry_verify_logs
+        BE->>DB: COMMIT
+    end
+
+    BE-->>FE: {user: {..., verified: true, verification_level: 2}}
+    FE->>FE: authStore.setUser(user)
+    FE->>U: /dashboard руу чиглүүлэх
+
+    Note over U,FE: Одоо /dashboard/** болон /consent хуудсууд нээлттэй
+
+%% ============================================================================
+%% 6. OAUTH2 AUTHORIZATION SERVER FLOW (Third-Party Consent)
+%% ============================================================================
+%% Gerege SSO нь OAuth2 Authorization Server болж ажиллана:
+%%   - Гуравдагч талын app → /api/oauth/authorize
+%%   - Хэрэглэгч зөвшөөрөл → /consent хуудас
+%%   - Authorization code → /api/oauth/token
+%%   - Third-party JWT (1 цаг, reg_no/civil_id байхгүй)
+%%   - PKCE дэмжлэгтэй (S256 / plain)
+%% ============================================================================
+
+sequenceDiagram
+    participant CA as Client App<br/>(Гуравдагч тал)
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    CA->>U: Redirect → /api/oauth/authorize<br/>?client_id=X&redirect_uri=Y<br/>&response_type=code&scope=openid+profile<br/>&state=Z&code_challenge=C&code_challenge_method=S256
+
+    U->>BE: GET /api/oauth/authorize
+    BE->>DB: OAuth client шалгах (client_id, redirect_uri)
+    BE->>BE: JWT token шалгах (cookie эсвэл header)
+
+    alt Нэвтрээгүй бол
+        BE->>U: 302 → Login page (/login?redirect=...)
+    end
+
+    alt user.verified === false
+        BE->>FE: /consent → /register руу redirect
+        FE->>FE: oauth_redirect = authorize URL хадгалах
+        FE->>U: /register руу чиглүүлэх
+        Note over U,FE: reg_no баталгаажуулалт хийсний дараа буцна
+    end
+
+    BE->>U: 302 → /consent?client_id=X&scope=openid+profile&...
+
+    U->>FE: /consent хуудас (ямар мэдээлэл хуваалцахыг харуулна)
+    U->>FE: "Зөвшөөрөх" дарах
+
+    FE->>BE: GET /api/oauth/authorize?...&approve=true
+    BE->>BE: Authorization code үүсгэх
+    BE->>R: auth_code хадгалах (5 мин TTL)
+    BE->>DB: user_grants бүртгэх
+    BE->>U: 302 → redirect_uri?code=AUTH_CODE&state=Z
+
+    U->>CA: Authorization code-тэй буцах
+
+    CA->>BE: POST /api/oauth/token
+    Note right of CA: {grant_type: authorization_code,<br/>code, client_id, client_secret,<br/>redirect_uri, code_verifier}
+
+    BE->>R: auth_code шалгах + устгах
+    BE->>DB: client_secret шалгах (bcrypt)
+
+    alt PKCE ашигласан бол
+        BE->>BE: code_verifier → SHA256 → code_challenge шалгах
+    end
+
+    BE->>BE: Third-Party JWT үүсгэх (1 цаг TTL)
+    Note right of BE: JWT-д reg_no, civil_id БАЙХГҮЙ<br/>(ThirdPartyGeregeInfo ашиглана)
+
+    BE-->>CA: {access_token, token_type: "Bearer", expires_in: 3600}
+
+%% ============================================================================
+%% 7. ACCOUNT LINKING FLOW (Олон Provider Холбох)
+%% ============================================================================
+%% Хэрэглэгч ижил email-ээр өөр provider-ээр нэвтрэхэд:
+%%   - Аюулгүй байдлын үүднээс автоматаар холбохгүй
+%%   - reg_no-оор таниулж баталгаажуулна
+%%   - Redis-д pending_link 10 минут хадгална
+%%   - Нэг удаагийн ашиглалт
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    Note over U: Google-ээр бүртгүүлсэн хэрэглэгч<br/>Apple-аар нэвтрэх оролдлого хийж байна
+
+    U->>BE: Apple Login → callback
+    BE->>DB: apple_sub-аар хайх → олдсонгүй
+    BE->>DB: email-аар хайх → Google бүртгэлтэй олдлоо!
+
+    BE->>R: SET pending_link:{gen_id} = JSON{<br/>  existing_user_id,<br/>  new_provider: "apple",<br/>  new_provider_id: apple_sub,<br/>  email<br/>} (TTL: 10 мин)
+
+    BE->>U: 302 → /callback?pending_link=true&gen_id=XXX
+
+    FE->>U: "Ижил имэйлтэй бүртгэл олдлоо.<br/>Бүртгэлүүдийг холбохын тулд<br/>регистрийн дугаараа оруулна уу"
+
+    U->>FE: reg_no оруулах
+    FE->>BE: POST /api/auth/confirm-link {gen_id, reg_no}
+
+    BE->>R: GET pending_link:{gen_id}
+    BE->>DB: Хэрэглэгчийн citizen мэдээлэл авах
+    BE->>BE: reg_no таарч байгаа эсэх шалгах
+
+    alt reg_no таарсан
+        BE->>DB: UPDATE users SET apple_sub = ? WHERE id = ?
+        BE->>R: DEL pending_link:{gen_id}
+        BE->>DB: audit_log бүртгэх
+        BE->>BE: JWT token үүсгэх
+        BE->>R: exchange_code хадгалах
+        BE-->>FE: {exchange_code}
+    else reg_no таараагүй
+        BE-->>FE: 400 "Регистрийн дугаар таарсангүй"
+    end
+
+%% ============================================================================
+%% 8. DAN SSO VERIFICATION FLOW
+%% ============================================================================
+%% DAN (Цахим иргэний үнэмлэх) баталгаажуулалт:
+%%   - https://sso.gov.mn/login руу redirect
+%%   - Амжилттай бол verification_level = 4 (хамгийн өндөр)
+%%   - reg_no автоматаар холбогдоно
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant DAN as DAN SSO<br/>(sso.gov.mn)
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    U->>FE: "DAN-аар баталгаажуулах" дарах
+    FE->>BE: GET /api/auth/dan
+
+    BE->>R: state token хадгалах
+    BE->>U: 302 → https://sso.gov.mn/login?client_id=X&redirect_uri=Y&state=Z
+
+    U->>DAN: Цахим иргэний үнэмлэхээр нэвтрэх
+    DAN->>BE: GET /api/auth/dan/authorized?reg_no=УБ12345678&state=Z
+
+    BE->>R: state шалгах
+    BE->>U: 302 → /callback?dan_success=true&reg_no=УБ12345678
+
+    FE->>BE: GET /api/auth/dan/callback?reg_no=УБ12345678
+    BE->>DB: LinkCitizen(userID, "УБ12345678")
+    BE->>DB: UPDATE verification_level = 4
+    BE->>DB: INSERT INTO dan_verification_logs
+    BE-->>FE: {user: {..., verified: true, verification_level: 4}}
+
+%% ============================================================================
+%% 9. PHONE OTP VERIFICATION FLOW
+%% ============================================================================
+%% Утасны дугаар баталгаажуулалт:
+%%   - Иргэний бүртгэлийн утасны дугаар руу OTP илгээх
+%%   - verification_level = 3
+%%   - Зөвхөн verified=true хэрэглэгчид (citizen холбогдсон байх ёстой)
+%% ============================================================================
+
+sequenceDiagram
+    participant U as Хэрэглэгч
+    participant FE as Frontend
+    participant BE as Backend
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    U->>FE: Security хуудсанд "Утас баталгаажуулах" дарах
+    FE->>BE: POST /api/auth/phone/send-otp (JWT required)
+
+    BE->>DB: Хэрэглэгчийн citizen мэдээлэл авах
+    BE->>BE: Утасны дугаар олох (citizen.phone_no)
+
+    BE->>R: phone_otp_cooldown:{user_id} шалгах
+    BE->>BE: 6 оронтой OTP үүсгэх
+    BE->>R: SET phone_otp:{user_id} = "OTP:0" (TTL: 5 мин)
+    BE->>R: SET phone_otp_cooldown:{user_id} = "1" (TTL: 60 сек)
+
+    BE-->>FE: {phone: "99**5678"} (далд утасны дугаар)
+
+    U->>FE: OTP оруулах
+    FE->>BE: POST /api/auth/phone/verify-otp {otp}
+
+    BE->>R: GET phone_otp:{user_id}
+    BE->>BE: OTP шалгах (5 оролдлого хязгаар)
+
+    alt OTP зөв
+        BE->>DB: UPDATE users SET verification_level = 3
+        BE-->>FE: {success: true}
+    end
+
+%% ============================================================================
+%% 10. BACKEND ARCHITECTURE - Route & Handler Map
+%% ============================================================================
+%% Бүх API endpoint-ууд болон тэдгээрийн handler function
+%% ============================================================================
+
+graph LR
+    subgraph "Public Routes (Нэвтрэлтгүй)"
+        H1["GET /health → Health()"]
+        H2["GET /ready → Ready()"]
+        H3["GET /metrics → Prometheus"]
+        H4["GET /swagger/* → Swagger UI"]
+    end
+
+    subgraph "/api/auth - Authentication Routes"
+        direction TB
+        subgraph "OAuth Login (Redirect-based)"
+            A1["GET /google → GoogleLogin()"]
+            A2["GET /google/callback → GoogleCallback()"]
+            A3["GET /apple → AppleLogin()"]
+            A4["GET /apple/callback → AppleCallback()"]
+            A5["GET /facebook → FacebookLogin()"]
+            A6["GET /facebook/callback → FacebookCallback()"]
+            A7["GET /twitter → TwitterLogin()"]
+            A8["GET /twitter/callback → TwitterCallback()"]
+        end
+
+        subgraph "Token & Session"
+            A9["POST /exchange-token → ExchangeToken()"]
+            A10["POST /logout → Logout() ⟨JWT⟩"]
+            A11["GET /me → Me() ⟨JWT⟩"]
+        end
+
+        subgraph "Identity Verification"
+            A12["POST /verify → VerifyIdentity() ⟨JWT⟩"]
+            A13["POST /confirm-link → ConfirmIdentityLink()"]
+        end
+
+        subgraph "Email OTP"
+            A14["POST /email/send-otp → SendEmailOTP()"]
+            A15["POST /email/verify-otp → VerifyEmailOTP()"]
+        end
+
+        subgraph "Phone OTP"
+            A16["POST /phone/send-otp → SendPhoneOTP() ⟨JWT⟩"]
+            A17["POST /phone/verify-otp → VerifyPhoneOTP() ⟨JWT⟩"]
+        end
+
+        subgraph "DAN SSO"
+            A18["GET /dan → DanLogin() ⟨JWT⟩"]
+            A19["GET /dan/authorized → DanAuthorized()"]
+            A20["GET /dan/callback → DanCallback() ⟨JWT⟩"]
+        end
+
+        subgraph "User Data"
+            A21["GET /login-activity → LoginActivity() ⟨JWT⟩"]
+            A22["GET /api-logs → GetAPILogs() ⟨JWT⟩"]
+            A23["GET /grants → ListMyGrants() ⟨JWT⟩"]
+            A24["DELETE /grants/:id → RevokeGrant() ⟨JWT⟩"]
+        end
+    end
+
+    subgraph "/api/oauth - OAuth2 Server Routes"
+        O1["GET /authorize → Authorize() ⟨JWT⟩"]
+        O2["POST /token → Token()"]
+    end
+
+    subgraph "/api/admin - Admin Routes ⟨X-Admin-Key⟩"
+        AD1["POST /clients → CreateClient()"]
+        AD2["GET /clients → ListClients()"]
+        AD3["PUT /clients/:id → UpdateClient()"]
+        AD4["DELETE /clients/:id → DeleteClient()"]
+        AD5["GET /stats → GetStats()"]
+        AD6["GET /audit-logs → GetAuditLogs()"]
+    end
+
+%% ============================================================================
+%% 11. MIDDLEWARE STACK
+%% ============================================================================
+%% Request бүр дараах middleware-ууд дамжина:
+%% ============================================================================
+
+graph TD
+    REQ["Incoming HTTP Request"] --> CORS["CORS Middleware<br/>cors.go<br/>Frontend domain зөвшөөрөх"]
+    CORS --> SEC["Security Headers<br/>security.go<br/>CSP, X-Frame-Options, HSTS"]
+    SEC --> LOG["Logger Middleware<br/>logger.go<br/>Request/Response logging"]
+    LOG --> MET["Metrics Middleware<br/>metrics.go<br/>Prometheus counters & latency"]
+    MET --> RL["Rate Limiter<br/>ratelimit.go<br/>Redis token bucket<br/>20 req/min per IP (auth)"]
+
+    RL --> JWT_MW{"JWT Middleware<br/>jwt.go<br/>⟨JWT⟩ гэж тэмдэглэсэн route-ууд"}
+    RL --> ADMIN_MW{"Admin Middleware<br/>admin.go<br/>X-Admin-Key header шалгах"}
+    RL --> PUBLIC["Public Handler<br/>(middleware шалгалтгүй)"]
+
+    JWT_MW --> |"Authorization: Bearer TOKEN<br/>эсвэл gerege_token cookie"| HANDLER["Route Handler"]
+    ADMIN_MW --> |"X-Admin-Key: SECRET"| HANDLER
+    PUBLIC --> HANDLER
+
+%% ============================================================================
+%% 12. BACKEND SERVICE LAYER
+%% ============================================================================
+%% Handler → Service → Database/External харилцаа
+%% ============================================================================
+
+graph TB
+    subgraph "Handlers Layer"
+        AH["AuthHandler<br/>auth.go (1720 мөр)"]
+        OH["OAuthProviderHandler<br/>oauth_provider.go"]
+        HH["HealthHandler<br/>health.go"]
+        ALH["APILogHandler<br/>apilog.go"]
+    end
+
+    subgraph "Services Layer"
+        US["UserService<br/>user.go (400+ мөр)<br/>FindByProviderID()<br/>FindOrCreateByEmail()<br/>LinkCitizen()<br/>LinkProviderID()<br/>UpdateVerificationLevel()"]
+        JS["JWTService<br/>jwt.go<br/>GenerateToken()<br/>GenerateThirdPartyToken()<br/>ValidateToken()<br/>BlacklistToken()"]
+        GS["GoogleOAuthService<br/>oauth.go"]
+        AS["AppleOAuthService<br/>apple.go"]
+        FS["FacebookOAuthService<br/>facebook.go"]
+        TS["TwitterOAuthService<br/>twitter.go"]
+        ES["EmailService<br/>email.go<br/>SendOTP() (SMTP)"]
+        GCS["GeregeCoreService<br/>gerege_core.go<br/>FindCitizen(regNo)"]
+        CS["ClientService<br/>client.go"]
+        GRS["GrantService<br/>grant.go"]
+        AUS["AuditService<br/>audit.go"]
+        GIS["GenIDService<br/>genid.go<br/>11 оронтой ID үүсгэх"]
+    end
+
+    subgraph "Data Layer"
+        PG[("PostgreSQL<br/>users, citizens, oauth_clients<br/>user_grants, audit_logs<br/>sessions")]
+        RD[("Redis<br/>OTP codes, State tokens<br/>Exchange codes, JWT blacklist<br/>Rate limit, Client cache")]
+    end
+
+    subgraph "External APIs"
+        GAPI["Google API"]
+        AAPI["Apple API"]
+        FAPI["Facebook Graph API"]
+        TAPI["Twitter API v2"]
+        CORE["Gerege Core API"]
+        SMTP_S["SMTP Server"]
+    end
+
+    AH --> US
+    AH --> JS
+    AH --> GS
+    AH --> AS
+    AH --> FS
+    AH --> TS
+    AH --> ES
+    AH --> GCS
+    AH --> AUS
+    AH --> GIS
+
+    OH --> US
+    OH --> JS
+    OH --> CS
+    OH --> GRS
+    OH --> AUS
+
+    US --> PG
+    US --> GCS
+    JS --> RD
+    CS --> PG
+    CS --> RD
+    GRS --> PG
+    AUS --> PG
+    GIS --> PG
+
+    GS --> GAPI
+    AS --> AAPI
+    FS --> FAPI
+    TS --> TAPI
+    GCS --> CORE
+    ES --> SMTP_S
+
+%% ============================================================================
+%% 13. FRONTEND ARCHITECTURE - Component Tree
+%% ============================================================================
+
+graph TB
+    subgraph "Next.js App Router"
+        ROOT["RootLayout<br/>layout.tsx<br/>ThemeProvider + StoreHydration + ErrorBoundary"]
+
+        ROOT --> LOGIN_P["/ (Login Page)<br/>page.tsx<br/>OAuthButtons + EmailOTPLogin"]
+        ROOT --> CALLBACK_P["/callback<br/>page.tsx<br/>Exchange code + Account linking"]
+        ROOT --> REGISTER_P["/register<br/>page.tsx<br/>reg_no баталгаажуулалт"]
+        ROOT --> CONSENT_P["/consent<br/>page.tsx<br/>OAuth2 зөвшөөрлийн хуудас"]
+        ROOT --> DASH_L["/dashboard (Layout)<br/>layout.tsx<br/>★ verified шалгах ★<br/>Sidebar + Header"]
+        ROOT --> GRANTS_P["/grants<br/>page.tsx<br/>Холбогдсон app-ууд"]
+        ROOT --> ADMIN_L["/admin<br/>Admin Panel"]
+        ROOT --> INFO["Info Pages<br/>/privacy /terms<br/>/data-deletion /docs"]
+
+        DASH_L --> DASH_P["/dashboard<br/>page.tsx<br/>Профайл + IdentityCard"]
+        DASH_L --> DAN_P["/dashboard/dan<br/>page.tsx<br/>DAN баталгаажуулалт"]
+        DASH_L --> SEC_P["/dashboard/security<br/>page.tsx<br/>Утас + Provider-ууд"]
+        DASH_L --> ACT_P["/dashboard/activity<br/>page.tsx<br/>Нэвтрэлтийн түүх"]
+        DASH_L --> LOG_P["/dashboard/logs<br/>page.tsx<br/>API log-ууд"]
+    end
+
+    subgraph "State Management (Zustand)"
+        AUTH_STORE["authStore.ts<br/>token, user, grants<br/>fetchUser(), logout()<br/>revokeGrant()"]
+        SETTINGS["settingsStore.ts<br/>theme, language"]
+        ADMIN_STORE["adminStore.ts<br/>Admin state"]
+    end
+
+    subgraph "Key Components"
+        direction TB
+        OAB["OAuthButtons.tsx<br/>Google, Apple, Facebook, Twitter"]
+        EOTP["EmailOTPLogin.tsx<br/>Имэйл OTP форм"]
+        ICARD["IdentityCard.tsx<br/>Иргэний мэдээлэл"]
+        VPROG["VerificationProgress.tsx<br/>Баталгаажуулалтын явц"]
+        SCARD["SecurityCard.tsx<br/>Аюулгүй байдлын тохиргоо"]
+        PVM["PhoneVerifyModal.tsx<br/>Утасны OTP modal"]
+        GCARD["GrantCard.tsx<br/>Холбогдсон app карт"]
+    end
+
+    subgraph "API Layer"
+        API["lib/api.ts<br/>fetchAPI() + retry logic<br/>api.auth.* methods"]
+        AUTH_LIB["lib/auth.ts<br/>setToken() getToken()<br/>removeToken()"]
+    end
+
+    LOGIN_P --> OAB
+    LOGIN_P --> EOTP
+    DASH_P --> ICARD
+    DASH_P --> VPROG
+    SEC_P --> SCARD
+    SEC_P --> PVM
+    GRANTS_P --> GCARD
+
+    ROOT --> AUTH_STORE
+    ROOT --> SETTINGS
+
+%% ============================================================================
+%% 14. VERIFICATION LEVEL SYSTEM
+%% ============================================================================
+%% Баталгаажуулалтын түвшин (зөвхөн дээшлэх чиглэлд):
+%%   Level 1: Email баталгаажсан (OAuth/Email OTP бүртгэл)
+%%   Level 2: Регистр баталгаажсан (reg_no → citizen холбогдсон)
+%%   Level 3: Утас баталгаажсан (phone OTP)
+%%   Level 4: DAN баталгаажсан (Цахим иргэний үнэмлэх)
+%% ============================================================================
+
+graph LR
+    L1["Level 1<br/>📧 Email<br/>verified=false"] -->|"POST /verify<br/>{reg_no}"| L2["Level 2<br/>📋 Registry<br/>verified=true"]
+    L2 -->|"POST /phone/verify-otp<br/>{otp}"| L3["Level 3<br/>📱 Phone<br/>verified=true"]
+    L3 -->|"DAN SSO<br/>sso.gov.mn"| L4["Level 4<br/>🪪 DAN<br/>verified=true"]
+
+    L1 -.-|"Шууд DAN-аар"| L4
+
+    style L1 fill:#fee,stroke:#c00
+    style L2 fill:#ffe,stroke:#aa0
+    style L3 fill:#eef,stroke:#00a
+    style L4 fill:#efe,stroke:#0a0
+
+%% ============================================================================
+%% 15. JWT TOKEN STRUCTURE
+%% ============================================================================
+%% Gerege SSO-ийн JWT token-ий бүтэц:
+%%
+%% Internal JWT (24 цаг):
+%%   sub: gen_id (11 оронтой)
+%%   email: user email
+%%   gerege: {reg_no, first_name, family_name, last_name, birth_date, gender,
+%%            verified, verification_level, name}
+%%
+%% Third-Party JWT (1 цаг):
+%%   sub: gen_id
+%%   email: user email
+%%   aud: client_id
+%%   scope: "openid profile"
+%%   gerege: {first_name, family_name, last_name, birth_date, gender,
+%%            verified, verification_level, name}
+%%   ★ reg_no, civil_id БАЙХГҮЙ (privacy)
+%% ============================================================================
+
+graph TB
+    subgraph "Internal JWT (24h TTL)"
+        IH["Header: {alg: HS256, typ: JWT}"]
+        IP["Payload:<br/>sub: '10000000001' (gen_id)<br/>email: 'user@example.com'<br/>jti: 'uuid-v4'<br/>iat: timestamp<br/>exp: +24h<br/>gerege: {<br/>  reg_no: 'УБ12345678'<br/>  first_name: 'Бат'<br/>  family_name: 'Боржигон'<br/>  last_name: 'Дорж'<br/>  birth_date: '1990-01-01'<br/>  gender: 1<br/>  verified: true<br/>  verification_level: 2<br/>  name: 'Б.Дорж'<br/>}"]
+        IS["Signature: HMAC-SHA256(secret)"]
+    end
+
+    subgraph "Third-Party JWT (1h TTL)"
+        TH["Header: {alg: HS256, typ: JWT}"]
+        TP["Payload:<br/>sub: '10000000001' (gen_id)<br/>email: 'user@example.com'<br/>aud: 'client_app_id'<br/>scope: 'openid profile'<br/>jti: 'uuid-v4'<br/>iat: timestamp<br/>exp: +1h<br/>gerege: {<br/>  ★ reg_no БАЙХГҮЙ<br/>  ★ civil_id БАЙХГҮЙ<br/>  first_name: 'Бат'<br/>  family_name: 'Боржигон'<br/>  last_name: 'Дорж'<br/>  birth_date: '1990-01-01'<br/>  gender: 1<br/>  verified: true<br/>  verification_level: 2<br/>  name: 'Б.Дорж'<br/>}"]
+        TS2["Signature: HMAC-SHA256(secret)"]
+    end
+
+%% ============================================================================
+%% 16. REDIS KEY PATTERNS
+%% ============================================================================
+%% Redis-д хадгалагдах бүх түлхүүрүүд:
+%% ============================================================================
+
+graph TB
+    subgraph "Redis Key Patterns"
+        R1["oauth_state:{state}<br/>TTL: 10 мин<br/>OAuth state verification"]
+        R2["exchange_code:{code}<br/>TTL: 60 сек<br/>Single-use token exchange"]
+        R3["email_otp:{email}<br/>TTL: 10 мин<br/>Value: 'OTP:attempt_count'"]
+        R4["email_otp_cooldown:{email}<br/>TTL: 60 сек<br/>Дахин илгээх хязгаар"]
+        R5["phone_otp:{user_id}<br/>TTL: 5 мин<br/>Value: 'OTP:attempt_count'"]
+        R6["phone_otp_cooldown:{user_id}<br/>TTL: 60 сек<br/>Дахин илгээх хязгаар"]
+        R7["pending_link:{gen_id}<br/>TTL: 10 мин<br/>Account linking data (JSON)"]
+        R8["jwt_blacklist:{jti}<br/>TTL: token expiry хүртэл<br/>Logout хийсэн token"]
+        R9["auth_code:{code}<br/>TTL: 5 мин<br/>OAuth2 authorization code"]
+        R10["dan_state:{state}<br/>TTL: 10 мин<br/>DAN SSO state"]
+        R11["rate_limit:{ip}:{endpoint}<br/>TTL: 1 мин<br/>Token bucket counter"]
+        R12["oauth_client:{client_id}<br/>TTL: cache TTL<br/>Client data cache"]
+    end
+
+%% ============================================================================
+%% 17. SECURITY ARCHITECTURE
+%% ============================================================================
+
+graph TB
+    subgraph "Authentication Security"
+        S1["Single-Use Exchange Codes<br/>60 сек TTL, нэг удаа ашиглана<br/>URL-д token харагдахаас сэргийлнэ"]
+        S2["JWT Blacklisting<br/>Logout хийхэд jti → Redis<br/>Token expiry хүртэл хадгална"]
+        S3["OTP Brute Force Protection<br/>5 оролдлого → автоматаар устгана<br/>60 сек cooldown"]
+        S4["State Token Validation<br/>CSRF халдлагаас хамгаална<br/>OAuth state → Redis 10 мин"]
+        S5["PKCE Support<br/>Authorization code interception-аас хамгаална<br/>S256 / plain method"]
+    end
+
+    subgraph "Data Security"
+        D1["Third-Party Privacy<br/>reg_no, civil_id гуравдагч<br/>талд ХЭЗЭЭ Ч өгөхгүй"]
+        D2["BCrypt Password Hashing<br/>OAuth client secret → bcrypt hash"]
+        D3["HTTPOnly Cookies<br/>XSS-аас JWT хамгаална"]
+        D4["Transaction Isolation<br/>LinkCitizen() → DB transaction<br/>Row-level locking"]
+    end
+
+    subgraph "Network Security"
+        N1["Rate Limiting<br/>20 req/min per IP (auth endpoints)<br/>Redis token bucket"]
+        N2["CORS Policy<br/>Frontend domain-аас л зөвшөөрнө"]
+        N3["Security Headers<br/>CSP, X-Frame-Options<br/>HSTS, X-Content-Type-Options"]
+        N4["TLS/SSL<br/>Nginx → HTTPS termination"]
+    end
+
+    subgraph "Audit Trail"
+        AU1["audit_logs table<br/>Бүх үйлдлийг бүртгэнэ"]
+        AU2["dan_verification_logs<br/>DAN баталгаажуулалт"]
+        AU3["registry_verify_logs<br/>Регистрийн баталгаажуулалт"]
+        AU4["Prometheus Metrics<br/>Login attempts, verification counts"]
+    end
+
+%% ============================================================================
+%% 18. DEPLOYMENT ARCHITECTURE
+%% ============================================================================
+
+graph TB
+    subgraph "Docker Compose Services"
+        NGINX_S["Nginx<br/>:80/:443<br/>Reverse Proxy<br/>SSL Termination<br/>Static Files"]
+        FE_S["Frontend<br/>:3000<br/>Next.js 14+<br/>Node.js"]
+        BE_S["Backend<br/>:8080<br/>Go/Gin<br/>REST API"]
+        PG_S["PostgreSQL 15<br/>:5432<br/>Alpine"]
+        RD_S["Redis 7<br/>:6379<br/>Alpine"]
+        GF_S["Grafana<br/>:3001<br/>Monitoring Dashboard"]
+    end
+
+    NGINX_S -->|"/ → :3000"| FE_S
+    NGINX_S -->|"/api → :8080"| BE_S
+    BE_S --> PG_S
+    BE_S --> RD_S
+    GF_S -->|"Prometheus metrics"| BE_S
+
+%% ============================================================================
+%% 19. FILE STRUCTURE MAP
+%% ============================================================================
+%%
+%% gerege-sso/
+%% ├── backend/
+%% │   ├── main.go                          ← Entry point, router setup (257 lines)
+%% │   ├── config/
+%% │   │   └── config.go                    ← Environment config loading
+%% │   ├── handlers/
+%% │   │   ├── auth.go                      ← ★ Main auth handler (1720 lines)
+%% │   │   ├── auth_test.go                 ← Auth handler tests
+%% │   │   ├── oauth_callback.go            ← OAuth callback helpers
+%% │   │   ├── oauth_provider.go            ← ★ OAuth2 server (authorize/token)
+%% │   │   ├── oauth_provider_test.go       ← OAuth provider tests
+%% │   │   ├── health.go                    ← Health/readiness checks
+%% │   │   └── apilog.go                    ← API log handler
+%% │   ├── middleware/
+%% │   │   ├── jwt.go                       ← ★ JWT validation middleware
+%% │   │   ├── admin.go                     ← Admin API key middleware
+%% │   │   ├── cors.go                      ← CORS configuration
+%% │   │   ├── logger.go                    ← Request logging
+%% │   │   ├── metrics.go                   ← Prometheus metrics
+%% │   │   ├── ratelimit.go                 ← Redis rate limiting
+%% │   │   └── security.go                  ← Security headers
+%% │   ├── models/
+%% │   │   ├── user.go                      ← User, Citizen, JWT models
+%% │   │   ├── oauth_client.go              ← OAuth client model
+%% │   │   └── user_grant.go                ← User grant model
+%% │   ├── services/
+%% │   │   ├── user.go                      ← ★ User & Citizen service (400+ lines)
+%% │   │   ├── user_test.go                 ← User service tests
+%% │   │   ├── jwt.go                       ← JWT generation/validation
+%% │   │   ├── oauth.go                     ← Google OAuth service
+%% │   │   ├── apple.go                     ← Apple Sign-In service
+%% │   │   ├── facebook.go                  ← Facebook OAuth service
+%% │   │   ├── twitter.go                   ← Twitter/X OAuth service
+%% │   │   ├── gerege_core.go               ← Gerege Core API client
+%% │   │   ├── email.go                     ← SMTP email service
+%% │   │   ├── client.go                    ← OAuth client CRUD
+%% │   │   ├── grant.go                     ← User grant management
+%% │   │   ├── audit.go                     ← Audit logging
+%% │   │   ├── apilog.go                    ← API request logging
+%% │   │   └── genid.go                     ← 11-digit ID generation
+%% │   ├── repository/
+%% │   │   ├── interfaces.go               ← Repository interfaces
+%% │   │   └── mocks/user_mock.go           ← Test mocks
+%% │   ├── pkg/logger/logger.go             ← Structured logging
+%% │   └── docs/docs.go                     ← Swagger documentation
+%% │
+%% ├── frontend/
+%% │   └── src/
+%% │       ├── app/                          ← Next.js App Router
+%% │       │   ├── layout.tsx               ← Root layout (Theme, Store, Error)
+%% │       │   ├── page.tsx                 ← ★ Login page
+%% │       │   ├── callback/page.tsx        ← ★ OAuth callback handler
+%% │       │   ├── register/page.tsx        ← ★ reg_no verification
+%% │       │   ├── consent/page.tsx         ← ★ OAuth consent screen
+%% │       │   ├── dashboard/
+%% │       │   │   ├── layout.tsx           ← ★ Verification enforcer
+%% │       │   │   ├── page.tsx             ← Dashboard home
+%% │       │   │   ├── dan/page.tsx         ← DAN verification
+%% │       │   │   ├── security/page.tsx    ← Security settings
+%% │       │   │   ├── activity/page.tsx    ← Login history
+%% │       │   │   └── logs/page.tsx        ← API logs
+%% │       │   ├── grants/page.tsx          ← Connected apps
+%% │       │   ├── admin/                   ← Admin panel
+%% │       │   ├── privacy/page.tsx         ← Privacy policy
+%% │       │   ├── terms/page.tsx           ← Terms of service
+%% │       │   ├── data-deletion/page.tsx   ← Data deletion info
+%% │       │   └── docs/page.tsx            ← API documentation
+%% │       ├── components/
+%% │       │   ├── auth/                    ← LoginCard, OAuthButtons, EmailOTPLogin, ProtectedRoute
+%% │       │   ├── dashboard/               ← IdentityCard, VerificationProgress, SecurityCard, PhoneVerifyModal
+%% │       │   ├── layout/                  ← Header, Sidebar, Footer, UserDropdown
+%% │       │   └── ui/                      ← Button, Input, Card, Modal, Badge, Toast, Skeleton
+%% │       ├── stores/
+%% │       │   ├── authStore.ts             ← ★ Auth state (Zustand)
+%% │       │   ├── settingsStore.ts         ← Theme, language
+%% │       │   └── adminStore.ts            ← Admin state
+%% │       ├── lib/
+%% │       │   ├── api.ts                   ← ★ API client (fetchAPI + retry)
+%% │       │   ├── auth.ts                  ← Token storage helpers
+%% │       │   └── utils.ts                 ← Utility functions
+%% │       ├── types/                       ← TypeScript type definitions
+%% │       └── styles/globals.css           ← Tailwind CSS
+%% │
+%% ├── postgres/
+%% │   └── init/                            ← Database schema SQL files
+%% │
+%% ├── nginx/                               ← Nginx reverse proxy config
+%% ├── monitoring/                          ← Grafana dashboards
+%% ├── scripts/                             ← Deployment scripts
+%% │
+%% ├── docker-compose.yml                   ← Production orchestration
+%% ├── docker-compose.local.yml             ← Local development
+%% ├── .env.example                         ← Environment template
+%% ├── .env.development                     ← Dev environment
+%% ├── .env.production                      ← Prod environment
+%% └── CLAUDE.md                            ← Project rules for AI
+%%
+%% ============================================================================
+%% 20. ENVIRONMENT VARIABLES REFERENCE
+%% ============================================================================
+%%
+%% DATABASE:
+%%   POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+%%
+%% CACHE:
+%%   REDIS_HOST, REDIS_PORT
+%%
+%% JWT:
+%%   JWT_SECRET (min 32 chars, ЗААВАЛ)
+%%   JWT_EXPIRY (default: 24h)
+%%
+%% OAUTH PROVIDERS:
+%%   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URL
+%%   APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY, APPLE_REDIRECT_URL
+%%   FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, FACEBOOK_REDIRECT_URL
+%%   TWITTER_CLIENT_ID, TWITTER_CLIENT_SECRET, TWITTER_REDIRECT_URL
+%%
+%% EXTERNAL:
+%%   GEREGE_CORE_URL, GEREGE_CORE_TOKEN
+%%   DAN_CLIENT_ID, DAN_REDIRECT_URL, DAN_SCOPE
+%%   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+%%
+%% ADMIN:
+%%   ADMIN_API_KEY
+%%   PUBLIC_URL (frontend URL)
+%%
+%% ============================================================================
+%% END OF ARCHITECTURE DOCUMENT
+%% ============================================================================

@@ -453,8 +453,8 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 }
 
 // citizenColumns is the standard set of columns selected for citizen queries
-const citizenColumns = `id, civil_id, reg_no, family_name, last_name, first_name, sex, birth_date,
-	phone_primary, email, current_province, current_district,
+const citizenColumns = `id, civil_id, reg_no, family_name, last_name, first_name, gender, birth_date,
+	phone_no, email, aimag_name, sum_name,
 	residential_parent_address_id, residential_parent_address_name,
 	residential_aimag_id, residential_aimag_code, residential_aimag_name,
 	residential_sum_id, residential_sum_code, residential_sum_name,

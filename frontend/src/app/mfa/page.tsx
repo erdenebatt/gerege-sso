@@ -288,8 +288,10 @@ export default function MFAChallengePage() {
                 try {
                   // Dynamic import for WebAuthn
                   const { startAuthentication } = await import('@simplewebauthn/browser')
-                  const options = await api.mfa.passkeyAuthBegin()
-                  const authResp = await startAuthentication({ optionsJSON: options as any })
+                  const options: any = await api.mfa.passkeyAuthBegin()
+                  const authResp = await startAuthentication({
+                    optionsJSON: (options.publicKey ?? options) as any,
+                  })
                   const data = await api.mfa.passkeyAuthFinish(authResp)
                   if (data.token) {
                     clearMFA()

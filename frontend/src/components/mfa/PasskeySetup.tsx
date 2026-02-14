@@ -39,8 +39,10 @@ export function PasskeySetup({ onComplete }: PasskeySetupProps) {
     setSuccess('')
     try {
       const { startRegistration } = await import('@simplewebauthn/browser')
-      const options = await api.mfa.passkeyRegisterBegin()
-      const regResp = await startRegistration({ optionsJSON: options as any })
+      const options: any = await api.mfa.passkeyRegisterBegin()
+      const regResp = await startRegistration({
+        optionsJSON: (options.publicKey ?? options) as any,
+      })
       await api.mfa.passkeyRegisterFinish(regResp)
       setSuccess('Passkey амжилттай бүртгэгдлээ!')
       fetchPasskeys()

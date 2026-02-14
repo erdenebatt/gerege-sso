@@ -25,7 +25,7 @@ Gerege SSO нь дараах MFA аргуудыг дэмждэг:
 - **TOTP** — Google Authenticator, Microsoft Authenticator гэх мэт TOTP апп
 - **Passkey/WebAuthn** — Fingerprint, Face ID, FIDO2 Security Key
 - **Push Notification** — Gerege Authenticator mobile app руу push илгээх (FCM/APNs — TODO)
-- **QR Login** — Login page дээр QR код скан хийж нэвтрэх (WebSocket real-time)
+- **QR Login** — Login page дээр QR код скан хийж нэвтрэх (WebSocket real-time). QR код нь `/qr/scan?session=xxx` frontend page руу заадаг. Утас скан → `/qr/scan` page нээгдэж approve хийнэ.
 - **Recovery Codes** — 10 нөөц код (XXXX-XXXX формат, нэг удаагийн)
 
 ### Auth Flow (MFA-aware)
@@ -111,7 +111,7 @@ All MFA endpoints are in `MFAHandler`:
 **TOTP:** `SetupTOTP`, `VerifyTOTPSetup`, `ValidateTOTP`, `DisableTOTP`
 **Passkey:** `PasskeyRegisterBegin`, `PasskeyRegisterFinish`, `PasskeyAuthBegin`, `PasskeyAuthFinish`, `ListPasskeys`, `DeletePasskey`
 **Push:** `RegisterDevice`, `SendPushChallenge`, `RespondPushChallenge`, `GetPushChallengeStatus`
-**QR Login:** `GenerateQR`, `ApproveQR`, `GetQRStatus`, `QRWebSocket`
+**QR Login:** `GenerateQR`, `ApproveQR`, `GetQRStatus`, `QRMarkScanned`, `QRWebSocket`
 **Recovery:** `GetRecoveryCodes`, `RegenerateCodes`, `ValidateRecovery`
 **Settings:** `GetMFASettings`, `UpdateMFASettings`
 **Devices:** `ListDevices`, `RemoveDevice`
@@ -165,6 +165,7 @@ All MFA endpoints are in `MFAHandler`:
 | GET | `/generate` | None | GenerateQR |
 | POST | `/approve` | JWT | ApproveQR |
 | GET | `/status/:id` | None | GetQRStatus |
+| POST | `/scan` | None | QRMarkScanned — marks session as scanned, broadcasts via WebSocket |
 
 #### WebSocket
 
@@ -193,6 +194,7 @@ github.com/skip2/go-qrcode      — QR code image generation
 #### API Client (`frontend/src/lib/api.ts`)
 
 - `api.mfa.*` — all MFA endpoint functions
+- `api.mfa.markQRScanned(sessionId)` — marks QR session as scanned (`POST /api/auth/qr/scan`)
 - `api.auth.exchangeToken()` returns `{ token, mfa_required }` for MFA-aware flow
 
 #### Auth Store (`frontend/src/stores/authStore.ts`)
@@ -208,7 +210,8 @@ github.com/skip2/go-qrcode      — QR code image generation
 |------|------|---------|
 | MFA Challenge | `frontend/src/app/mfa/page.tsx` | Login-ий дараах MFA баталгаажуулалт (TOTP, Passkey, Push, Recovery tabs) |
 | MFA Settings | `frontend/src/app/dashboard/security/mfa/page.tsx` | Dashboard дотор MFA тохиргоо (enable/disable methods, preferred method, recovery codes) |
-| Login | `frontend/src/app/page.tsx` | QR Login tab + Passkey Login button нэмсэн |
+| Login | `frontend/src/app/page.tsx` | QR Login tab + Passkey Login button нэмсэн, QR "scanned" status харуулна |
+| QR Scan | `frontend/src/app/qr/scan/page.tsx` | Утас QR скан хийсний дараа approve хийх page (login шалгах, session mark scanned, approve) |
 | Callback | `frontend/src/app/callback/page.tsx` | `mfa_required` flag шалгаад `/mfa` руу redirect |
 
 #### MFA Components (`frontend/src/components/mfa/`)

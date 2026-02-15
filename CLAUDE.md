@@ -368,9 +368,154 @@ Expo Go апп дээр QR код скан хийж нээнэ.
 
 ---
 
+## Gerege Authenticator Native iOS App (`GeregeAuthenticator/`)
+
+### Overview
+
+Swift/SwiftUI дээр бичигдсэн native iOS authenticator апп. `authenticator/` (Expo) аппын бүрэн native хувилбар. **Гуравдагч талын library ашиглаагүй** — бүх зүйлийг Apple framework-оор хийсэн.
+
+- **QR Login** — Компьютер дээрх QR код скан хийж нэг товчоор login approve хийх
+- **TOTP Codes** — Google Authenticator шиг 6 оронтой код real-time харуулах (RFC 6238)
+
+**Bundle ID:** `mn.gerege.authenticator`
+**Deployment Target:** iOS 16.0+, iPhone only, Portrait only
+
+### Project Structure
+
+```
+GeregeAuthenticator/
+├── project.yml                              # XcodeGen project spec
+├── GeregeAuthenticator.xcodeproj/           # Generated Xcode project
+├── GeregeAuthenticator/
+│   ├── GeregeAuthenticatorApp.swift         # @main entry point
+│   ├── ContentView.swift                     # Auth-gated root (Login vs Home)
+│   ├── Models/
+│   │   ├── User.swift                        # User Codable model (snake_case CodingKeys)
+│   │   ├── TOTPAccount.swift                 # TOTP account (Codable + Identifiable)
+│   │   └── APIModels.swift                   # Request/Response DTOs
+│   ├── Services/
+│   │   ├── APIClient.swift                   # URLSession async/await actor singleton
+│   │   ├── KeychainService.swift             # Security.framework Keychain wrapper
+│   │   └── TOTPService.swift                 # RFC 6238 TOTP (CryptoKit HMAC-SHA1)
+│   ├── ViewModels/
+│   │   ├── AuthViewModel.swift               # Login/logout/checkAuth (@MainActor)
+│   │   ├── HomeViewModel.swift               # Accounts list + 1s timer + code refresh
+│   │   ├── ScannerViewModel.swift            # Dual-purpose QR scan result processing
+│   │   └── AddAccountViewModel.swift         # Manual entry validation + save
+│   ├── Views/
+│   │   ├── LoginView.swift                   # Email OTP two-step login (Mongolian UI)
+│   │   ├── HomeView.swift                    # Account list + empty state + bottom buttons
+│   │   ├── ScannerView.swift                 # Camera permission + QR overlay + alerts
+│   │   ├── AddAccountView.swift              # QR shortcut + manual form
+│   │   └── Components/
+│   │       ├── AccountCardView.swift         # Card with contextMenu delete
+│   │       ├── TOTPCodeView.swift            # "123 456" code + progress bar + countdown
+│   │       └── QRScannerRepresentable.swift  # AVFoundation camera UIViewControllerRepresentable
+│   └── Utilities/
+│       ├── Constants.swift                   # API URL, colors, Keychain keys
+│       └── Base32.swift                      # RFC 4648 Base32 decoder (pure Swift)
+```
+
+### Architecture
+
+| Layer | Pattern | Details |
+|-------|---------|---------|
+| App Entry | `@main` SwiftUI App | `@StateObject` AuthViewModel, `.environmentObject()`, `.task { checkAuth() }` |
+| Root View | Auth-gated | `isLoading` → ProgressView, `isAuthenticated` → NavigationStack(Home), else → Login |
+| State | ObservableObject + @Published | `@MainActor` ViewModels, `@EnvironmentObject` for auth |
+| Navigation | NavigationStack | iOS 16+ modern SwiftUI navigation |
+| Networking | `actor` APIClient | URLSession async/await, auto JWT injection from Keychain |
+| Storage | Keychain (Security.framework) | JWT token + TOTP accounts JSON, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` |
+| TOTP | CryptoKit `Insecure.SHA1` | HMAC → dynamic truncation → 6-digit code, RFC 6238 compliant |
+| QR Scanner | AVFoundation | `AVCaptureSession` + `AVCaptureMetadataOutput` (.qr type) |
+
+### Services
+
+#### APIClient (`Services/APIClient.swift`)
+
+`actor` singleton, URLSession async/await. Base URL: `https://sso.gerege.mn`
+
+| Function | Endpoint | Auth |
+|----------|----------|------|
+| `sendEmailOTP(email:)` | `POST /api/auth/email/send-otp` | None |
+| `verifyEmailOTP(email:otp:)` | `POST /api/auth/email/verify-otp` | None |
+| `exchangeToken(code:)` | `POST /api/auth/exchange-token` | None |
+| `getMe()` | `GET /api/auth/me` | JWT |
+| `markQRScanned(sessionId:)` | `POST /api/auth/qr/scan` | None |
+| `approveQR(sessionId:)` | `POST /api/auth/qr/approve` | JWT |
+
+#### KeychainService (`Services/KeychainService.swift`)
+
+Static enum, Security.framework wrapper:
+- `saveToken()` / `getToken()` / `removeToken()` — JWT token
+- `getTOTPAccounts()` / `saveTOTPAccount()` / `removeTOTPAccount()` — TOTP accounts as JSON
+
+#### TOTPService (`Services/TOTPService.swift`)
+
+Static enum:
+- `generateCode(secret:)` — Base32 decode → HMAC-SHA1 → dynamic truncation → 6-digit code
+- `remainingSeconds()` — `30 - (epoch % 30)`
+- `parseURI(_:)` — `otpauth://totp/Issuer:account?secret=...` parser
+
+### Screens
+
+| Screen | File | Purpose |
+|--------|------|---------|
+| Login | `Views/LoginView.swift` | Email → OTP → login. Mongolian text UI |
+| Home | `Views/HomeView.swift` | User email bar, accounts ScrollView, empty state, "QR Скан" + "Гараар нэмэх" buttons |
+| Scanner | `Views/ScannerView.swift` | Camera permission, QR overlay (corner brackets), dual-purpose scan |
+| AddAccount | `Views/AddAccountView.swift` | QR shortcut NavigationLink, issuer/email/secret manual form |
+
+### QR Scanner Dual-Purpose Logic
+
+`ScannerViewModel` нэг AVFoundation scanner-ээр хоёр төрлийн QR код ялгаж уншина:
+
+1. **QR Login** (`sso.gerege.mn/qr/scan?session=xxx`):
+   - `markQRScanned(sessionId:)` — fire-and-forget
+   - Confirm alert → `approveQR(sessionId:)` → success alert → dismiss
+
+2. **TOTP URI** (`otpauth://totp/Issuer:account?secret=...`):
+   - `TOTPService.parseURI()` → `KeychainService.saveTOTPAccount()` → success alert → dismiss
+
+### Apple Frameworks Used (Zero Third-Party Dependencies)
+
+| Framework | Purpose |
+|-----------|---------|
+| CryptoKit | `Insecure.SHA1` HMAC for TOTP code generation |
+| Security | Keychain read/write (`SecItemAdd`, `SecItemCopyMatching`, `SecItemDelete`) |
+| AVFoundation | `AVCaptureSession` + `AVCaptureMetadataOutput` for QR code scanning |
+| Foundation/URLSession | Async/await HTTP networking |
+| SwiftUI | All UI rendering |
+
+### Building & Running
+
+```bash
+# Generate Xcode project (requires xcodegen)
+cd GeregeAuthenticator
+xcodegen generate
+
+# Build via command line
+xcodebuild -project GeregeAuthenticator.xcodeproj -scheme GeregeAuthenticator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Or open in Xcode
+open GeregeAuthenticator.xcodeproj
+```
+
+### Key Design Decisions
+
+- **Zero dependencies:** CryptoKit, Security.framework, AVFoundation, URLSession — гуравдагч талын library хэрэггүй
+- **Client-side TOTP:** Secret-г Keychain-д хадгалж CryptoKit-ээр код тооцоолно. Backend руу илгээхгүй (Google Authenticator pattern)
+- **Dual-purpose scanner:** Нэг AVFoundation scanner-ээр QR Login + TOTP QR аль алийг уншина
+- **Actor-based networking:** `APIClient` нь Swift actor — thread-safe singleton
+- **Auth-gated ContentView:** Token байхгүй бол зөвхөн LoginView харуулна
+
+---
+
 ### TODO / Future Work
 
 - Push notification delivery via FCM/APNs (currently challenge-only, no actual push sent)
 - JWT middleware enforcement: `mfa_pending` tokens should ONLY access MFA endpoints (not yet enforced)
 - ~~Gerege Authenticator mobile app (React Native)~~ — implemented in `authenticator/` (Expo SDK 54)
+- ~~Gerege Authenticator native iOS app~~ — implemented in `GeregeAuthenticator/` (Swift/SwiftUI, zero dependencies)
 - ~~Passkey-only login~~ — implemented via `/api/auth/passkey/login/begin` + `/finish` (discoverable credentials)

@@ -17,6 +17,15 @@ type Config struct {
 	SMTP     SMTPConfig
 	MFA      MFAConfig
 	SignDB   SignDBConfig
+	EIDDB    EIDDBConfig
+}
+
+type EIDDBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DB       string
 }
 
 type SignDBConfig struct {
@@ -191,6 +200,13 @@ func Load() *Config {
 			User:     getEnv("SIGN_DB_USER", getEnv("POSTGRES_USER", "grgdev")),
 			Password: getEnv("SIGN_DB_PASSWORD", getEnv("POSTGRES_PASSWORD", "")),
 			DB:       getEnv("SIGN_DB_NAME", "gerege_sign"),
+		},
+		EIDDB: EIDDBConfig{
+			Host:     getEnv("EID_DB_HOST", getEnv("POSTGRES_HOST", "localhost")),
+			Port:     getEnv("EID_DB_PORT", getEnv("POSTGRES_PORT", "5432")),
+			User:     getEnv("EID_DB_USER", getEnv("POSTGRES_USER", "grgdev")),
+			Password: getEnv("EID_DB_PASSWORD", getEnv("POSTGRES_PASSWORD", "")),
+			DB:       getEnv("EID_DB_NAME", "gerege_eid"),
 		},
 	}
 }

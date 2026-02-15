@@ -8,14 +8,15 @@ import (
 	"gerege-sso/models"
 )
 
-// EIDService handles e-ID card verification
+// EIDService handles e-ID card verification and card registry
 type EIDService struct {
-	db *sql.DB // gerege_sso database
+	eidDB *sql.DB // gerege_eid — card registry
+	ssoDB *sql.DB // gerege_sso — citizens/users table
 }
 
-// NewEIDService creates a new EIDService
-func NewEIDService(db *sql.DB) *EIDService {
-	return &EIDService{db: db}
+// NewEIDService creates a new EIDService with dual-DB connections
+func NewEIDService(eidDB, ssoDB *sql.DB) *EIDService {
+	return &EIDService{eidDB: eidDB, ssoDB: ssoDB}
 }
 
 // VerifyEID links an e-ID card to a citizen record and upgrades verification level
@@ -29,9 +30,9 @@ func (s *EIDService) VerifyEID(userID int64, req *models.EIDVerifyRequest) error
 		return fmt.Errorf("e-ID card has expired")
 	}
 
-	// Get citizen_id for this user
+	// Get citizen_id for this user (ssoDB)
 	var citizenID sql.NullInt64
-	err = s.db.QueryRow(`SELECT citizen_id FROM users WHERE id = $1`, userID).Scan(&citizenID)
+	err = s.ssoDB.QueryRow(`SELECT citizen_id FROM users WHERE id = $1`, userID).Scan(&citizenID)
 	if err != nil {
 		return fmt.Errorf("failed to find user: %w", err)
 	}
@@ -42,8 +43,8 @@ func (s *EIDService) VerifyEID(userID int64, req *models.EIDVerifyRequest) error
 		return fmt.Errorf("citizen ID mismatch")
 	}
 
-	// Update citizen e-ID fields
-	_, err = s.db.Exec(`
+	// Update citizen e-ID fields (ssoDB)
+	_, err = s.ssoDB.Exec(`
 		UPDATE citizens SET
 			eid_verified = true,
 			eid_verification_date = CURRENT_TIMESTAMP,
@@ -58,7 +59,7 @@ func (s *EIDService) VerifyEID(userID int64, req *models.EIDVerifyRequest) error
 	}
 
 	// Upgrade user verification level to 4 (e-ID verified)
-	_, err = s.db.Exec(`
+	_, err = s.ssoDB.Exec(`
 		UPDATE users SET verification_level = 4, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1 AND verification_level < 4
 	`, userID)
@@ -72,7 +73,7 @@ func (s *EIDService) VerifyEID(userID int64, req *models.EIDVerifyRequest) error
 // GetEIDStatus returns the e-ID verification status for a user's citizen record
 func (s *EIDService) GetEIDStatus(userID int64) (*models.EIDStatusResponse, error) {
 	var citizenID sql.NullInt64
-	err := s.db.QueryRow(`SELECT citizen_id FROM users WHERE id = $1`, userID).Scan(&citizenID)
+	err := s.ssoDB.QueryRow(`SELECT citizen_id FROM users WHERE id = $1`, userID).Scan(&citizenID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
@@ -84,7 +85,7 @@ func (s *EIDService) GetEIDStatus(userID int64) (*models.EIDStatusResponse, erro
 	var eidExpiryDate sql.NullTime
 	var eidCardNumber, eidIssuingAuthority sql.NullString
 
-	err = s.db.QueryRow(`
+	err = s.ssoDB.QueryRow(`
 		SELECT eid_verified, eid_verification_date, eid_card_number, eid_expiry_date, eid_issuing_authority
 		FROM citizens WHERE id = $1
 	`, citizenID.Int64).Scan(
@@ -106,4 +107,261 @@ func (s *EIDService) GetEIDStatus(userID int64) (*models.EIDStatusResponse, erro
 	}
 
 	return resp, nil
+}
+
+// RegisterCard registers a new e-ID card in the card registry
+func (s *EIDService) RegisterCard(citizenID int64, cardNumber, certificateSerial, expiryDate, issuingAuthority string, actorID int64, clientIP string) (*models.EIDCard, error) {
+	expiry, err := time.Parse("2006-01-02", expiryDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid expiry date format (expected YYYY-MM-DD): %w", err)
+	}
+
+	if expiry.Before(time.Now()) {
+		return nil, fmt.Errorf("expiry date is in the past")
+	}
+
+	// Verify citizen exists in ssoDB
+	var exists bool
+	err = s.ssoDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM citizens WHERE id = $1)`, citizenID).Scan(&exists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify citizen: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("citizen not found")
+	}
+
+	card := &models.EIDCard{}
+	err = s.eidDB.QueryRow(`
+		INSERT INTO eid_cards (citizen_id, card_number, certificate_serial, expiry_date, issuing_authority)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, citizen_id, card_number, certificate_serial, status, issued_at, expiry_date, issuing_authority, created_at, updated_at
+	`, citizenID, cardNumber, certificateSerial, expiry, issuingAuthority).Scan(
+		&card.ID, &card.CitizenID, &card.CardNumber, &card.CertificateSerial,
+		&card.Status, &card.IssuedAt, &card.ExpiryDate, &card.IssuingAuthority,
+		&card.CreatedAt, &card.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register card: %w", err)
+	}
+
+	// Write audit log
+	s.writeAuditLog(card.ID, "issued", &actorID, fmt.Sprintf("Card %s registered for citizen %d", cardNumber, citizenID), clientIP)
+
+	return card, nil
+}
+
+// GetCard returns card details by card number
+func (s *EIDService) GetCard(cardNumber string) (*models.EIDCard, error) {
+	card := &models.EIDCard{}
+	var revokedAt sql.NullTime
+	var revocationReason sql.NullString
+
+	err := s.eidDB.QueryRow(`
+		SELECT id, citizen_id, card_number, certificate_serial, status, issued_at, expiry_date,
+			issuing_authority, revoked_at, revocation_reason, created_at, updated_at
+		FROM eid_cards WHERE card_number = $1
+	`, cardNumber).Scan(
+		&card.ID, &card.CitizenID, &card.CardNumber, &card.CertificateSerial,
+		&card.Status, &card.IssuedAt, &card.ExpiryDate, &card.IssuingAuthority,
+		&revokedAt, &revocationReason, &card.CreatedAt, &card.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("card not found")
+		}
+		return nil, fmt.Errorf("failed to get card: %w", err)
+	}
+
+	if revokedAt.Valid {
+		card.RevokedAt = &revokedAt.Time
+	}
+	if revocationReason.Valid {
+		card.RevocationReason = revocationReason.String
+	}
+
+	return card, nil
+}
+
+// RevokeCard revokes a card by card number
+func (s *EIDService) RevokeCard(cardNumber, reason string, actorID int64, clientIP string) error {
+	var cardID string
+	err := s.eidDB.QueryRow(`
+		UPDATE eid_cards SET status = 'revoked', revoked_at = CURRENT_TIMESTAMP, revocation_reason = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE card_number = $2 AND status = 'active'
+		RETURNING id
+	`, reason, cardNumber).Scan(&cardID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("card not found or not active")
+		}
+		return fmt.Errorf("failed to revoke card: %w", err)
+	}
+
+	s.writeAuditLog(cardID, "revoked", &actorID, fmt.Sprintf("Reason: %s", reason), clientIP)
+
+	return nil
+}
+
+// GetCardHistory returns the audit log for a card
+func (s *EIDService) GetCardHistory(cardNumber string) ([]models.EIDAuditLog, error) {
+	// First get card ID
+	var cardID string
+	err := s.eidDB.QueryRow(`SELECT id FROM eid_cards WHERE card_number = $1`, cardNumber).Scan(&cardID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("card not found")
+		}
+		return nil, fmt.Errorf("failed to find card: %w", err)
+	}
+
+	rows, err := s.eidDB.Query(`
+		SELECT id, card_id, action, actor_id, details, client_ip::TEXT, created_at
+		FROM eid_audit_log
+		WHERE card_id = $1
+		ORDER BY created_at DESC
+	`, cardID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query audit log: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []models.EIDAuditLog
+	for rows.Next() {
+		var log models.EIDAuditLog
+		var actorID sql.NullInt64
+		var details, clientIP sql.NullString
+		err := rows.Scan(&log.ID, &log.CardID, &log.Action, &actorID, &details, &clientIP, &log.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan audit log: %w", err)
+		}
+		if actorID.Valid {
+			log.ActorID = &actorID.Int64
+		}
+		if details.Valid {
+			log.Details = details.String
+		}
+		if clientIP.Valid {
+			log.ClientIP = clientIP.String
+		}
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
+// VerifyCard publicly verifies a card by number + certificate serial
+func (s *EIDService) VerifyCard(cardNumber, certificateSerial string) (*models.EIDVerifyCardResponse, error) {
+	resp := &models.EIDVerifyCardResponse{}
+
+	var citizenID int64
+	var revokedAt sql.NullTime
+	err := s.eidDB.QueryRow(`
+		SELECT citizen_id, status, issued_at, expiry_date, issuing_authority, revoked_at
+		FROM eid_cards
+		WHERE card_number = $1 AND certificate_serial = $2
+	`, cardNumber, certificateSerial).Scan(
+		&citizenID, &resp.Status, &resp.IssuedAt, &resp.ExpiryDate, &resp.IssuingAuthority, &revokedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return &models.EIDVerifyCardResponse{Valid: false, Status: "not_found"}, nil
+		}
+		return nil, fmt.Errorf("failed to verify card: %w", err)
+	}
+
+	resp.Valid = resp.Status == "active"
+
+	// Check if expired
+	if resp.ExpiryDate.Before(time.Now()) && resp.Status == "active" {
+		resp.Status = "expired"
+		resp.Valid = false
+	}
+
+	// Get citizen name from ssoDB
+	var firstName, lastName sql.NullString
+	err = s.ssoDB.QueryRow(`SELECT first_name, last_name FROM citizens WHERE id = $1`, citizenID).Scan(&firstName, &lastName)
+	if err == nil {
+		if lastName.Valid && firstName.Valid {
+			resp.CitizenName = lastName.String + " " + firstName.String
+		} else if firstName.Valid {
+			resp.CitizenName = firstName.String
+		}
+	}
+
+	// Write audit log for verification
+	s.writeAuditLog("", "verified", nil, fmt.Sprintf("Public verification of card %s", cardNumber), "")
+
+	return resp, nil
+}
+
+// GetUserCards returns all cards for the current user
+func (s *EIDService) GetUserCards(userID int64) ([]models.EIDCard, error) {
+	// Get citizen_id from ssoDB
+	var citizenID sql.NullInt64
+	err := s.ssoDB.QueryRow(`SELECT citizen_id FROM users WHERE id = $1`, userID).Scan(&citizenID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user: %w", err)
+	}
+	if !citizenID.Valid {
+		return []models.EIDCard{}, nil
+	}
+
+	rows, err := s.eidDB.Query(`
+		SELECT id, citizen_id, card_number, certificate_serial, status, issued_at, expiry_date,
+			issuing_authority, revoked_at, revocation_reason, created_at, updated_at
+		FROM eid_cards
+		WHERE citizen_id = $1
+		ORDER BY created_at DESC
+	`, citizenID.Int64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cards: %w", err)
+	}
+	defer rows.Close()
+
+	var cards []models.EIDCard
+	for rows.Next() {
+		var card models.EIDCard
+		var revokedAt sql.NullTime
+		var revocationReason sql.NullString
+		err := rows.Scan(
+			&card.ID, &card.CitizenID, &card.CardNumber, &card.CertificateSerial,
+			&card.Status, &card.IssuedAt, &card.ExpiryDate, &card.IssuingAuthority,
+			&revokedAt, &revocationReason, &card.CreatedAt, &card.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan card: %w", err)
+		}
+		if revokedAt.Valid {
+			card.RevokedAt = &revokedAt.Time
+		}
+		if revocationReason.Valid {
+			card.RevocationReason = revocationReason.String
+		}
+		cards = append(cards, card)
+	}
+
+	return cards, nil
+}
+
+// writeAuditLog writes an entry to the eid_audit_log table
+func (s *EIDService) writeAuditLog(cardID, action string, actorID *int64, details, clientIP string) {
+	var cardIDParam interface{}
+	if cardID != "" {
+		cardIDParam = cardID
+	}
+
+	var actorIDParam interface{}
+	if actorID != nil {
+		actorIDParam = *actorID
+	}
+
+	var clientIPParam interface{}
+	if clientIP != "" {
+		clientIPParam = clientIP
+	}
+
+	_, _ = s.eidDB.Exec(`
+		INSERT INTO eid_audit_log (card_id, action, actor_id, details, client_ip)
+		VALUES ($1, $2, $3, $4, $5::INET)
+	`, cardIDParam, action, actorIDParam, details, clientIPParam)
 }

@@ -102,24 +102,6 @@ type SignatureInfo struct {
 	CertStatus     string    `json:"cert_status"`
 }
 
-// EIDVerifyRequest is the request body for e-ID verification
-type EIDVerifyRequest struct {
-	CitizenID        int64  `json:"citizen_id" binding:"required"`
-	CardNumber       string `json:"card_number" binding:"required"`
-	CertificateSerial string `json:"certificate_serial" binding:"required"`
-	ExpiryDate       string `json:"expiry_date" binding:"required"`
-	IssuingAuthority string `json:"issuing_authority" binding:"required"`
-}
-
-// EIDStatusResponse is returned for e-ID status check
-type EIDStatusResponse struct {
-	EIDVerified        bool       `json:"eid_verified"`
-	EIDVerificationDate *time.Time `json:"eid_verification_date,omitempty"`
-	EIDCardNumber      string     `json:"eid_card_number,omitempty"`
-	EIDExpiryDate      string     `json:"eid_expiry_date,omitempty"`
-	EIDIssuingAuthority string    `json:"eid_issuing_authority,omitempty"`
-}
-
 // MobileSignRequest represents a push notification for signing
 type MobileSignRequest struct {
 	ChallengeID  string `json:"challenge_id"`

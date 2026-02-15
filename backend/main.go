@@ -75,6 +75,23 @@ func main() {
 		defer signDB.Close()
 	}
 
+	// e-ID database connection (optional, graceful degradation)
+	var eidDB *sql.DB
+	eidDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.EIDDB.Host, cfg.EIDDB.Port, cfg.EIDDB.User, cfg.EIDDB.Password, cfg.EIDDB.DB)
+	eidDB, err = sql.Open("postgres", eidDSN)
+	if err != nil {
+		log.Printf("EID DB connection failed (e-ID features disabled): %v", err)
+		eidDB = nil
+	} else if err := eidDB.Ping(); err != nil {
+		log.Printf("EID DB ping failed (e-ID features disabled): %v", err)
+		eidDB.Close()
+		eidDB = nil
+	} else {
+		log.Println("Connected to EID DB (gerege_eid)")
+		defer eidDB.Close()
+	}
+
 	// Redis connection
 	rdb := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port),
@@ -172,11 +189,16 @@ func main() {
 
 	// Initialize Gerege Sign services (optional)
 	var gesignService *services.GesignService
-	var eidService *services.EIDService
 	if signDB != nil {
 		gesignService = services.NewGesignService(signDB, db, rdb, wsHub)
-		eidService = services.NewEIDService(db)
 		log.Println("Gerege Sign service enabled")
+	}
+
+	// Initialize e-ID service (optional)
+	var eidService *services.EIDService
+	if eidDB != nil {
+		eidService = services.NewEIDService(eidDB, db)
+		log.Println("Gerege e-ID service enabled")
 	}
 
 	// Initialize OAuth2 provider service
@@ -193,7 +215,13 @@ func main() {
 	// Initialize Sign handler (optional)
 	var signHandler *handlers.SignHandler
 	if gesignService != nil {
-		signHandler = handlers.NewSignHandler(gesignService, eidService, pushAuthService, jwtService, userService, wsHub)
+		signHandler = handlers.NewSignHandler(gesignService, pushAuthService, jwtService, userService, wsHub)
+	}
+
+	// Initialize e-ID handler (optional)
+	var eidHandler *handlers.EIDHandler
+	if eidService != nil {
+		eidHandler = handlers.NewEIDHandler(eidService, jwtService, userService)
 	}
 
 	// Setup Gin router
@@ -347,15 +375,30 @@ func main() {
 				sign.POST("/complete", middleware.JWTAuth(jwtService), signHandler.CompleteSign)
 				sign.GET("/certificates", middleware.JWTAuth(jwtService), signHandler.GetCertificates)
 				sign.GET("/history", middleware.JWTAuth(jwtService), signHandler.GetSignHistory)
-
-				// e-ID verification
-				sign.POST("/eid/verify", middleware.JWTAuth(jwtService), signHandler.VerifyEID)
-				sign.GET("/eid/status", middleware.JWTAuth(jwtService), signHandler.GetEIDStatus)
 			}
 
 			// Sign WebSocket (outside /api for cleaner URLs)
 			router.GET("/ws/sign/:id", signHandler.SignWebSocket)
 			log.Println("Gerege Sign routes registered")
+		}
+
+		// Gerege e-ID routes (conditional on eidDB availability)
+		if eidHandler != nil {
+			eid := api.Group("/eid")
+			{
+				// Public endpoint — no auth required
+				eid.POST("/cards/verify", eidHandler.VerifyCard)
+
+				// Authenticated endpoints
+				eid.POST("/verify", middleware.JWTAuth(jwtService), eidHandler.VerifyEID)
+				eid.GET("/status", middleware.JWTAuth(jwtService), eidHandler.GetEIDStatus)
+				eid.POST("/cards", middleware.JWTAuth(jwtService), eidHandler.RegisterCard)
+				eid.GET("/cards/user", middleware.JWTAuth(jwtService), eidHandler.GetUserCards)
+				eid.GET("/cards/:number", middleware.JWTAuth(jwtService), eidHandler.GetCard)
+				eid.POST("/cards/revoke", middleware.JWTAuth(jwtService), eidHandler.RevokeCard)
+				eid.GET("/cards/:number/history", middleware.JWTAuth(jwtService), eidHandler.GetCardHistory)
+			}
+			log.Println("Gerege e-ID routes registered")
 		}
 	}
 

@@ -17,7 +17,6 @@ import (
 // SignHandler handles Gerege Sign endpoints
 type SignHandler struct {
 	gesignService   *services.GesignService
-	eidService      *services.EIDService
 	pushAuthService *services.PushAuthService
 	jwtService      *services.JWTService
 	userService     *services.UserService
@@ -27,7 +26,6 @@ type SignHandler struct {
 // NewSignHandler creates a new SignHandler
 func NewSignHandler(
 	gesignService *services.GesignService,
-	eidService *services.EIDService,
 	pushAuthService *services.PushAuthService,
 	jwtService *services.JWTService,
 	userService *services.UserService,
@@ -35,7 +33,6 @@ func NewSignHandler(
 ) *SignHandler {
 	return &SignHandler{
 		gesignService:   gesignService,
-		eidService:      eidService,
 		pushAuthService: pushAuthService,
 		jwtService:      jwtService,
 		userService:     userService,
@@ -251,47 +248,6 @@ func (h *SignHandler) GetSignHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"signing_logs": logs})
-}
-
-// VerifyEID links an e-ID card to the user's citizen record
-// POST /api/sign/eid/verify
-func (h *SignHandler) VerifyEID(c *gin.Context) {
-	userID, _, ok := h.getUserFromClaims(c)
-	if !ok {
-		return
-	}
-
-	var req models.EIDVerifyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	if err := h.eidService.VerifyEID(userID, &req); err != nil {
-		log.Printf("Failed to verify e-ID: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "e-ID verified successfully", "verification_level": 4})
-}
-
-// GetEIDStatus returns the e-ID verification status
-// GET /api/sign/eid/status
-func (h *SignHandler) GetEIDStatus(c *gin.Context) {
-	userID, _, ok := h.getUserFromClaims(c)
-	if !ok {
-		return
-	}
-
-	status, err := h.eidService.GetEIDStatus(userID)
-	if err != nil {
-		log.Printf("Failed to get e-ID status: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get e-ID status"})
-		return
-	}
-
-	c.JSON(http.StatusOK, status)
 }
 
 // SignWebSocket handles WebSocket connections for real-time signing session status

@@ -28,8 +28,7 @@ actor APIClient {
     }
 
     func getMe() async throws -> User {
-        let response: MeResponse = try await get("/api/auth/me", authenticated: true)
-        return response.user
+        try await get("/api/auth/me", authenticated: true)
     }
 
     // MARK: - QR Login Endpoints

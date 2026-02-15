@@ -57,10 +57,6 @@ struct ExchangeTokenResponse: Codable {
     }
 }
 
-struct MeResponse: Codable {
-    let user: User
-}
-
 struct QRScanResponse: Codable {
     let message: String?
 }

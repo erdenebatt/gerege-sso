@@ -1,0 +1,28 @@
+name: GeregeAuthenticator
+options:
+  bundleIdPrefix: mn.gerege
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+
+targets:
+  GeregeAuthenticator:
+    type: application
+    platform: iOS
+    sources:
+      - GeregeAuthenticator
+    settings:
+      base:
+        INFOPLIST_KEY_CFBundleDisplayName: "Gerege Authenticator"
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSCameraUsageDescription: "QR код скан хийхэд камер ашиглана"
+        PRODUCT_BUNDLE_IDENTIFIER: mn.gerege.authenticator
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: 1
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGN_STYLE: Automatic

@@ -26,6 +26,7 @@ type EIDDBConfig struct {
 	User     string
 	Password string
 	DB       string
+	SSLMode  string
 }
 
 type SignDBConfig struct {
@@ -34,6 +35,7 @@ type SignDBConfig struct {
 	User     string
 	Password string
 	DB       string
+	SSLMode  string
 }
 
 type MFAConfig struct {
@@ -65,6 +67,7 @@ type PostgresConfig struct {
 	User     string
 	Password string
 	DB       string
+	SSLMode  string
 }
 
 type RedisConfig struct {
@@ -134,6 +137,7 @@ func Load() *Config {
 			User:     getEnv("POSTGRES_USER", "grgdev"),
 			Password: getEnv("POSTGRES_PASSWORD", ""),
 			DB:       getEnv("POSTGRES_DB", "gerege_sso"),
+			SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
 		},
 		Redis: RedisConfig{
 			Host: getEnv("REDIS_HOST", "localhost"),
@@ -200,6 +204,7 @@ func Load() *Config {
 			User:     getEnv("SIGN_DB_USER", getEnv("POSTGRES_USER", "grgdev")),
 			Password: getEnv("SIGN_DB_PASSWORD", getEnv("POSTGRES_PASSWORD", "")),
 			DB:       getEnv("SIGN_DB_NAME", "gerege_sign"),
+			SSLMode:  getEnv("SIGN_DB_SSLMODE", getEnv("POSTGRES_SSLMODE", "disable")),
 		},
 		EIDDB: EIDDBConfig{
 			Host:     getEnv("EID_DB_HOST", getEnv("POSTGRES_HOST", "localhost")),
@@ -207,6 +212,7 @@ func Load() *Config {
 			User:     getEnv("EID_DB_USER", getEnv("POSTGRES_USER", "grgdev")),
 			Password: getEnv("EID_DB_PASSWORD", getEnv("POSTGRES_PASSWORD", "")),
 			DB:       getEnv("EID_DB_NAME", "gerege_eid"),
+			SSLMode:  getEnv("EID_DB_SSLMODE", getEnv("POSTGRES_SSLMODE", "disable")),
 		},
 	}
 }

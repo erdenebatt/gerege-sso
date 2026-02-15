@@ -43,8 +43,8 @@ func main() {
 	cfg := config.Load()
 
 	// Database connection
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB)
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB, cfg.Postgres.SSLMode)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -60,8 +60,8 @@ func main() {
 
 	// Sign database connection (optional, graceful degradation)
 	var signDB *sql.DB
-	signDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.SignDB.Host, cfg.SignDB.Port, cfg.SignDB.User, cfg.SignDB.Password, cfg.SignDB.DB)
+	signDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.SignDB.Host, cfg.SignDB.Port, cfg.SignDB.User, cfg.SignDB.Password, cfg.SignDB.DB, cfg.SignDB.SSLMode)
 	signDB, err = sql.Open("postgres", signDSN)
 	if err != nil {
 		log.Printf("Sign DB connection failed (sign features disabled): %v", err)
@@ -77,8 +77,8 @@ func main() {
 
 	// e-ID database connection (optional, graceful degradation)
 	var eidDB *sql.DB
-	eidDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.EIDDB.Host, cfg.EIDDB.Port, cfg.EIDDB.User, cfg.EIDDB.Password, cfg.EIDDB.DB)
+	eidDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.EIDDB.Host, cfg.EIDDB.Port, cfg.EIDDB.User, cfg.EIDDB.Password, cfg.EIDDB.DB, cfg.EIDDB.SSLMode)
 	eidDB, err = sql.Open("postgres", eidDSN)
 	if err != nil {
 		log.Printf("EID DB connection failed (e-ID features disabled): %v", err)

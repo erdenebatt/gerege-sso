@@ -510,6 +510,21 @@ open GeregeAuthenticator.xcodeproj
 - **Actor-based networking:** `APIClient` нь Swift actor — thread-safe singleton
 - **Auth-gated ContentView:** Token байхгүй бол зөвхөн LoginView харуулна
 
+### Tested on Real Device (2025-02-15)
+
+iPhone дээр бүх үндсэн функц амжилттай тест хийгдсэн:
+
+| Test | Status | Notes |
+|------|--------|-------|
+| Email OTP Login | Passed | send-otp → verify-otp → exchange-token → getMe flow ажилласан |
+| Home Screen | Passed | TOTP accounts list, countdown timer, user email bar |
+| QR Scanner | Passed | AVFoundation камер, QR код амжилттай уншсан |
+| TOTP Account (QR) | Passed | otpauth:// URI parse → Keychain хадгалах → код харуулах |
+| TOTP Account (Manual) | Passed | Гараар issuer/email/secret оруулж нэмсэн |
+| QR Login Approve | Passed | Компьютер дээрх QR скан → approve → auto-login |
+
+**Known Fix:** `/api/auth/me` endpoint нь user object-г шууд буцаадаг (wrapper-гүй). Анхны `MeResponse { user: User }` бүтэц буруу байсныг засварласан.
+
 ---
 
 ### TODO / Future Work

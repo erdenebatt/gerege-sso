@@ -189,8 +189,8 @@ func (h *EIDHandler) GetCardHistory(c *gin.Context) {
 // POST /api/eid/cards/verify
 func (h *EIDHandler) VerifyCard(c *gin.Context) {
 	var req models.EIDVerifyCardRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+	if err := c.ShouldBindJSON(&req); err != nil || req.CardNumber == "" || req.CertificateSerial == "" {
+		c.JSON(http.StatusOK, models.EIDVerifyCardResponse{Valid: false, Status: "not_found"})
 		return
 	}
 

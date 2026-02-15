@@ -77,3 +77,22 @@ type RevokeCardRequest struct {
 	CardNumber string `json:"card_number" binding:"required"`
 	Reason     string `json:"reason" binding:"required"`
 }
+
+// NationalIDMetadata represents the national_id_metadata table in gerege_eid
+type NationalIDMetadata struct {
+	ID               string    `json:"id"`
+	CitizenID        int64     `json:"citizen_id"`
+	RegNo            string    `json:"reg_no"`
+	DocumentNumber   string    `json:"document_number"`
+	DateOfBirth      time.Time `json:"date_of_birth"`
+	Gender           string    `json:"gender,omitempty"`
+	Nationality      string    `json:"nationality"`
+	PhotoHash        string    `json:"photo_hash,omitempty"`
+	ChipSerial       string    `json:"chip_serial,omitempty"`
+	IssuingAuthority string    `json:"issuing_authority"`
+	IssuedAt         time.Time `json:"issued_at"`
+	ExpiryDate       time.Time `json:"expiry_date"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}

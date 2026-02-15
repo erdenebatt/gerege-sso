@@ -38,6 +38,15 @@ type Citizen struct {
 	EbarimtTIN sql.NullString `json:"ebarimt_tin"`
 }
 
+// Organization represents the organizations table
+type Organization struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	RegNo     string    `json:"reg_no"`
+	Domain    string    `json:"domain,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // User represents the users table (SSO users)
 type User struct {
 	ID            int64          `json:"id"`
@@ -54,6 +63,8 @@ type User struct {
 	VerificationLevel int            `json:"verification_level"`
 	MFAEnabled        bool           `json:"mfa_enabled"`
 	MFALevel          int            `json:"mfa_level"`
+	OrgID             sql.NullString `json:"org_id,omitempty"`
+	Role              string         `json:"role"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	LastLoginAt   sql.NullTime   `json:"last_login_at"`
@@ -80,8 +91,9 @@ type GeregeInfo struct {
 	Name       string `json:"name,omitempty"`
 	BirthDate  string `json:"birth_date,omitempty"`
 	Gender     string `json:"gender,omitempty"`
-	Verified          bool `json:"verified"`
-	VerificationLevel int  `json:"verification_level"`
+	Verified          bool   `json:"verified"`
+	VerificationLevel int    `json:"verification_level"`
+	Role              string `json:"role,omitempty"`
 }
 
 // JWTClaims represents the JWT payload
@@ -162,6 +174,8 @@ type UserResponse struct {
 	VerificationLevel int                  `json:"verification_level"`
 	MFAEnabled        bool                 `json:"mfa_enabled"`
 	MFALevel          int                  `json:"mfa_level"`
+	OrgID             string               `json:"org_id,omitempty"`
+	Role              string               `json:"role"`
 	Providers         map[string]bool      `json:"providers"`
 	CreatedAt       string               `json:"created_at"`
 	UpdatedAt       string               `json:"updated_at"`

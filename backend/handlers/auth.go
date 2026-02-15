@@ -605,6 +605,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		VerificationLevel: user.VerificationLevel,
 		MFAEnabled:        user.MFAEnabled,
 		MFALevel:          user.MFALevel,
+		Role:              user.Role,
 		Providers: map[string]bool{
 			"google":   user.GoogleSub.Valid,
 			"apple":    user.AppleSub.Valid,
@@ -618,7 +619,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 		Gerege: models.GeregeInfo{
 			Verified:          user.Verified,
 			VerificationLevel: user.VerificationLevel,
+			Role:              user.Role,
 		},
+	}
+
+	if user.OrgID.Valid {
+		response.OrgID = user.OrgID.String
 	}
 
 	if len(danHistory) > 0 {

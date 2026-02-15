@@ -67,6 +67,19 @@ func (s *EIDService) VerifyEID(userID int64, req *models.EIDVerifyRequest) error
 		return fmt.Errorf("failed to update verification level: %w", err)
 	}
 
+	// If citizen has a national_id_metadata record, also set verified=true
+	var regNo string
+	err = s.ssoDB.QueryRow(`SELECT reg_no FROM citizens WHERE id = $1`, req.CitizenID).Scan(&regNo)
+	if err == nil && regNo != "" {
+		meta, metaErr := s.GetNationalIDMetadata(req.CitizenID)
+		if metaErr == nil && meta != nil {
+			_, _ = s.ssoDB.Exec(
+				`UPDATE users SET verified = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+				userID,
+			)
+		}
+	}
+
 	return nil
 }
 
@@ -341,6 +354,42 @@ func (s *EIDService) GetUserCards(userID int64) ([]models.EIDCard, error) {
 	}
 
 	return cards, nil
+}
+
+// GetNationalIDMetadata returns the active national_id_metadata record for a citizen
+func (s *EIDService) GetNationalIDMetadata(citizenID int64) (*models.NationalIDMetadata, error) {
+	meta := &models.NationalIDMetadata{}
+	var gender, photoHash, chipSerial sql.NullString
+	err := s.eidDB.QueryRow(`
+		SELECT id, citizen_id, reg_no, document_number, date_of_birth, gender,
+			nationality, photo_hash, chip_serial, issuing_authority,
+			issued_at, expiry_date, status, created_at, updated_at
+		FROM national_id_metadata
+		WHERE citizen_id = $1 AND status = 'active'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, citizenID).Scan(
+		&meta.ID, &meta.CitizenID, &meta.RegNo, &meta.DocumentNumber,
+		&meta.DateOfBirth, &gender, &meta.Nationality, &photoHash,
+		&chipSerial, &meta.IssuingAuthority, &meta.IssuedAt,
+		&meta.ExpiryDate, &meta.Status, &meta.CreatedAt, &meta.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to query national_id_metadata: %w", err)
+	}
+	if gender.Valid {
+		meta.Gender = gender.String
+	}
+	if photoHash.Valid {
+		meta.PhotoHash = photoHash.String
+	}
+	if chipSerial.Valid {
+		meta.ChipSerial = chipSerial.String
+	}
+	return meta, nil
 }
 
 // writeAuditLog writes an entry to the eid_audit_log table

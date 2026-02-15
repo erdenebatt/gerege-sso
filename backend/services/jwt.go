@@ -50,6 +50,7 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 	gerege := models.GeregeInfo{
 		Verified:          user.Verified,
 		VerificationLevel: user.VerificationLevel,
+		Role:              user.Role,
 	}
 
 	// If user has associated citizen data

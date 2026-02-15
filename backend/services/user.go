@@ -20,7 +20,7 @@ var providerColumns = map[string]string{
 }
 
 // userColumns is the standard set of columns selected for user queries
-const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, verification_level, mfa_enabled, mfa_level, created_at, updated_at, last_login_at`
+const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id, email, email_verified, picture, citizen_id, verified, verification_level, mfa_enabled, mfa_level, org_id, role, created_at, updated_at, last_login_at`
 
 // UserService handles user-related operations
 type UserService struct {
@@ -50,7 +50,7 @@ func scanUser(row scannable) (*models.User, error) {
 		&user.ID, &user.GenID, &user.GoogleSub, &user.AppleSub,
 		&user.FacebookID, &user.TwitterID, &user.Email, &user.EmailVerified,
 		&user.Picture, &user.CitizenID, &user.Verified, &user.VerificationLevel,
-		&user.MFAEnabled, &user.MFALevel,
+		&user.MFAEnabled, &user.MFALevel, &user.OrgID, &user.Role,
 		&user.CreatedAt, &user.UpdatedAt, &user.LastLoginAt,
 	)
 	if err == sql.ErrNoRows {
@@ -106,8 +106,8 @@ func (s *UserService) CreateFromProvider(provider string, info *models.ProviderU
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO users (gen_id, %s, email, email_verified, picture, verified, verification_level)
-		VALUES ($1, $2, $3, $4, $5, false, 1)
+		INSERT INTO users (gen_id, %s, email, email_verified, picture, verified, verification_level, role)
+		VALUES ($1, $2, $3, $4, $5, false, 1, 'CITIZEN')
 		RETURNING %s
 	`, col, userColumns)
 
@@ -247,8 +247,8 @@ func (s *UserService) FindOrCreateByEmail(email string) (*models.User, error) {
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO users (gen_id, email, email_verified, verified, verification_level)
-		VALUES ($1, $2, true, false, 1)
+		INSERT INTO users (gen_id, email, email_verified, verified, verification_level, role)
+		VALUES ($1, $2, true, false, 1, 'CITIZEN')
 		RETURNING %s
 	`, userColumns)
 

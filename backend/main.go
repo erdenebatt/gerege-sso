@@ -58,6 +58,23 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
+	// Sign database connection (optional, graceful degradation)
+	var signDB *sql.DB
+	signDSN := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.SignDB.Host, cfg.SignDB.Port, cfg.SignDB.User, cfg.SignDB.Password, cfg.SignDB.DB)
+	signDB, err = sql.Open("postgres", signDSN)
+	if err != nil {
+		log.Printf("Sign DB connection failed (sign features disabled): %v", err)
+		signDB = nil
+	} else if err := signDB.Ping(); err != nil {
+		log.Printf("Sign DB ping failed (sign features disabled): %v", err)
+		signDB.Close()
+		signDB = nil
+	} else {
+		log.Println("Connected to Sign DB (gerege_sign)")
+		defer signDB.Close()
+	}
+
 	// Redis connection
 	rdb := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s", cfg.Redis.Host, cfg.Redis.Port),
@@ -153,6 +170,15 @@ func main() {
 	mfaSettingsService := services.NewMFASettingsService(db)
 	mfaAuditService := services.NewMFAAuditService(db)
 
+	// Initialize Gerege Sign services (optional)
+	var gesignService *services.GesignService
+	var eidService *services.EIDService
+	if signDB != nil {
+		gesignService = services.NewGesignService(signDB, db, rdb, wsHub)
+		eidService = services.NewEIDService(db)
+		log.Println("Gerege Sign service enabled")
+	}
+
 	// Initialize OAuth2 provider service
 	clientService := services.NewClientService(db, rdb)
 	grantService := services.NewGrantService(db)
@@ -163,6 +189,12 @@ func main() {
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 	apiLogHandler := handlers.NewAPILogHandler(apiLogService)
 	mfaHandler := handlers.NewMFAHandler(totpService, passkeyService, pushAuthService, qrLoginService, recoveryService, mfaSettingsService, mfaAuditService, jwtService, userService, wsHub, rdb)
+
+	// Initialize Sign handler (optional)
+	var signHandler *handlers.SignHandler
+	if gesignService != nil {
+		signHandler = handlers.NewSignHandler(gesignService, eidService, pushAuthService, jwtService, userService, wsHub)
+	}
 
 	// Setup Gin router
 	if os.Getenv("GIN_MODE") == "" {
@@ -298,6 +330,32 @@ func main() {
 			admin.DELETE("/clients/:id", oauthProviderHandler.DeleteClient)
 			admin.GET("/stats", oauthProviderHandler.GetStats)
 			admin.GET("/audit-logs", oauthProviderHandler.GetAuditLogs)
+		}
+
+		// Gerege Sign routes (conditional on signDB availability)
+		if signHandler != nil {
+			sign := api.Group("/sign")
+			{
+				// Public endpoint — no auth required
+				sign.POST("/verify", signHandler.VerifyDocument)
+
+				// Authenticated endpoints
+				sign.POST("/request", middleware.JWTAuth(jwtService), signHandler.CreateSignRequest)
+				sign.GET("/status/:id", middleware.JWTAuth(jwtService), signHandler.GetSignStatus)
+				sign.POST("/approve", middleware.JWTAuth(jwtService), signHandler.ApproveSign)
+				sign.POST("/deny", middleware.JWTAuth(jwtService), signHandler.DenySign)
+				sign.POST("/complete", middleware.JWTAuth(jwtService), signHandler.CompleteSign)
+				sign.GET("/certificates", middleware.JWTAuth(jwtService), signHandler.GetCertificates)
+				sign.GET("/history", middleware.JWTAuth(jwtService), signHandler.GetSignHistory)
+
+				// e-ID verification
+				sign.POST("/eid/verify", middleware.JWTAuth(jwtService), signHandler.VerifyEID)
+				sign.GET("/eid/status", middleware.JWTAuth(jwtService), signHandler.GetEIDStatus)
+			}
+
+			// Sign WebSocket (outside /api for cleaner URLs)
+			router.GET("/ws/sign/:id", signHandler.SignWebSocket)
+			log.Println("Gerege Sign routes registered")
 		}
 	}
 

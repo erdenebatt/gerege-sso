@@ -179,6 +179,39 @@ func (s *PushAuthService) ListDevices(userID int64) ([]models.UserDevice, error)
 	return devices, nil
 }
 
+// SendSignChallenge creates a push notification challenge for a signing request
+func (s *PushAuthService) SendSignChallenge(userID int64, sessionID, documentHash, documentName string) (*models.MobileSignRequest, error) {
+	// Generate challenge ID
+	idBytes := make([]byte, 16)
+	if _, err := rand.Read(idBytes); err != nil {
+		return nil, fmt.Errorf("failed to generate challenge id: %w", err)
+	}
+	challengeID := hex.EncodeToString(idBytes)
+
+	// Store challenge in Redis (10 minute TTL for signing)
+	ctx := context.Background()
+	challengeKey := "sign_push:" + challengeID
+	s.redis.HSet(ctx, challengeKey, map[string]interface{}{
+		"user_id":       userID,
+		"session_id":    sessionID,
+		"document_hash": documentHash,
+		"document_name": documentName,
+		"status":        "pending",
+	})
+	s.redis.Expire(ctx, challengeKey, 10*time.Minute)
+
+	// TODO: Send FCM/APNs push notification with signing details
+	// For now, the challenge can be approved via the API
+
+	return &models.MobileSignRequest{
+		ChallengeID:  challengeID,
+		SessionID:    sessionID,
+		DocumentHash: documentHash,
+		DocumentName: documentName,
+		ExpiresIn:    600,
+	}, nil
+}
+
 // RemoveDevice removes a device
 func (s *PushAuthService) RemoveDevice(userID int64, deviceID string) error {
 	result, err := s.db.Exec(`DELETE FROM user_devices WHERE id = $1 AND user_id = $2`, deviceID, userID)

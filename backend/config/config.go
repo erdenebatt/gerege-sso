@@ -16,6 +16,15 @@ type Config struct {
 	Admin    AdminConfig
 	SMTP     SMTPConfig
 	MFA      MFAConfig
+	SignDB   SignDBConfig
+}
+
+type SignDBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DB       string
 }
 
 type MFAConfig struct {
@@ -175,6 +184,13 @@ func Load() *Config {
 			WebAuthnRPID:   getEnv("WEBAUTHN_RP_ID", "sso.gerege.mn"),
 			WebAuthnOrigin: getEnv("WEBAUTHN_RP_ORIGIN", "https://sso.gerege.mn"),
 			WebAuthnRPName: getEnv("WEBAUTHN_RP_NAME", "Gerege SSO"),
+		},
+		SignDB: SignDBConfig{
+			Host:     getEnv("SIGN_DB_HOST", getEnv("POSTGRES_HOST", "localhost")),
+			Port:     getEnv("SIGN_DB_PORT", getEnv("POSTGRES_PORT", "5432")),
+			User:     getEnv("SIGN_DB_USER", getEnv("POSTGRES_USER", "grgdev")),
+			Password: getEnv("SIGN_DB_PASSWORD", getEnv("POSTGRES_PASSWORD", "")),
+			DB:       getEnv("SIGN_DB_NAME", "gerege_sign"),
 		},
 	}
 }

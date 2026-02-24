@@ -4,16 +4,8 @@ struct ContentView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
 
     var body: some View {
-        Group {
-            if authViewModel.isLoading {
-                loadingView
-            } else if authViewModel.isAuthenticated {
-                NavigationStack {
-                    HomeView()
-                }
-            } else {
-                LoginView()
-            }
+        NavigationStack {
+            HomeView()
         }
     }
 

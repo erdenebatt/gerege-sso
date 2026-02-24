@@ -4,29 +4,22 @@ struct HomeView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel()
 
-    @State private var showLogoutConfirm = false
-
     var body: some View {
         VStack(spacing: 0) {
-            // User bar
+            // Header bar
             HStack {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(Constants.Colors.primary)
+                Text("G")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Constants.Colors.primary)
+                    .cornerRadius(8)
 
-                Text(authViewModel.user?.email ?? "")
-                    .font(.subheadline)
+                Text("Gerege Authenticator")
+                    .font(.headline)
                     .foregroundColor(Constants.Colors.textPrimary)
-                    .lineLimit(1)
 
                 Spacer()
-
-                Button {
-                    showLogoutConfirm = true
-                } label: {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .foregroundColor(Constants.Colors.danger)
-                }
             }
             .padding()
             .background(Color.white)
@@ -51,12 +44,8 @@ struct HomeView: View {
         .onDisappear {
             viewModel.stopTimer()
         }
-        .alert("Гарах", isPresented: $showLogoutConfirm) {
-            Button("Цуцлах", role: .cancel) {}
-            Button("Гарах", role: .destructive) { authViewModel.logout() }
-        } message: {
-            Text("Та гарахдаа итгэлтэй байна уу?")
-        }
+        .navigationTitle("")
+        .navigationBarHidden(true)
     }
 
     private var emptyState: some View {

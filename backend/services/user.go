@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -393,14 +394,13 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 }
 
 // insertCitizenFromCore inserts a citizen record from Core API response within a transaction.
-// Column names match the production DB schema (sex, phone_primary, current_province, current_district).
 func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenResponse) (*models.Citizen, error) {
-	// Convert gender int to string for the sex column
-	gender := ""
+	// Convert gender int to BIGINT for the gender column
+	var gender int64
 	if resp.Gender == 1 {
-		gender = "M"
+		gender = 1
 	} else if resp.Gender == 2 {
-		gender = "F"
+		gender = 2
 	}
 
 	// Extract date part from birth_date (e.g. "1994-06-26T00:00:00Z" → "1994-06-26")
@@ -413,8 +413,8 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 	err := tx.QueryRow(`
 		INSERT INTO citizens (
 			gerege_id, civil_id, reg_no, family_name, last_name, first_name,
-			sex, birth_date, phone_primary, email,
-			nationality, current_province, current_district,
+			gender, birth_date, phone_no, email,
+			nationality, aimag_name, sum_name,
 			residential_parent_address_id, residential_parent_address_name,
 			residential_aimag_id, residential_aimag_code, residential_aimag_name,
 			residential_sum_id, residential_sum_code, residential_sum_name,
@@ -450,6 +450,207 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 	}
 
 	return &models.Citizen{ID: citizenID}, nil
+}
+
+// updateCitizenFromCore updates an existing citizen record with the latest data from Core API.
+// DAN data is considered the authoritative source.
+func (s *UserService) updateCitizenFromCore(tx *sql.Tx, citizenID int64, resp *CoreCitizenResponse) error {
+	var gender int64
+	if resp.Gender == 1 {
+		gender = 1
+	} else if resp.Gender == 2 {
+		gender = 2
+	}
+
+	birthDate := resp.BirthDate
+	if len(birthDate) >= 10 {
+		birthDate = birthDate[:10]
+	}
+
+	_, err := tx.Exec(`
+		UPDATE citizens SET
+			gerege_id = COALESCE(NULLIF($1, 0), gerege_id),
+			civil_id = $2, family_name = $3, last_name = $4, first_name = $5,
+			gender = $6, birth_date = $7, phone_no = $8, email = $9,
+			nationality = $10, aimag_name = $11, sum_name = $12,
+			parent_address_id = $13, parent_address_name = $14,
+			aimag_id = $15, aimag_code = $16,
+			sum_id = $17, sum_code = $18,
+			bag_id = $19, bag_code = $20, bag_name = $21,
+			address_detail = $22,
+			residential_parent_address_id = $23, residential_parent_address_name = $24,
+			residential_aimag_id = $25, residential_aimag_code = $26, residential_aimag_name = $27,
+			residential_sum_id = $28, residential_sum_code = $29, residential_sum_name = $30,
+			residential_bag_id = $31, residential_bag_code = $32, residential_bag_name = $33,
+			residential_address_detail = $34,
+			ebarimt_tin = $35
+		WHERE id = $36
+	`,
+		resp.ID, fmt.Sprintf("%d", resp.CivilID), resp.FamilyName, resp.LastName, resp.FirstName,
+		gender, birthDate, resp.PhoneNo, resp.Email,
+		resp.Nationality, resp.AimagName, resp.SumName,
+		resp.ParentAddressID, resp.ParentAddressName,
+		resp.AimagID, resp.AimagCode,
+		resp.SumID, resp.SumCode,
+		resp.BagID, resp.BagCode, resp.BagName,
+		resp.AddressDetail,
+		resp.ResidentialParentAddressID, resp.ResidentialParentAddressName,
+		resp.ResidentialAimagID, resp.ResidentialAimagCode, resp.ResidentialAimagName,
+		resp.ResidentialSumID, resp.ResidentialSumCode, resp.ResidentialSumName,
+		resp.ResidentialBagID, resp.ResidentialBagCode, resp.ResidentialBagName,
+		resp.ResidentialAddressDetail,
+		resp.EbarimtTIN,
+		citizenID,
+	)
+	return err
+}
+
+// UpdateCitizenFromDAN updates citizen record with data from DAN SSO.
+// DAN is the authoritative source — all non-empty fields are updated.
+func (s *UserService) UpdateCitizenFromDAN(regNo string, data map[string]string) error {
+	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
+
+	// Build dynamic UPDATE query with only non-empty fields
+	setClauses := []string{}
+	args := []interface{}{}
+	argIdx := 1
+
+	// Map of DAN param names to DB column names
+	fieldMap := map[string]string{
+		"surname":                        "last_name",
+		"given_name":                     "first_name",
+		"family_name":                    "family_name",
+		"civil_id":                       "civil_id",
+		"gender":                         "gender",
+		"birth_date":                     "birth_date",
+		"phone_no":                       "phone_no",
+		"email":                          "email",
+		"nationality":                    "nationality",
+		"aimag_name":                     "aimag_name",
+		"sum_name":                       "sum_name",
+		"bag_name":                       "bag_name",
+		"address_detail":                 "address_detail",
+		"aimag_id":                       "aimag_id",
+		"aimag_code":                     "aimag_code",
+		"sum_id":                         "sum_id",
+		"sum_code":                       "sum_code",
+		"bag_id":                         "bag_id",
+		"bag_code":                       "bag_code",
+		"parent_address_id":              "parent_address_id",
+		"parent_address_name":            "parent_address_name",
+		"residential_aimag_name":         "residential_aimag_name",
+		"residential_sum_name":           "residential_sum_name",
+		"residential_bag_name":           "residential_bag_name",
+		"residential_address_detail":     "residential_address_detail",
+		"residential_aimag_id":           "residential_aimag_id",
+		"residential_aimag_code":         "residential_aimag_code",
+		"residential_sum_id":             "residential_sum_id",
+		"residential_sum_code":           "residential_sum_code",
+		"residential_bag_id":             "residential_bag_id",
+		"residential_bag_code":           "residential_bag_code",
+		"residential_parent_address_id":  "residential_parent_address_id",
+		"residential_parent_address_name": "residential_parent_address_name",
+	}
+
+	for danKey, dbCol := range fieldMap {
+		val := data[danKey]
+		if val == "" {
+			continue
+		}
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", dbCol, argIdx))
+		args = append(args, val)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		log.Printf("DAN update: no fields to update for reg_no=%s", normalizedRegNo)
+		return nil
+	}
+
+	query := fmt.Sprintf("UPDATE citizens SET %s WHERE UPPER(reg_no) = $%d",
+		strings.Join(setClauses, ", "), argIdx)
+	args = append(args, normalizedRegNo)
+
+	result, err := s.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update citizen from DAN: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	log.Printf("DAN update: updated %d citizen row(s) for reg_no=%s with %d fields", rows, normalizedRegNo, len(setClauses))
+	return nil
+}
+
+// RefreshCitizenFromCore fetches latest citizen data from Core API and updates the citizen table.
+// Called after DAN verification to ensure citizen data is up to date.
+func (s *UserService) RefreshCitizenFromCore(regNo string) error {
+	if s.geregeCoreService == nil {
+		return nil
+	}
+
+	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
+
+	coreResp, err := s.geregeCoreService.FindCitizen(normalizedRegNo)
+	if err != nil {
+		return fmt.Errorf("core API fetch failed: %w", err)
+	}
+	if coreResp == nil {
+		return nil
+	}
+
+	var gender int64
+	if coreResp.Gender == 1 {
+		gender = 1
+	} else if coreResp.Gender == 2 {
+		gender = 2
+	}
+
+	birthDate := coreResp.BirthDate
+	if len(birthDate) >= 10 {
+		birthDate = birthDate[:10]
+	}
+
+	_, err = s.db.Exec(`
+		UPDATE citizens SET
+			gerege_id = COALESCE(NULLIF($1, 0), gerege_id),
+			civil_id = $2, family_name = $3, last_name = $4, first_name = $5,
+			gender = $6, birth_date = $7, phone_no = $8, email = $9,
+			nationality = $10, aimag_name = $11, sum_name = $12,
+			parent_address_id = $13, parent_address_name = $14,
+			aimag_id = $15, aimag_code = $16,
+			sum_id = $17, sum_code = $18,
+			bag_id = $19, bag_code = $20, bag_name = $21,
+			address_detail = $22,
+			residential_parent_address_id = $23, residential_parent_address_name = $24,
+			residential_aimag_id = $25, residential_aimag_code = $26, residential_aimag_name = $27,
+			residential_sum_id = $28, residential_sum_code = $29, residential_sum_name = $30,
+			residential_bag_id = $31, residential_bag_code = $32, residential_bag_name = $33,
+			residential_address_detail = $34,
+			ebarimt_tin = $35
+		WHERE UPPER(reg_no) = $36
+	`,
+		coreResp.ID, fmt.Sprintf("%d", coreResp.CivilID), coreResp.FamilyName, coreResp.LastName, coreResp.FirstName,
+		gender, birthDate, coreResp.PhoneNo, coreResp.Email,
+		coreResp.Nationality, coreResp.AimagName, coreResp.SumName,
+		coreResp.ParentAddressID, coreResp.ParentAddressName,
+		coreResp.AimagID, coreResp.AimagCode,
+		coreResp.SumID, coreResp.SumCode,
+		coreResp.BagID, coreResp.BagCode, coreResp.BagName,
+		coreResp.AddressDetail,
+		coreResp.ResidentialParentAddressID, coreResp.ResidentialParentAddressName,
+		coreResp.ResidentialAimagID, coreResp.ResidentialAimagCode, coreResp.ResidentialAimagName,
+		coreResp.ResidentialSumID, coreResp.ResidentialSumCode, coreResp.ResidentialSumName,
+		coreResp.ResidentialBagID, coreResp.ResidentialBagCode, coreResp.ResidentialBagName,
+		coreResp.ResidentialAddressDetail,
+		coreResp.EbarimtTIN,
+		normalizedRegNo,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update citizen: %w", err)
+	}
+
+	log.Printf("Refreshed citizen data from Core API for reg_no=%s", normalizedRegNo)
+	return nil
 }
 
 // citizenColumns is the standard set of columns selected for citizen queries

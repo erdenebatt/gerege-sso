@@ -1093,9 +1093,10 @@ func (h *AuthHandler) TwitterCallback(c *gin.Context) {
 // @Success 303 {string} string "Redirect to DAN SSO"
 // @Router /api/auth/dan [get]
 func (h *AuthHandler) DanLogin(c *gin.Context) {
-	// Generate state token
+	// Generate state token with our callback URL so dan.gerege.mn can redirect back
 	stateBytes, err := json.Marshal(map[string]string{
-		"redirect_url": h.config.Public.URL + "/callback?dan_success=true",
+		"redirect_url": h.config.Public.URL + "/api/auth/dan/authorized",
+		"frontend_url": h.config.Public.URL + "/callback?dan_success=true",
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
@@ -1103,13 +1104,13 @@ func (h *AuthHandler) DanLogin(c *gin.Context) {
 	}
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
 
-	// Build auth URL
+	// Build auth URL — redirect_uri must exactly match what's registered in DAN SSO
 	authURL := fmt.Sprintf(
 		"https://sso.gov.mn/login?state=%s&grant_type=authorization_code&response_type=code&client_id=%s&scope=%s&redirect_uri=%s",
 		state,
 		h.config.Auth.DanClientID,
 		h.config.Auth.DanScope,
-		h.config.Auth.DanRedirectURL,
+		url.QueryEscape(h.config.Auth.DanRedirectURL),
 	)
 
 	c.Redirect(http.StatusSeeOther, authURL)
@@ -1126,6 +1127,9 @@ func (h *AuthHandler) DanLogin(c *gin.Context) {
 // @Failure 400 {object} map[string]interface{}
 // @Router /api/auth/dan/authorized [get]
 func (h *AuthHandler) DanAuthorized(c *gin.Context) {
+	// Log all DAN query params for debugging
+	log.Printf("DAN Authorized params: %v", c.Request.URL.Query())
+
 	regNo := c.Query("reg_no")
 	state := c.Query("state")
 
@@ -1149,7 +1153,54 @@ func (h *AuthHandler) DanAuthorized(c *gin.Context) {
 		return
 	}
 
-	redirectURL := stateData["redirect_url"]
+	// Update citizen record with DAN data (DAN is the authoritative source)
+	if regNo != "" {
+		danData := map[string]string{
+			"reg_no":                        regNo,
+			"surname":                       c.Query("surname"),
+			"given_name":                    c.Query("given_name"),
+			"family_name":                   c.Query("family_name"),
+			"civil_id":                      c.Query("civil_id"),
+			"gender":                        c.Query("gender"),
+			"birth_date":                    c.Query("birth_date"),
+			"phone_no":                      c.Query("phone_no"),
+			"email":                         c.Query("email"),
+			"nationality":                   c.Query("nationality"),
+			"aimag_name":                    c.Query("aimag_name"),
+			"sum_name":                      c.Query("sum_name"),
+			"bag_name":                      c.Query("bag_name"),
+			"address_detail":                c.Query("address_detail"),
+			"aimag_id":                      c.Query("aimag_id"),
+			"aimag_code":                    c.Query("aimag_code"),
+			"sum_id":                        c.Query("sum_id"),
+			"sum_code":                      c.Query("sum_code"),
+			"bag_id":                        c.Query("bag_id"),
+			"bag_code":                      c.Query("bag_code"),
+			"parent_address_id":             c.Query("parent_address_id"),
+			"parent_address_name":           c.Query("parent_address_name"),
+			"residential_aimag_name":        c.Query("residential_aimag_name"),
+			"residential_sum_name":          c.Query("residential_sum_name"),
+			"residential_bag_name":          c.Query("residential_bag_name"),
+			"residential_address_detail":    c.Query("residential_address_detail"),
+			"residential_aimag_id":          c.Query("residential_aimag_id"),
+			"residential_aimag_code":        c.Query("residential_aimag_code"),
+			"residential_sum_id":            c.Query("residential_sum_id"),
+			"residential_sum_code":          c.Query("residential_sum_code"),
+			"residential_bag_id":            c.Query("residential_bag_id"),
+			"residential_bag_code":          c.Query("residential_bag_code"),
+			"residential_parent_address_id": c.Query("residential_parent_address_id"),
+			"residential_parent_address_name": c.Query("residential_parent_address_name"),
+		}
+		if err := h.userService.UpdateCitizenFromDAN(regNo, danData); err != nil {
+			log.Printf("Failed to update citizen from DAN: %v", err)
+		}
+	}
+
+	// Use frontend_url if available, fall back to redirect_url for backwards compat
+	redirectURL := stateData["frontend_url"]
+	if redirectURL == "" {
+		redirectURL = stateData["redirect_url"]
+	}
 	if redirectURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing redirect_url in state"})
 		return
@@ -1203,6 +1254,11 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 		log.Printf("Failed to link citizen: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// DAN verified — update citizen with latest data from Core API (authoritative source)
+	if err := h.userService.RefreshCitizenFromCore(regNo); err != nil {
+		log.Printf("Failed to refresh citizen from Core API: %v", err)
 	}
 
 	// Update verification level to 4 (DAN verified)

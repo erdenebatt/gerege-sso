@@ -1105,12 +1105,14 @@ func (h *AuthHandler) DanLogin(c *gin.Context) {
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
 
 	// Build auth URL — redirect_uri must exactly match what's registered in DAN SSO
+	// DAN SSO redirects to dan.gerege.mn gateway, which exchanges the code,
+	// fetches citizen data, then redirects back to SSO with data as query params
 	authURL := fmt.Sprintf(
-		"https://sso.gov.mn/login?state=%s&grant_type=authorization_code&response_type=code&client_id=%s&scope=%s&redirect_uri=%s",
-		state,
+		"https://sso.gov.mn/login?response_type=code&client_id=%s&scope=%s&redirect_uri=%s&state=%s",
 		h.config.Auth.DanClientID,
 		h.config.Auth.DanScope,
 		url.QueryEscape(h.config.Auth.DanRedirectURL),
+		state,
 	)
 
 	c.Redirect(http.StatusSeeOther, authURL)

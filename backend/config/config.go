@@ -163,7 +163,7 @@ func Load() *Config {
 			AppleClientID:    getEnv("APPLE_CLIENT_ID", ""),
 			AppleTeamID:      getEnv("APPLE_TEAM_ID", ""),
 			AppleKeyID:       getEnv("APPLE_KEY_ID", ""),
-			ApplePrivateKey:  getEnv("APPLE_PRIVATE_KEY", ""),
+			ApplePrivateKey:  loadApplePrivateKey(),
 			AppleRedirectURL: getEnv("APPLE_REDIRECT_URL", "https://sso.gerege.mn/api/auth/apple/callback"),
 
 			// Facebook OAuth
@@ -242,6 +242,24 @@ func parseCORSOrigins(s string) []string {
 		}
 	}
 	return origins
+}
+
+// loadApplePrivateKey reads the Apple private key from env var or file.
+// If APPLE_PRIVATE_KEY is set (and not empty), use it directly.
+// Otherwise, read from the path in APPLE_PRIVATE_KEY_FILE.
+func loadApplePrivateKey() string {
+	if key := os.Getenv("APPLE_PRIVATE_KEY"); key != "" {
+		return key
+	}
+	if path := os.Getenv("APPLE_PRIVATE_KEY_FILE"); path != "" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			log.Printf("WARNING: failed to read APPLE_PRIVATE_KEY_FILE (%s): %v", path, err)
+			return ""
+		}
+		return strings.TrimSpace(string(data))
+	}
+	return ""
 }
 
 func parseDuration(s string) time.Duration {

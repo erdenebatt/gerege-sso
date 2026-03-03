@@ -65,7 +65,7 @@ services:
       - APPLE_CLIENT_ID=${APPLE_CLIENT_ID}
       - APPLE_TEAM_ID=${APPLE_TEAM_ID}
       - APPLE_KEY_ID=${APPLE_KEY_ID}
-      - APPLE_PRIVATE_KEY=${APPLE_PRIVATE_KEY}
+      - APPLE_PRIVATE_KEY_FILE=/secrets/apple_key.pem
       - APPLE_REDIRECT_URL=${APPLE_REDIRECT_URL}
       - FACEBOOK_CLIENT_ID=${FACEBOOK_CLIENT_ID}
       - FACEBOOK_CLIENT_SECRET=${FACEBOOK_CLIENT_SECRET}
@@ -89,6 +89,8 @@ services:
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
       - WEBAUTHN_RP_ORIGIN=${WEBAUTHN_RP_ORIGIN}
       - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME}
+    volumes:
+      - ./apple_key.pem:/secrets/apple_key.pem:ro
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

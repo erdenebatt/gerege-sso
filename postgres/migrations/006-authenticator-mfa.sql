@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS webauthn_credentials (
     sign_count BIGINT NOT NULL DEFAULT 0,
     credential_name VARCHAR(255) NOT NULL DEFAULT 'My Passkey',
     transport TEXT[] DEFAULT '{}',
+    backup_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+    backup_state BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMP WITH TIME ZONE
 );

@@ -18,14 +18,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return
     }
 
-    // Only fetch if not already present or force refresh logic
-    fetchUser().then((userData) => {
-      if (userData && !userData.verified) {
-        router.replace('/register')
-      }
-    })
-    fetchGrants()
-  }, [token, pathname, fetchUser, fetchGrants, router])
+    // Only fetch if not already loaded
+    if (!user) {
+      fetchUser().then((userData) => {
+        if (userData && !userData.verified) {
+          router.replace('/register')
+        }
+      })
+      fetchGrants()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, pathname])
 
   const getTitle = () => {
     if (pathname?.includes('/security')) return 'Нууцлал'

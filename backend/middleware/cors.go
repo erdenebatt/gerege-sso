@@ -5,18 +5,16 @@ import (
 )
 
 // CORS middleware handles Cross-Origin Resource Sharing
-func CORS() gin.HandlerFunc {
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	allowed := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[o] = true
+	}
+
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		// Allow requests from our domains
-		allowedOrigins := map[string]bool{
-			"https://sso.gerege.mn": true,
-			"http://localhost:3000": true,
-			"http://localhost:3001": true,
-		}
-
-		if allowedOrigins[origin] || origin == "" {
+		if allowed[origin] || origin == "" {
 			c.Header("Access-Control-Allow-Origin", origin)
 		}
 

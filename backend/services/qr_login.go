@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"gerege-sso/models"
@@ -97,11 +98,13 @@ func (s *QRLoginService) ApproveSession(sessionUUID string, userID int64) error 
 	// Update in Redis
 	s.redis.Set(ctx, "qr_session:"+sessionUUID, fmt.Sprintf("approved:%d", userID), 2*time.Minute)
 
-	// Update in DB
-	s.db.Exec(`
+	// Update in DB (Redis is source of truth; log but don't fail on DB error)
+	if _, err := s.db.Exec(`
 		UPDATE qr_login_sessions SET status = 'approved', user_id = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE session_uuid = $2
-	`, userID, sessionUUID)
+	`, userID, sessionUUID); err != nil {
+		log.Printf("WARNING: failed to update QR session %s in DB: %v", sessionUUID, err)
+	}
 
 	// Broadcast via WebSocket
 	msg, _ := json.Marshal(map[string]interface{}{
@@ -149,11 +152,13 @@ func (s *QRLoginService) MarkScanned(sessionUUID string) error {
 		s.redis.Set(ctx, "qr_session:"+sessionUUID, "scanned", ttl)
 	}
 
-	// Update DB
-	s.db.Exec(`
+	// Update DB (Redis is source of truth; log but don't fail on DB error)
+	if _, err := s.db.Exec(`
 		UPDATE qr_login_sessions SET status = 'scanned', updated_at = CURRENT_TIMESTAMP
 		WHERE session_uuid = $1
-	`, sessionUUID)
+	`, sessionUUID); err != nil {
+		log.Printf("WARNING: failed to update QR session %s in DB: %v", sessionUUID, err)
+	}
 
 	// Broadcast via WebSocket
 	msg, _ := json.Marshal(map[string]string{"status": "scanned"})

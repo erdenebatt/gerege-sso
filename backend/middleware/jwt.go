@@ -9,6 +9,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RequireFullJWT rejects MFA pending (temp) tokens.
+// Apply after JWTAuth on routes that must not be accessed with temp tokens.
+func RequireFullJWT(jwtService *services.JWTService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claimsVal, exists := c.Get("claims")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
+		claims := claimsVal.(*services.Claims)
+		if claims.MFAPending {
+			c.JSON(http.StatusForbidden, gin.H{"error": "MFA verification required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 // JWTAuth middleware validates JWT tokens and checks blacklist
 func JWTAuth(jwtService *services.JWTService) gin.HandlerFunc {
 	return func(c *gin.Context) {

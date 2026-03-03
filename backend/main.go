@@ -210,7 +210,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, rdb)
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 	apiLogHandler := handlers.NewAPILogHandler(apiLogService)
-	mfaHandler := handlers.NewMFAHandler(totpService, passkeyService, pushAuthService, qrLoginService, recoveryService, mfaSettingsService, mfaAuditService, jwtService, userService, wsHub, rdb)
+	mfaHandler := handlers.NewMFAHandler(totpService, passkeyService, pushAuthService, qrLoginService, recoveryService, mfaSettingsService, mfaAuditService, jwtService, userService, wsHub, rdb, cfg.CORS.AllowedOrigins)
 
 	// Initialize Sign handler (optional)
 	var signHandler *handlers.SignHandler
@@ -232,7 +232,7 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(middleware.Logger())
 	router.Use(middleware.APILogger(apiLogService))
-	router.Use(middleware.CORS())
+	router.Use(middleware.CORS(cfg.CORS.AllowedOrigins))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.Metrics())
 
@@ -241,6 +241,10 @@ func main() {
 	router.GET("/ready", healthHandler.Ready)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Middleware shorthands
+	jwtAuth := middleware.JWTAuth(jwtService)
+	fullJWT := middleware.RequireFullJWT(jwtService)
 
 	// Rate limiter for auth endpoints (20 requests per minute per IP)
 	authRateLimit := middleware.RateLimit(rdb, 20, 1*time.Minute)
@@ -262,67 +266,67 @@ func main() {
 			auth.GET("/twitter", authHandler.TwitterLogin)
 			auth.GET("/twitter/callback", authHandler.TwitterCallback)
 			auth.POST("/exchange-token", authHandler.ExchangeToken)
-		auth.POST("/logout", middleware.JWTAuth(jwtService), authHandler.Logout)
-			auth.GET("/me", middleware.JWTAuth(jwtService), authHandler.Me)
-			auth.POST("/verify", middleware.JWTAuth(jwtService), authHandler.VerifyIdentity)
+		auth.POST("/logout", jwtAuth, fullJWT, authHandler.Logout)
+			auth.GET("/me", jwtAuth, fullJWT, authHandler.Me)
+			auth.POST("/verify", jwtAuth, fullJWT, authHandler.VerifyIdentity)
 			auth.POST("/confirm-link", authHandler.ConfirmIdentityLink)
 			auth.GET("/dan", authHandler.DanLogin)
 			auth.GET("/dan/authorized", authHandler.DanAuthorized)
-			auth.GET("/dan/callback", middleware.JWTAuth(jwtService), authHandler.DanCallback)
+			auth.GET("/dan/callback", jwtAuth, fullJWT, authHandler.DanCallback)
 
 			// Email OTP login
 			auth.POST("/email/send-otp", authHandler.SendEmailOTP)
 			auth.POST("/email/verify-otp", authHandler.VerifyEmailOTP)
 
 			// Phone verification
-			auth.POST("/phone/send-otp", middleware.JWTAuth(jwtService), authHandler.SendPhoneOTP)
-			auth.POST("/phone/verify-otp", middleware.JWTAuth(jwtService), authHandler.VerifyPhoneOTP)
+			auth.POST("/phone/send-otp", jwtAuth, fullJWT, authHandler.SendPhoneOTP)
+			auth.POST("/phone/verify-otp", jwtAuth, fullJWT, authHandler.VerifyPhoneOTP)
 
 			// Login activity
-			auth.GET("/login-activity", middleware.JWTAuth(jwtService), authHandler.LoginActivity)
+			auth.GET("/login-activity", jwtAuth, fullJWT, authHandler.LoginActivity)
 
 			// API logs
-			auth.GET("/api-logs", middleware.JWTAuth(jwtService), apiLogHandler.GetAPILogs)
+			auth.GET("/api-logs", jwtAuth, fullJWT, apiLogHandler.GetAPILogs)
 
 			// User grants endpoints
-			auth.GET("/grants", middleware.JWTAuth(jwtService), oauthProviderHandler.ListMyGrants)
-			auth.DELETE("/grants/:id", middleware.JWTAuth(jwtService), oauthProviderHandler.RevokeGrant)
+			auth.GET("/grants", jwtAuth, fullJWT, oauthProviderHandler.ListMyGrants)
+			auth.DELETE("/grants/:id", jwtAuth, fullJWT, oauthProviderHandler.RevokeGrant)
 
 			// MFA routes
 			mfa := auth.Group("/mfa")
 			{
-				// TOTP
-				mfa.POST("/totp/setup", middleware.JWTAuth(jwtService), mfaHandler.SetupTOTP)
-				mfa.POST("/totp/verify-setup", middleware.JWTAuth(jwtService), mfaHandler.VerifyTOTPSetup)
-				mfa.POST("/totp/validate", middleware.JWTAuth(jwtService), mfaHandler.ValidateTOTP)
-				mfa.DELETE("/totp", middleware.JWTAuth(jwtService), mfaHandler.DisableTOTP)
+				// TOTP — setup/disable require full JWT, validate accepts temp token
+				mfa.POST("/totp/setup", jwtAuth, fullJWT, mfaHandler.SetupTOTP)
+				mfa.POST("/totp/verify-setup", jwtAuth, fullJWT, mfaHandler.VerifyTOTPSetup)
+				mfa.POST("/totp/validate", jwtAuth, mfaHandler.ValidateTOTP)
+				mfa.DELETE("/totp", jwtAuth, fullJWT, mfaHandler.DisableTOTP)
 
-				// Passkey
-				mfa.POST("/passkey/register/begin", middleware.JWTAuth(jwtService), mfaHandler.PasskeyRegisterBegin)
-				mfa.POST("/passkey/register/finish", middleware.JWTAuth(jwtService), mfaHandler.PasskeyRegisterFinish)
-				mfa.POST("/passkey/auth/begin", middleware.JWTAuth(jwtService), mfaHandler.PasskeyAuthBegin)
-				mfa.POST("/passkey/auth/finish", middleware.JWTAuth(jwtService), mfaHandler.PasskeyAuthFinish)
-				mfa.GET("/passkey/list", middleware.JWTAuth(jwtService), mfaHandler.ListPasskeys)
-				mfa.DELETE("/passkey/:id", middleware.JWTAuth(jwtService), mfaHandler.DeletePasskey)
+				// Passkey — register/list/delete require full JWT, auth accepts temp token
+				mfa.POST("/passkey/register/begin", jwtAuth, fullJWT, mfaHandler.PasskeyRegisterBegin)
+				mfa.POST("/passkey/register/finish", jwtAuth, fullJWT, mfaHandler.PasskeyRegisterFinish)
+				mfa.POST("/passkey/auth/begin", jwtAuth, mfaHandler.PasskeyAuthBegin)
+				mfa.POST("/passkey/auth/finish", jwtAuth, mfaHandler.PasskeyAuthFinish)
+				mfa.GET("/passkey/list", jwtAuth, fullJWT, mfaHandler.ListPasskeys)
+				mfa.DELETE("/passkey/:id", jwtAuth, fullJWT, mfaHandler.DeletePasskey)
 
-				// Push
-				mfa.POST("/push/register-device", middleware.JWTAuth(jwtService), mfaHandler.RegisterDevice)
-				mfa.POST("/push/challenge", middleware.JWTAuth(jwtService), mfaHandler.SendPushChallenge)
+				// Push — register-device requires full JWT, challenge/status accept temp token
+				mfa.POST("/push/register-device", jwtAuth, fullJWT, mfaHandler.RegisterDevice)
+				mfa.POST("/push/challenge", jwtAuth, mfaHandler.SendPushChallenge)
 				mfa.POST("/push/respond", mfaHandler.RespondPushChallenge)
-				mfa.GET("/push/status/:id", middleware.JWTAuth(jwtService), mfaHandler.GetPushChallengeStatus)
+				mfa.GET("/push/status/:id", jwtAuth, mfaHandler.GetPushChallengeStatus)
 
-				// Recovery
-				mfa.GET("/recovery/codes", middleware.JWTAuth(jwtService), mfaHandler.GetRecoveryCodes)
-				mfa.POST("/recovery/regenerate", middleware.JWTAuth(jwtService), mfaHandler.RegenerateCodes)
-				mfa.POST("/recovery/validate", middleware.JWTAuth(jwtService), mfaHandler.ValidateRecovery)
+				// Recovery — view/regenerate require full JWT, validate accepts temp token
+				mfa.GET("/recovery/codes", jwtAuth, fullJWT, mfaHandler.GetRecoveryCodes)
+				mfa.POST("/recovery/regenerate", jwtAuth, fullJWT, mfaHandler.RegenerateCodes)
+				mfa.POST("/recovery/validate", jwtAuth, mfaHandler.ValidateRecovery)
 
-				// Settings
-				mfa.GET("/settings", middleware.JWTAuth(jwtService), mfaHandler.GetMFASettings)
-				mfa.PUT("/settings", middleware.JWTAuth(jwtService), mfaHandler.UpdateMFASettings)
+				// Settings — require full JWT
+				mfa.GET("/settings", jwtAuth, fullJWT, mfaHandler.GetMFASettings)
+				mfa.PUT("/settings", jwtAuth, fullJWT, mfaHandler.UpdateMFASettings)
 
-				// Devices
-				mfa.GET("/devices", middleware.JWTAuth(jwtService), mfaHandler.ListDevices)
-				mfa.DELETE("/devices/:id", middleware.JWTAuth(jwtService), mfaHandler.RemoveDevice)
+				// Devices — require full JWT
+				mfa.GET("/devices", jwtAuth, fullJWT, mfaHandler.ListDevices)
+				mfa.DELETE("/devices/:id", jwtAuth, fullJWT, mfaHandler.RemoveDevice)
 			}
 
 			// Passwordless Passkey Login (public, no JWT)
@@ -333,7 +337,7 @@ func main() {
 			qr := auth.Group("/qr")
 			{
 				qr.GET("/generate", mfaHandler.GenerateQR)
-				qr.POST("/approve", middleware.JWTAuth(jwtService), mfaHandler.ApproveQR)
+				qr.POST("/approve", jwtAuth, fullJWT, mfaHandler.ApproveQR)
 				qr.GET("/status/:id", mfaHandler.GetQRStatus)
 				qr.POST("/scan", mfaHandler.QRMarkScanned)
 			}
@@ -368,13 +372,13 @@ func main() {
 				sign.POST("/verify", signHandler.VerifyDocument)
 
 				// Authenticated endpoints
-				sign.POST("/request", middleware.JWTAuth(jwtService), signHandler.CreateSignRequest)
-				sign.GET("/status/:id", middleware.JWTAuth(jwtService), signHandler.GetSignStatus)
-				sign.POST("/approve", middleware.JWTAuth(jwtService), signHandler.ApproveSign)
-				sign.POST("/deny", middleware.JWTAuth(jwtService), signHandler.DenySign)
-				sign.POST("/complete", middleware.JWTAuth(jwtService), signHandler.CompleteSign)
-				sign.GET("/certificates", middleware.JWTAuth(jwtService), signHandler.GetCertificates)
-				sign.GET("/history", middleware.JWTAuth(jwtService), signHandler.GetSignHistory)
+				sign.POST("/request", jwtAuth, fullJWT, signHandler.CreateSignRequest)
+				sign.GET("/status/:id", jwtAuth, fullJWT, signHandler.GetSignStatus)
+				sign.POST("/approve", jwtAuth, fullJWT, signHandler.ApproveSign)
+				sign.POST("/deny", jwtAuth, fullJWT, signHandler.DenySign)
+				sign.POST("/complete", jwtAuth, fullJWT, signHandler.CompleteSign)
+				sign.GET("/certificates", jwtAuth, fullJWT, signHandler.GetCertificates)
+				sign.GET("/history", jwtAuth, fullJWT, signHandler.GetSignHistory)
 			}
 
 			// Sign WebSocket (outside /api for cleaner URLs)
@@ -390,13 +394,13 @@ func main() {
 				eid.POST("/cards/verify", eidHandler.VerifyCard)
 
 				// Authenticated endpoints
-				eid.POST("/verify", middleware.JWTAuth(jwtService), eidHandler.VerifyEID)
-				eid.GET("/status", middleware.JWTAuth(jwtService), eidHandler.GetEIDStatus)
-				eid.POST("/cards", middleware.JWTAuth(jwtService), eidHandler.RegisterCard)
-				eid.GET("/cards/user", middleware.JWTAuth(jwtService), eidHandler.GetUserCards)
-				eid.GET("/cards/:number", middleware.JWTAuth(jwtService), eidHandler.GetCard)
-				eid.POST("/cards/revoke", middleware.JWTAuth(jwtService), eidHandler.RevokeCard)
-				eid.GET("/cards/:number/history", middleware.JWTAuth(jwtService), eidHandler.GetCardHistory)
+				eid.POST("/verify", jwtAuth, fullJWT, eidHandler.VerifyEID)
+				eid.GET("/status", jwtAuth, fullJWT, eidHandler.GetEIDStatus)
+				eid.POST("/cards", jwtAuth, fullJWT, eidHandler.RegisterCard)
+				eid.GET("/cards/user", jwtAuth, fullJWT, eidHandler.GetUserCards)
+				eid.GET("/cards/:number", jwtAuth, fullJWT, eidHandler.GetCard)
+				eid.POST("/cards/revoke", jwtAuth, fullJWT, eidHandler.RevokeCard)
+				eid.GET("/cards/:number/history", jwtAuth, fullJWT, eidHandler.GetCardHistory)
 			}
 			log.Println("Gerege e-ID routes registered")
 		}

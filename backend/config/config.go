@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,8 +17,13 @@ type Config struct {
 	Admin    AdminConfig
 	SMTP     SMTPConfig
 	MFA      MFAConfig
+	CORS     CORSConfig
 	SignDB   SignDBConfig
 	EIDDB    EIDDBConfig
+}
+
+type CORSConfig struct {
+	AllowedOrigins []string
 }
 
 type EIDDBConfig struct {
@@ -192,6 +198,9 @@ func Load() *Config {
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", ""),
 		},
+		CORS: CORSConfig{
+			AllowedOrigins: parseCORSOrigins(getEnv("CORS_ORIGINS", "https://sso.gerege.mn,http://localhost:3000,http://localhost:3001")),
+		},
 		MFA: MFAConfig{
 			EncryptionKey:  getEnv("MFA_ENCRYPTION_KEY", ""),
 			WebAuthnRPID:   getEnv("WEBAUTHN_RP_ID", "sso.gerege.mn"),
@@ -222,6 +231,17 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func parseCORSOrigins(s string) []string {
+	var origins []string
+	for _, o := range strings.Split(s, ",") {
+		o = strings.TrimSpace(o)
+		if o != "" {
+			origins = append(origins, o)
+		}
+	}
+	return origins
 }
 
 func parseDuration(s string) time.Duration {

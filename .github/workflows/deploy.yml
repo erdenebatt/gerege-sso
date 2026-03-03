@@ -1,0 +1,81 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Go build
+        working-directory: backend
+        run: go build ./...
+
+      - name: Go vet
+        working-directory: backend
+        run: go vet ./...
+
+      - name: Go test
+        working-directory: backend
+        run: go test ./...
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            cd /app/gerege-sso
+
+            echo "==> Pulling latest changes..."
+            git pull origin main
+
+            echo "==> Rebuilding containers..."
+            docker compose up -d --build backend frontend
+
+            echo "==> Waiting for backend health..."
+            RETRIES=30
+            until docker compose exec -T backend wget -qO- http://localhost:8080/health >/dev/null 2>&1; do
+              RETRIES=$((RETRIES - 1))
+              if [ $RETRIES -le 0 ]; then
+                echo "ERROR: Backend health check failed"
+                docker compose logs backend --tail 20
+                exit 1
+              fi
+              sleep 2
+            done
+            echo "==> Backend is healthy"
+
+            echo "==> Cleaning up..."
+            docker image prune -f 2>/dev/null || true
+            docker builder prune -f --keep-storage=500MB 2>/dev/null || true
+
+            echo "==> Container status:"
+            docker compose ps --format "table {{.Name}}\t{{.Status}}"
+
+            echo "==> Deploy complete!"

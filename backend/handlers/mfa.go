@@ -32,6 +32,7 @@ type MFAHandler struct {
 	userService        *services.UserService
 	wsHub              *services.WSHub
 	redis              *redis.Client
+	allowedOrigins     map[string]bool
 }
 
 // NewMFAHandler creates a new MFAHandler
@@ -47,7 +48,12 @@ func NewMFAHandler(
 	userService *services.UserService,
 	wsHub *services.WSHub,
 	rdb *redis.Client,
+	allowedOrigins []string,
 ) *MFAHandler {
+	origins := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		origins[o] = true
+	}
 	return &MFAHandler{
 		totpService:        totpService,
 		passkeyService:     passkeyService,
@@ -60,6 +66,7 @@ func NewMFAHandler(
 		userService:        userService,
 		wsHub:              wsHub,
 		redis:              rdb,
+		allowedOrigins:     origins,
 	}
 }
 
@@ -745,7 +752,10 @@ func (h *MFAHandler) QRWebSocket(c *gin.Context) {
 	}
 
 	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			return origin == "" || h.allowedOrigins[origin]
+		},
 	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

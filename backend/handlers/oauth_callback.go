@@ -118,8 +118,8 @@ func (h *AuthHandler) handleOAuthCallback(c *gin.Context, info *ProviderUserInfo
 		}
 	}
 
-	// Generate JWT
-	jwtToken, err := h.jwtService.GenerateToken(user)
+	// Generate MFA-aware JWT (temp token if MFA enabled, full token otherwise)
+	jwtToken, mfaRequired, err := h.generateMFAAwareToken(user)
 	if err != nil {
 		log.Printf("Failed to generate JWT: %v", err)
 		h.redirectWithError(c, "Failed to generate token")
@@ -144,5 +144,8 @@ func (h *AuthHandler) handleOAuthCallback(c *gin.Context, info *ProviderUserInfo
 	}
 
 	callbackURL := h.config.Public.URL + "/callback?code=" + code
+	if mfaRequired {
+		callbackURL += "&mfa_required=true"
+	}
 	c.Redirect(http.StatusSeeOther, callbackURL)
 }

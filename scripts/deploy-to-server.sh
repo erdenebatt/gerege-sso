@@ -19,9 +19,9 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # =============================================================================
 # Configuration (override via environment variables)
 # =============================================================================
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/google_compute_engine}"
-SERVER_USER="${SERVER_USER:-erdenebatt}"
-SERVER_IP="${SERVER_IP:-35.247.182.183}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/grgdev_key}"
+SERVER_USER="${SERVER_USER:-grgdev}"
+SERVER_IP="${SERVER_IP:-66.181.175.199}"
 SERVER_APP_DIR="${SERVER_APP_DIR:-/app/gerege-sso}"
 DOMAIN="${DOMAIN:-sso.gerege.mn}"
 

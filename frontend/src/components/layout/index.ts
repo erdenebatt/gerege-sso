@@ -1,6 +1,4 @@
 export { Header } from './Header'
-export { Navbar } from './Navbar'
-export { Footer } from './Footer'
 export { Sidebar } from './Sidebar'
 export * from './UserDropdown'
 export * from './DashboardHeader'

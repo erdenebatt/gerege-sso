@@ -38,15 +38,6 @@ type Citizen struct {
 	EbarimtTIN sql.NullString `json:"ebarimt_tin"`
 }
 
-// Organization represents the organizations table
-type Organization struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	RegNo     string    `json:"reg_no"`
-	Domain    string    `json:"domain,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 // User represents the users table (SSO users)
 type User struct {
 	ID            int64          `json:"id"`
@@ -69,17 +60,6 @@ type User struct {
 	UpdatedAt     time.Time      `json:"updated_at"`
 	LastLoginAt   sql.NullTime   `json:"last_login_at"`
 	Citizen       *Citizen       `json:"citizen,omitempty"`
-}
-
-// Session represents the sessions table
-type Session struct {
-	ID        string    `json:"id"`
-	UserID    int64     `json:"user_id"`
-	TokenHash string    `json:"token_hash"`
-	IPAddress string    `json:"ip_address"`
-	UserAgent string    `json:"user_agent"`
-	ExpiresAt time.Time `json:"expires_at"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 // GeregeInfo represents the 'gerege' claim in JWT

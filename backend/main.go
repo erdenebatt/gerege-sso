@@ -206,7 +206,7 @@ func main() {
 	grantService := services.NewGrantService(db)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, emailService, mfaSettingsService, rdb, cfg)
+	authHandler := handlers.NewAuthHandler(oauthService, appleOAuthService, facebookOAuthService, twitterOAuthService, jwtService, userService, auditService, emailService, rdb, cfg)
 	healthHandler := handlers.NewHealthHandler(db, rdb)
 	oauthProviderHandler := handlers.NewOAuthProviderHandler(clientService, jwtService, userService, auditService, grantService, rdb, cfg)
 	apiLogHandler := handlers.NewAPILogHandler(apiLogService)

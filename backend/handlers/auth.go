@@ -34,7 +34,6 @@ type AuthHandler struct {
 	userService          *services.UserService
 	auditService         *services.AuditService
 	emailService         *services.EmailService
-	mfaSettingsService   *services.MFASettingsService
 	redis                *redis.Client
 	config               *config.Config
 }
@@ -49,7 +48,6 @@ func NewAuthHandler(
 	userService *services.UserService,
 	auditService *services.AuditService,
 	emailService *services.EmailService,
-	mfaSettingsService *services.MFASettingsService,
 	redis *redis.Client,
 	config *config.Config,
 ) *AuthHandler {
@@ -62,7 +60,6 @@ func NewAuthHandler(
 		userService:          userService,
 		auditService:         auditService,
 		emailService:         emailService,
-		mfaSettingsService:   mfaSettingsService,
 		redis:                redis,
 		config:               config,
 	}

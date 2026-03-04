@@ -9,7 +9,6 @@ import {
   IdentityCard,
   SecurityCard,
   GrantCard,
-  FaceVerifyModal,
   PhoneVerifyModal,
 } from '@/components/dashboard'
 import { api } from '@/lib/api'
@@ -80,7 +79,6 @@ export default function DashboardPage() {
   const { user, grants, revokeGrant, fetchUser } = useAuthStore()
   const { showToast } = useToast()
 
-  const [faceModalOpen, setFaceModalOpen] = useState(false)
   const [phoneModalOpen, setPhoneModalOpen] = useState(false)
   const [revokeModalOpen, setRevokeModalOpen] = useState(false)
   const [revokeTarget, setRevokeTarget] = useState<{
@@ -158,10 +156,6 @@ export default function DashboardPage() {
   const handlePhoneSuccess = () => {
     fetchUser()
     showToast('Утасны баталгаажуулалт амжилттай', 'success')
-  }
-
-  const handleFaceSuccess = () => {
-    showToast('Царай таних амжилттай', 'success')
   }
 
   return (
@@ -453,13 +447,6 @@ export default function DashboardPage() {
         isOpen={phoneModalOpen}
         onClose={() => setPhoneModalOpen(false)}
         onSuccess={handlePhoneSuccess}
-      />
-
-      {/* Face Verify Modal */}
-      <FaceVerifyModal
-        isOpen={faceModalOpen}
-        onClose={() => setFaceModalOpen(false)}
-        onSuccess={handleFaceSuccess}
       />
 
       {/* Revoke Confirmation Modal */}

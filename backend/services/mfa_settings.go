@@ -79,39 +79,3 @@ func (s *MFASettingsService) IsMFAEnabled(userID int64) (bool, error) {
 	return enabled, nil
 }
 
-// GetEnabledMethods returns the list of enabled MFA methods for a user
-func (s *MFASettingsService) GetEnabledMethods(userID int64) ([]string, string, error) {
-	settings, err := s.GetSettings(userID)
-	if err != nil {
-		return nil, "", err
-	}
-
-	var methods []string
-	if settings.TOTPEnabled {
-		methods = append(methods, "totp")
-	}
-	if settings.PasskeyEnabled {
-		methods = append(methods, "passkey")
-	}
-	if settings.PushEnabled {
-		methods = append(methods, "push")
-	}
-
-	preferred := ""
-	if settings.PreferredMethod != nil {
-		preferred = *settings.PreferredMethod
-	}
-
-	return methods, preferred, nil
-}
-
-// SyncMFAEnabled syncs the users.mfa_enabled flag based on user_mfa_settings
-func (s *MFASettingsService) SyncMFAEnabled(userID int64) error {
-	_, err := s.db.Exec(`
-		UPDATE users SET mfa_enabled = (
-			SELECT COALESCE(totp_enabled OR passkey_enabled OR push_enabled, false)
-			FROM user_mfa_settings WHERE user_id = $1
-		) WHERE id = $1
-	`, userID)
-	return err
-}

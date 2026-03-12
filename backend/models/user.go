@@ -147,6 +147,7 @@ type RegistryVerifyLog struct {
 
 // UserResponse represents the API response for user info
 type UserResponse struct {
+	Sub             string               `json:"sub"`
 	GenID           string               `json:"gen_id"`
 	Email           string               `json:"email"`
 	Picture         string               `json:"picture,omitempty"`

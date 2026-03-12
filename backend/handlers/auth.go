@@ -591,6 +591,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	// Build response
 	response := models.UserResponse{
+		Sub:               user.GenID,
 		GenID:             user.GenID,
 		Email:             user.Email,
 		Verified:          user.Verified,

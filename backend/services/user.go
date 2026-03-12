@@ -332,12 +332,13 @@ func (s *UserService) FindByGenID(genID string) (*models.User, error) {
 
 // FindBySubject finds a user by JWT subject (user ID as string).
 // Falls back to FindByGenID for backwards compatibility with old tokens.
+// users.id is INTEGER (max 2,147,483,647), gen_id is 11-digit (10B+).
 func (s *UserService) FindBySubject(subject string) (*models.User, error) {
 	id, err := strconv.ParseInt(subject, 10, 64)
-	if err == nil {
+	if err == nil && id <= 2147483647 {
 		return s.FindByID(id)
 	}
-	// Fallback: old tokens may have gen_id as subject
+	// Fallback: old tokens have gen_id (11-digit number) as subject
 	return s.FindByGenID(subject)
 }
 

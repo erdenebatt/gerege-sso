@@ -146,7 +146,7 @@ CREATE TRIGGER trg_citizens_upd_set_updated
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    gen_id VARCHAR(11) UNIQUE NOT NULL,
+    gen_id VARCHAR(11) NOT NULL,
     google_sub VARCHAR(255) UNIQUE,
     apple_sub VARCHAR(255) UNIQUE,
     facebook_id VARCHAR(255) UNIQUE,

@@ -694,7 +694,7 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 		return
 	}
 
-	// Link to citizen
+	// Link to citizen (reuses gen_id if same citizen already verified under another account)
 	if err := h.userService.LinkCitizen(user.ID, req.RegNo); err != nil {
 		log.Printf("Failed to link citizen: %v", err)
 		middleware.RecordIdentityVerification(false)

@@ -430,12 +430,26 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 		return fmt.Errorf("failed to lock user row: %w", err)
 	}
 
-	// Step 3: Generate gen_id if user doesn't have one
+	// Step 3: Resolve gen_id — reuse existing gen_id if same citizen already verified under another account
 	genID := currentGenID.String
 	if !currentGenID.Valid || currentGenID.String == "" {
-		genID, err = s.genIDService.GenerateWithTx(tx)
-		if err != nil {
-			return fmt.Errorf("failed to generate gen_id: %w", err)
+		var existingGenID sql.NullString
+		err = tx.QueryRow(
+			`SELECT gen_id FROM users WHERE citizen_id = $1 AND id != $2 AND gen_id IS NOT NULL AND gen_id != '' LIMIT 1`,
+			citizenID, userID,
+		).Scan(&existingGenID)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("failed to check existing gen_id: %w", err)
+		}
+
+		if existingGenID.Valid && existingGenID.String != "" {
+			genID = existingGenID.String
+			log.Printf("Reusing gen_id %s from existing account for citizen_id %d (user %d)", genID, citizenID, userID)
+		} else {
+			genID, err = s.genIDService.GenerateWithTx(tx)
+			if err != nil {
+				return fmt.Errorf("failed to generate gen_id: %w", err)
+			}
 		}
 	}
 

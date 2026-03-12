@@ -270,6 +270,11 @@ func TestLinkCitizen_GeneratesGenID_WhenMissing(t *testing.T) {
 		WithArgs(int64(1)).
 		WillReturnRows(sqlmock.NewRows([]string{"gen_id"}).AddRow(nil))
 
+	// Check for existing gen_id from same citizen (none found)
+	mock.ExpectQuery(`SELECT gen_id FROM users WHERE citizen_id = \$1 AND id != \$2`).
+		WithArgs(int64(42), int64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"gen_id"}))
+
 	// GenIDService.GenerateWithTx checks uniqueness
 	mock.ExpectQuery(`SELECT COUNT\(\*\) FROM users WHERE gen_id = \$1`).
 		WithArgs(sqlmock.AnyArg()).

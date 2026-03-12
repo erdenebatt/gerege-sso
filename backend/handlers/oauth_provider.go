@@ -293,6 +293,63 @@ func (h *OAuthProviderHandler) Token(c *gin.Context) {
 	})
 }
 
+// UserInfo handles GET /api/oauth/userinfo — returns user info from the access token claims.
+// This is the OIDC-standard UserInfo endpoint. No DB lookup needed — all data is in the JWT.
+// @Summary OAuth2 UserInfo
+// @Description Returns user info from the bearer access token (third-party JWT)
+// @Tags oauth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /api/oauth/userinfo [get]
+func (h *OAuthProviderHandler) UserInfo(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+		return
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
+		return
+	}
+
+	claims, err := h.jwtService.ValidateThirdPartyToken(parts[1])
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+
+	response := gin.H{
+		"sub":            claims.Subject,
+		"email":          claims.Email,
+		"picture":        claims.Picture,
+		"email_verified": claims.EmailVerified,
+	}
+
+	// Add gerege info
+	g := claims.Gerege
+	if g.FirstName != "" {
+		response["first_name"] = g.FirstName
+	}
+	if g.LastName != "" {
+		response["last_name"] = g.LastName
+	}
+	if g.FamilyName != "" {
+		response["family_name"] = g.FamilyName
+	}
+	if g.FirstName != "" && g.LastName != "" {
+		response["full_name"] = g.LastName + " " + g.FirstName
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
 // CreateClient handles POST /api/admin/clients — registers a new OAuth2 client.
 // @Summary Create OAuth2 client
 // @Description Registers a new OAuth2 client application

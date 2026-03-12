@@ -158,6 +158,24 @@ func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
+// ValidateThirdPartyToken validates a third-party JWT token and returns its claims
+func (s *JWTService) ValidateThirdPartyToken(tokenString string) (*ThirdPartyClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &ThirdPartyClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return s.secret, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+	claims, ok := token.Claims.(*ThirdPartyClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+	return claims, nil
+}
+
 // ThirdPartyClaims represents the JWT claims for third-party tokens
 type ThirdPartyClaims struct {
 	jwt.RegisteredClaims

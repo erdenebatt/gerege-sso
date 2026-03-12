@@ -351,6 +351,7 @@ func main() {
 		{
 			oauth.GET("/authorize", oauthProviderHandler.Authorize)
 			oauth.POST("/token", oauthProviderHandler.Token)
+			oauth.GET("/userinfo", oauthProviderHandler.UserInfo)
 		}
 
 		// Admin routes (API key auth)

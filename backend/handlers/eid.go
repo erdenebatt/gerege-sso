@@ -38,7 +38,7 @@ func (h *EIDHandler) getUserFromClaims(c *gin.Context) (int64, bool) {
 	}
 	claims := claimsVal.(*services.Claims)
 
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return 0, false

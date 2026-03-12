@@ -122,7 +122,7 @@ func (h *OAuthProviderHandler) Authorize(c *gin.Context) {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
 			if claims, err := h.jwtService.ValidateToken(parts[1]); err == nil && !h.jwtService.IsBlacklisted(claims.ID) {
-				genID = claims.Subject
+				genID = claims.GenID
 			}
 		}
 	}
@@ -380,10 +380,10 @@ func (h *OAuthProviderHandler) DeleteClient(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{}
 // @Router /api/auth/grants [get]
 func (h *OAuthProviderHandler) ListMyGrants(c *gin.Context) {
-	userGenID, _ := c.Get("user_id")
-	genID := userGenID.(string)
+	userID, _ := c.Get("user_id")
+	subject := userID.(string)
 
-	user, err := h.userService.FindByGenID(genID)
+	user, err := h.userService.FindBySubject(subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 		return
@@ -412,10 +412,10 @@ func (h *OAuthProviderHandler) ListMyGrants(c *gin.Context) {
 // @Router /api/auth/grants/{id} [delete]
 func (h *OAuthProviderHandler) RevokeGrant(c *gin.Context) {
 	grantID := c.Param("id")
-	userGenID, _ := c.Get("user_id")
-	genID := userGenID.(string)
+	userID, _ := c.Get("user_id")
+	subject := userID.(string)
 
-	user, err := h.userService.FindByGenID(genID)
+	user, err := h.userService.FindBySubject(subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 		return

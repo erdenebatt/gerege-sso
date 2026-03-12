@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -327,6 +328,17 @@ func (s *UserService) FindByGenID(genID string) (*models.User, error) {
 	}
 	s.loadCitizen(user)
 	return user, nil
+}
+
+// FindBySubject finds a user by JWT subject (user ID as string).
+// Falls back to FindByGenID for backwards compatibility with old tokens.
+func (s *UserService) FindBySubject(subject string) (*models.User, error) {
+	id, err := strconv.ParseInt(subject, 10, 64)
+	if err == nil {
+		return s.FindByID(id)
+	}
+	// Fallback: old tokens may have gen_id as subject
+	return s.FindByGenID(subject)
 }
 
 // UpdateLastLogin updates the user's last login timestamp

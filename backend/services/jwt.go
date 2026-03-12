@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gerege-sso/models"
@@ -23,6 +24,7 @@ type JWTService struct {
 // Claims represents the JWT claims structure
 type Claims struct {
 	jwt.RegisteredClaims
+	GenID       string            `json:"gen_id"`
 	Email       string            `json:"email"`
 	Gerege      models.GeregeInfo `json:"gerege"`
 	MFAPending  bool              `json:"mfa_pending,omitempty"`
@@ -87,11 +89,12 @@ func (s *JWTService) GenerateToken(user *models.User) (string, error) {
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
-			Subject:   user.GenID,
+			Subject:   strconv.FormatInt(user.ID, 10),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    "gerege-sso",
 		},
+		GenID:  user.GenID,
 		Email:  user.Email,
 		Gerege: gerege,
 	}
@@ -119,11 +122,12 @@ func (s *JWTService) GenerateTempToken(user *models.User) (string, error) {
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
-			Subject:   user.GenID,
+			Subject:   strconv.FormatInt(user.ID, 10),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			Issuer:    "gerege-sso",
 		},
+		GenID:      user.GenID,
 		Email:      user.Email,
 		Gerege:     gerege,
 		MFAPending: true,

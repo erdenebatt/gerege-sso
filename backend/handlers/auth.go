@@ -573,7 +573,7 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	claims := claimsVal.(*services.Claims)
 
 	// Find user by gen_id
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil {
 		log.Printf("Failed to find user: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
@@ -689,7 +689,7 @@ func (h *AuthHandler) VerifyIdentity(c *gin.Context) {
 	}
 
 	// Find user
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -1236,7 +1236,7 @@ func (h *AuthHandler) DanCallback(c *gin.Context) {
 	}
 
 	// Find user
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -1410,7 +1410,7 @@ func (h *AuthHandler) LoginActivity(c *gin.Context) {
 
 	claims := claimsVal.(*services.Claims)
 
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -1490,7 +1490,7 @@ func (h *AuthHandler) SendPhoneOTP(c *gin.Context) {
 	claims := claimsVal.(*services.Claims)
 
 	// Find user with citizen data
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -1571,7 +1571,7 @@ func (h *AuthHandler) VerifyPhoneOTP(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.FindByGenID(claims.Subject)
+	user, err := h.userService.FindBySubject(claims.Subject)
 	if err != nil || user == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return

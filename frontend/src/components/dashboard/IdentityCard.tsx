@@ -79,19 +79,19 @@ export function IdentityCard({ user, onCopy }: IdentityCardProps) {
           <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Ургийн овог</div>
             <div className="font-medium text-slate-900 dark:text-white truncate">
-              {displayValue(user.gerege?.family_name?.toUpperCase())}
+              {displayValue(user.gerege?.family_name)}
             </div>
           </div>
           <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Овог</div>
             <div className="font-medium text-slate-900 dark:text-white truncate">
-              {displayValue(user.gerege?.last_name?.toUpperCase())}
+              {displayValue(user.gerege?.last_name)}
             </div>
           </div>
           <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">Нэр</div>
             <div className="font-medium text-slate-900 dark:text-white truncate">
-              {user.gerege?.first_name?.toUpperCase() || '—'}
+              {user.gerege?.first_name || '—'}
             </div>
           </div>
         </div>

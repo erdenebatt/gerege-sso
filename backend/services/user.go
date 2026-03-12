@@ -7,6 +7,8 @@ import (
 	"log"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"gerege-sso/models"
 )
@@ -449,6 +451,15 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	return tx.Commit()
 }
 
+// capitalize returns the string with the first letter uppercased (works with Cyrillic).
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
+}
+
 // insertCitizenFromIdentity inserts a citizen record from a ResolvedIdentity within a transaction.
 // This is the provider-agnostic version used by LinkCitizen.
 func (s *UserService) insertCitizenFromIdentity(tx *sql.Tx, identity *ResolvedIdentity) (*models.Citizen, error) {
@@ -490,7 +501,7 @@ func (s *UserService) insertCitizenFromIdentity(tx *sql.Tx, identity *ResolvedId
 		RETURNING id
 	`,
 		identity.ExternalID, fmt.Sprintf("%d", identity.CivilID), identity.RegNo,
-		identity.FamilyName, identity.LastName, identity.FirstName,
+		capitalize(identity.FamilyName), capitalize(identity.LastName), capitalize(identity.FirstName),
 		gender, birthDate, identity.PhoneNo, identity.Email,
 		identity.Nationality, identity.AimagName, identity.SumName,
 		identity.ResidentialParentAddressID, identity.ResidentialParentAddressName,
@@ -550,7 +561,7 @@ func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenRespons
 		)
 		RETURNING id
 	`,
-		resp.ID, fmt.Sprintf("%d", resp.CivilID), resp.RegNo, resp.FamilyName, resp.LastName, resp.FirstName,
+		resp.ID, fmt.Sprintf("%d", resp.CivilID), resp.RegNo, capitalize(resp.FamilyName), capitalize(resp.LastName), capitalize(resp.FirstName),
 		gender, birthDate, resp.PhoneNo, resp.Email,
 		resp.Nationality, resp.AimagName, resp.SumName,
 		resp.ResidentialParentAddressID, resp.ResidentialParentAddressName,

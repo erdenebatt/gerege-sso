@@ -174,8 +174,9 @@ func (s *JWTService) GenerateThirdPartyToken(user *models.User, audience string,
 		VerificationLevel: user.VerificationLevel,
 	}
 
-	// Enrich with citizen data only if user is verified
-	if user.Verified && user.Citizen != nil {
+	// Enrich with citizen data if available (regardless of verification status).
+	// Clients use verification_level to decide how much to trust the data.
+	if user.Citizen != nil {
 		if user.Citizen.FamilyName.Valid {
 			gerege.FamilyName = user.Citizen.FamilyName.String
 		}

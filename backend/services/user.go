@@ -27,14 +27,25 @@ const userColumns = `id, gen_id, google_sub, apple_sub, facebook_id, twitter_id,
 type UserService struct {
 	db               *sql.DB
 	genIDService     *GenIDService
+	identityResolver IdentityResolver
+	// Keep direct reference for methods that need Core-specific response format
 	geregeCoreService *GeregeCoreService
 }
 
-// NewUserService creates a new UserService
+// NewUserService creates a new UserService.
+// identityResolver is the pluggable identity provider (GeregeCoreResolver, ChainedResolver, etc.)
+// geregeCoreService is kept for backward compatibility with methods that need Core-specific data.
 func NewUserService(db *sql.DB, genIDService *GenIDService, geregeCoreService *GeregeCoreService) *UserService {
+	// Build identity resolver from available providers
+	resolver := NewChainedResolver(
+		NewGeregeCoreResolver(geregeCoreService),
+		// Future: NewEIDResolver(eidService) will be added here
+	)
+
 	return &UserService{
-		db:               db,
-		genIDService:     genIDService,
+		db:                db,
+		genIDService:      genIDService,
+		identityResolver:  resolver,
 		geregeCoreService: geregeCoreService,
 	}
 }
@@ -211,6 +222,51 @@ func (s *UserService) CreateFromTwitter(twitterInfo *models.TwitterUserInfo) (*m
 	})
 }
 
+// --- Account linking helpers ---
+
+// FindByCitizenID finds a user who is already linked to a specific citizen record.
+// Used to detect when a new provider account belongs to an already-known person.
+func (s *UserService) FindByCitizenID(citizenID int64) (*models.User, error) {
+	query := fmt.Sprintf("SELECT %s FROM users WHERE citizen_id = $1 LIMIT 1", userColumns)
+	user, err := scanUser(s.db.QueryRow(query, citizenID))
+	if err != nil {
+		return nil, err
+	}
+	s.loadCitizen(user)
+	return user, nil
+}
+
+// FindExistingUserForProvider checks if a new OAuth provider account belongs to an
+// already-known person by searching:
+//  1. Direct email match in SSO database
+//  2. citizen_id match — if any existing user shares the same citizen record
+//
+// This handles the case where one person uses multiple OAuth accounts (e.g., two Google
+// accounts with different emails). If both accounts are verified with the same reg_no,
+// the second login will detect the shared citizen and trigger account linking.
+//
+// Returns the existing user if found, nil otherwise.
+func (s *UserService) FindExistingUserForProvider(email string) (*models.User, error) {
+	if email == "" {
+		return nil, nil
+	}
+
+	// Step 1: Direct email match (existing behavior)
+	user, err := s.FindByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	if user != nil {
+		return user, nil
+	}
+
+	// Note: We intentionally do NOT search Gerege Core by email here.
+	// Identity resolution by reg_no happens during verification (LinkCitizen),
+	// not during OAuth login. This keeps login fast and avoids false positives.
+
+	return nil, nil
+}
+
 // --- Non-provider-specific methods ---
 
 // FindByID finds a user by ID
@@ -336,23 +392,23 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	).Scan(&citizenID)
 
 	if err == sql.ErrNoRows {
-		// Not found locally — try Gerege Core API
-		if s.geregeCoreService == nil {
+		// Not found locally — resolve via identity provider (Gerege Core, EID, etc.)
+		if s.identityResolver == nil {
 			return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
 		}
 
-		coreResp, coreErr := s.geregeCoreService.FindCitizen(normalizedRegNo)
-		if coreErr != nil {
-			return fmt.Errorf("failed to fetch citizen from core API: %w", coreErr)
+		identity, resolveErr := s.identityResolver.ResolveIdentity(normalizedRegNo)
+		if resolveErr != nil {
+			return fmt.Errorf("failed to resolve identity: %w", resolveErr)
 		}
-		if coreResp == nil {
+		if identity == nil {
 			return fmt.Errorf("citizen not found for reg_no: %s", normalizedRegNo)
 		}
 
-		// Insert citizen from Core API response
-		inserted, insertErr := s.insertCitizenFromCore(tx, coreResp)
+		// Insert citizen from resolved identity
+		inserted, insertErr := s.insertCitizenFromIdentity(tx, identity)
 		if insertErr != nil {
-			return fmt.Errorf("failed to insert citizen from core API: %w", insertErr)
+			return fmt.Errorf("failed to insert citizen: %w", insertErr)
 		}
 		citizenID = inserted.ID
 	} else if err != nil {
@@ -393,7 +449,67 @@ func (s *UserService) LinkCitizen(userID int64, regNo string) error {
 	return tx.Commit()
 }
 
+// insertCitizenFromIdentity inserts a citizen record from a ResolvedIdentity within a transaction.
+// This is the provider-agnostic version used by LinkCitizen.
+func (s *UserService) insertCitizenFromIdentity(tx *sql.Tx, identity *ResolvedIdentity) (*models.Citizen, error) {
+	var gender int64
+	if identity.Gender == 1 {
+		gender = 1
+	} else if identity.Gender == 2 {
+		gender = 2
+	}
+
+	birthDate := identity.BirthDate
+	if len(birthDate) >= 10 {
+		birthDate = birthDate[:10]
+	}
+
+	var citizenID int64
+	err := tx.QueryRow(`
+		INSERT INTO citizens (
+			gerege_id, civil_id, reg_no, family_name, last_name, first_name,
+			gender, birth_date, phone_no, email,
+			nationality, aimag_name, sum_name,
+			residential_parent_address_id, residential_parent_address_name,
+			residential_aimag_id, residential_aimag_code, residential_aimag_name,
+			residential_sum_id, residential_sum_code, residential_sum_name,
+			residential_bag_id, residential_bag_code, residential_bag_name,
+			residential_address_detail,
+			ebarimt_tin
+		) VALUES (
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10,
+			$11, $12, $13,
+			$14, $15,
+			$16, $17, $18,
+			$19, $20, $21,
+			$22, $23, $24,
+			$25,
+			$26
+		)
+		RETURNING id
+	`,
+		identity.ExternalID, fmt.Sprintf("%d", identity.CivilID), identity.RegNo,
+		identity.FamilyName, identity.LastName, identity.FirstName,
+		gender, birthDate, identity.PhoneNo, identity.Email,
+		identity.Nationality, identity.AimagName, identity.SumName,
+		identity.ResidentialParentAddressID, identity.ResidentialParentAddressName,
+		identity.ResidentialAimagID, identity.ResidentialAimagCode, identity.ResidentialAimagName,
+		identity.ResidentialSumID, identity.ResidentialSumCode, identity.ResidentialSumName,
+		identity.ResidentialBagID, identity.ResidentialBagCode, identity.ResidentialBagName,
+		identity.ResidentialAddressDetail,
+		identity.EbarimtTIN,
+	).Scan(&citizenID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert citizen: %w", err)
+	}
+
+	return &models.Citizen{ID: citizenID}, nil
+}
+
 // insertCitizenFromCore inserts a citizen record from Core API response within a transaction.
+// Deprecated: Use insertCitizenFromIdentity with ResolvedIdentity instead.
 func (s *UserService) insertCitizenFromCore(tx *sql.Tx, resp *CoreCitizenResponse) (*models.Citizen, error) {
 	// Convert gender int to BIGINT for the gender column
 	var gender int64
@@ -581,31 +697,31 @@ func (s *UserService) UpdateCitizenFromDAN(regNo string, data map[string]string)
 	return nil
 }
 
-// RefreshCitizenFromCore fetches latest citizen data from Core API and updates the citizen table.
+// RefreshCitizenFromIdentity fetches latest citizen data via IdentityResolver and updates the citizen table.
 // Called after DAN verification to ensure citizen data is up to date.
-func (s *UserService) RefreshCitizenFromCore(regNo string) error {
-	if s.geregeCoreService == nil {
+func (s *UserService) RefreshCitizenFromIdentity(regNo string) error {
+	if s.identityResolver == nil {
 		return nil
 	}
 
 	normalizedRegNo := strings.ToUpper(latinToCyrillic(regNo))
 
-	coreResp, err := s.geregeCoreService.FindCitizen(normalizedRegNo)
+	identity, err := s.identityResolver.ResolveIdentity(normalizedRegNo)
 	if err != nil {
-		return fmt.Errorf("core API fetch failed: %w", err)
+		return fmt.Errorf("identity resolution failed: %w", err)
 	}
-	if coreResp == nil {
+	if identity == nil {
 		return nil
 	}
 
 	var gender int64
-	if coreResp.Gender == 1 {
+	if identity.Gender == 1 {
 		gender = 1
-	} else if coreResp.Gender == 2 {
+	} else if identity.Gender == 2 {
 		gender = 2
 	}
 
-	birthDate := coreResp.BirthDate
+	birthDate := identity.BirthDate
 	if len(birthDate) >= 10 {
 		birthDate = birthDate[:10]
 	}
@@ -629,28 +745,34 @@ func (s *UserService) RefreshCitizenFromCore(regNo string) error {
 			ebarimt_tin = $35
 		WHERE UPPER(reg_no) = $36
 	`,
-		coreResp.ID, fmt.Sprintf("%d", coreResp.CivilID), coreResp.FamilyName, coreResp.LastName, coreResp.FirstName,
-		gender, birthDate, coreResp.PhoneNo, coreResp.Email,
-		coreResp.Nationality, coreResp.AimagName, coreResp.SumName,
-		coreResp.ParentAddressID, coreResp.ParentAddressName,
-		coreResp.AimagID, coreResp.AimagCode,
-		coreResp.SumID, coreResp.SumCode,
-		coreResp.BagID, coreResp.BagCode, coreResp.BagName,
-		coreResp.AddressDetail,
-		coreResp.ResidentialParentAddressID, coreResp.ResidentialParentAddressName,
-		coreResp.ResidentialAimagID, coreResp.ResidentialAimagCode, coreResp.ResidentialAimagName,
-		coreResp.ResidentialSumID, coreResp.ResidentialSumCode, coreResp.ResidentialSumName,
-		coreResp.ResidentialBagID, coreResp.ResidentialBagCode, coreResp.ResidentialBagName,
-		coreResp.ResidentialAddressDetail,
-		coreResp.EbarimtTIN,
+		identity.ExternalID, fmt.Sprintf("%d", identity.CivilID), identity.FamilyName, identity.LastName, identity.FirstName,
+		gender, birthDate, identity.PhoneNo, identity.Email,
+		identity.Nationality, identity.AimagName, identity.SumName,
+		identity.ParentAddressID, identity.ParentAddressName,
+		identity.AimagID, identity.AimagCode,
+		identity.SumID, identity.SumCode,
+		identity.BagID, identity.BagCode, identity.BagName,
+		identity.AddressDetail,
+		identity.ResidentialParentAddressID, identity.ResidentialParentAddressName,
+		identity.ResidentialAimagID, identity.ResidentialAimagCode, identity.ResidentialAimagName,
+		identity.ResidentialSumID, identity.ResidentialSumCode, identity.ResidentialSumName,
+		identity.ResidentialBagID, identity.ResidentialBagCode, identity.ResidentialBagName,
+		identity.ResidentialAddressDetail,
+		identity.EbarimtTIN,
 		normalizedRegNo,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update citizen: %w", err)
 	}
 
-	log.Printf("Refreshed citizen data from Core API for reg_no=%s", normalizedRegNo)
+	log.Printf("Refreshed citizen data via %s for reg_no=%s", s.identityResolver.Name(), normalizedRegNo)
 	return nil
+}
+
+// RefreshCitizenFromCore is a backward-compatible alias for RefreshCitizenFromIdentity.
+// Deprecated: Use RefreshCitizenFromIdentity instead.
+func (s *UserService) RefreshCitizenFromCore(regNo string) error {
+	return s.RefreshCitizenFromIdentity(regNo)
 }
 
 // citizenColumns is the standard set of columns selected for citizen queries

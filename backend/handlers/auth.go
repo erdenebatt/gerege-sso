@@ -178,27 +178,24 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	if user == nil {
-		// Check if user exists with same email (different provider)
-		if googleUser.Email != "" {
-			existingUser, err := h.userService.FindByEmail(googleUser.Email)
-			if err == nil && existingUser != nil {
-				// User exists with same email but different provider
-				// Store pending link request and redirect to identity verification
-				pendingData := map[string]string{
-					"provider":    "google",
-					"provider_id": googleUser.ID,
-					"user_id":     fmt.Sprintf("%d", existingUser.ID),
-					"email":       googleUser.Email,
-				}
-				pendingJSON, _ := json.Marshal(pendingData)
-				pendingKey := "pending_link:" + existingUser.GenID
-				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
-
-				// Redirect to identity verification page
-				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
-				c.Redirect(http.StatusSeeOther, verifyURL)
-				return
+		// Check if user exists with same email OR same citizen (different provider)
+		existingUser, _ := h.userService.FindExistingUserForProvider(googleUser.Email)
+		if existingUser != nil {
+			// User exists — store pending link request and redirect to identity verification
+			pendingData := map[string]string{
+				"provider":    "google",
+				"provider_id": googleUser.ID,
+				"user_id":     fmt.Sprintf("%d", existingUser.ID),
+				"email":       googleUser.Email,
 			}
+			pendingJSON, _ := json.Marshal(pendingData)
+			pendingKey := "pending_link:" + existingUser.GenID
+			h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
+
+			// Redirect to identity verification page
+			verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
+			c.Redirect(http.StatusSeeOther, verifyURL)
+			return
 		}
 
 		// Create new user
@@ -462,25 +459,23 @@ func (h *AuthHandler) AppleCallback(c *gin.Context) {
 	}
 
 	if user == nil {
-		// Check if user exists with same email (different provider)
-		if appleUser.Email != "" {
-			existingUser, err := h.userService.FindByEmail(appleUser.Email)
-			if err == nil && existingUser != nil {
-				// Store pending link request and redirect to identity verification
-				pendingData := map[string]string{
-					"provider":    "apple",
-					"provider_id": appleUser.Sub,
-					"user_id":     fmt.Sprintf("%d", existingUser.ID),
-					"email":       appleUser.Email,
-				}
-				pendingJSON, _ := json.Marshal(pendingData)
-				pendingKey := "pending_link:" + existingUser.GenID
-				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
-
-				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
-				c.Redirect(http.StatusSeeOther, verifyURL)
-				return
+		// Check if user exists with same email OR same citizen (different provider)
+		existingUser, _ := h.userService.FindExistingUserForProvider(appleUser.Email)
+		if existingUser != nil {
+			// Store pending link request and redirect to identity verification
+			pendingData := map[string]string{
+				"provider":    "apple",
+				"provider_id": appleUser.Sub,
+				"user_id":     fmt.Sprintf("%d", existingUser.ID),
+				"email":       appleUser.Email,
 			}
+			pendingJSON, _ := json.Marshal(pendingData)
+			pendingKey := "pending_link:" + existingUser.GenID
+			h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
+
+			verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
+			c.Redirect(http.StatusSeeOther, verifyURL)
+			return
 		}
 
 		// Create new user if not found
@@ -837,25 +832,23 @@ func (h *AuthHandler) FacebookCallback(c *gin.Context) {
 	}
 
 	if user == nil {
-		// Check if user exists with same email (different provider)
-		if fbUser.Email != "" {
-			existingUser, err := h.userService.FindByEmail(fbUser.Email)
-			if err == nil && existingUser != nil {
-				// Store pending link request and redirect to identity verification
-				pendingData := map[string]string{
-					"provider":    "facebook",
-					"provider_id": fbUser.ID,
-					"user_id":     fmt.Sprintf("%d", existingUser.ID),
-					"email":       fbUser.Email,
-				}
-				pendingJSON, _ := json.Marshal(pendingData)
-				pendingKey := "pending_link:" + existingUser.GenID
-				h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
-
-				verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
-				c.Redirect(http.StatusSeeOther, verifyURL)
-				return
+		// Check if user exists with same email OR same citizen (different provider)
+		existingUser, _ := h.userService.FindExistingUserForProvider(fbUser.Email)
+		if existingUser != nil {
+			// Store pending link request and redirect to identity verification
+			pendingData := map[string]string{
+				"provider":    "facebook",
+				"provider_id": fbUser.ID,
+				"user_id":     fmt.Sprintf("%d", existingUser.ID),
+				"email":       fbUser.Email,
 			}
+			pendingJSON, _ := json.Marshal(pendingData)
+			pendingKey := "pending_link:" + existingUser.GenID
+			h.redis.Set(ctx, pendingKey, string(pendingJSON), 10*time.Minute)
+
+			verifyURL := h.config.Public.URL + "/callback?pending_link=true&gen_id=" + existingUser.GenID
+			c.Redirect(http.StatusSeeOther, verifyURL)
+			return
 		}
 
 		// Create new user if not found

@@ -62,6 +62,13 @@ export function getInitials(name: string | undefined): string {
     .slice(0, 2)
 }
 
+export function formatGender(gender: string | undefined): string {
+  if (!gender) return '—'
+  if (gender === '1' || gender.toLowerCase() === 'male') return 'Эрэгтэй'
+  if (gender === '2' || gender.toLowerCase() === 'female') return 'Эмэгтэй'
+  return gender
+}
+
 export function getVerificationLevel(user: { verification_level?: number }): number {
   return user.verification_level || 1
 }

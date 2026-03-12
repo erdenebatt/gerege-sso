@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui'
 import { api, ApiError } from '@/lib/api'
+import { formatGender } from '@/lib/utils'
 import type { User } from '@/types'
 
 function ConsentPageContent() {
@@ -98,11 +99,11 @@ function ConsentPageContent() {
   const g = user?.gerege
   const scopeItems = [
     { icon: '✉️', label: 'Имэйл хаяг', value: user?.email },
-    { icon: '👤', label: 'Ургийн овог', value: g?.family_name },
-    { icon: '👤', label: 'Овог', value: g?.last_name },
-    { icon: '👤', label: 'Нэр', value: g?.first_name },
+    { icon: '👤', label: 'Ургийн овог', value: g?.family_name?.toUpperCase() },
+    { icon: '👤', label: 'Овог', value: g?.last_name?.toUpperCase() },
+    { icon: '👤', label: 'Нэр', value: g?.first_name?.toUpperCase() },
     { icon: '📅', label: 'Төрсөн огноо', value: g?.birth_date?.split('T')[0] },
-    { icon: '⚥', label: 'Хүйс', value: g?.gender },
+    { icon: '⚥', label: 'Хүйс', value: formatGender(g?.gender) },
   ]
 
   return (
